@@ -52,4 +52,4 @@ cp .env.example .env   # then fill in
 
 ## Author
 
-Francisco Aragão Dias — [GitHub](https://github.com/xicoooooo) · [LinkedIn](https://www.linkedin.com/in/francisco-dias-78bb13205)
+Francisco Aragão Dias © [GitHub](https://github.com/xicoooooo) · [LinkedIn](https://www.linkedin.com/in/francisco-dias-78bb13205)
