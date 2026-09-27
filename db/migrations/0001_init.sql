@@ -39,7 +39,10 @@ create table wallet_entries (
 
 create index wallet_entries_profile_idx on wallet_entries (profile_id, created_at desc);
 
-create view wallet_balances as
+-- security_invoker matters: without it a view runs as its owner and would
+-- read straight past the row level security on wallet_entries, exposing every
+-- player's balance through the public API.
+create view wallet_balances with (security_invoker = on) as
 select profile_id,
        coalesce(sum(amount), 0) as balance
 from wallet_entries
@@ -101,6 +104,10 @@ create table daily_claims (
 
 -- Lock everything down ------------------------------------------------------
 
+-- Deliberately enabled with no policies. Supabase's linter reports this as
+-- "RLS enabled, no policy", which is the intended state here: the anon and
+-- authenticated keys must read nothing at all, and the backend reaches the
+-- database with the service role, which bypasses RLS.
 alter table profiles       enable row level security;
 alter table wallet_entries enable row level security;
 alter table rounds         enable row level security;
