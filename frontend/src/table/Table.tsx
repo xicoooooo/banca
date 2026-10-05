@@ -1,15 +1,16 @@
 import { useState } from 'react'
 import { CasinoShell } from '../casino/CasinoShell'
+import { Header, type Status } from '../casino/Header'
 import { Loading } from '../casino/Loading'
 import { prefersReducedMotion } from '../casino/motion'
 import { ActionBar } from './ActionBar'
 import { AgentThinking } from './AgentThinking'
 import { Board } from './Board'
 import { HandResult } from './HandResult'
-import { Header } from './Header'
 import { Pot } from './Pot'
 import { ReasoningPanel } from './ReasoningPanel'
 import { Seat } from './Seat'
+import type { TableView } from './types'
 import { usePresentation } from './usePresentation'
 import { useTable } from './useTable'
 
@@ -17,7 +18,14 @@ import { useTable } from './useTable'
  * The poker table. State comes from the server through [useTable] and is only
  * ever drawn here; [usePresentation] adds the movement and sound on top.
  */
-export function Table() {
+function statusOf(view: TableView): Status {
+  if (view.result) return { text: 'Hand over', tone: 'quiet' }
+  if (view.actorSeat === view.yourSeat) return { text: 'Your turn', tone: 'gold' }
+  if (view.actorSeat !== null) return { text: 'AI thinking', tone: 'emerald' }
+  return { text: 'Dealing', tone: 'quiet' }
+}
+
+export function Table({ onLeave }: { onLeave?: () => void }) {
   const { view, reasoning, connection, error, refusals, send } = useTable()
   const { actions, showdown, potPulse } = usePresentation(view)
   const [showReasoning, setShowReasoning] = useState(false)
@@ -27,6 +35,7 @@ export function Table() {
   if (!view) {
     return (
       <CasinoShell>
+        <Header detail="Texas Hold'em" onLeave={onLeave} />
         {connection === 'closed' ? (
           <Loading failed message="Could not reach the table. Try again in a minute." />
         ) : (
@@ -52,7 +61,11 @@ export function Table() {
 
   return (
     <CasinoShell showdown={showdown}>
-      <Header view={view} />
+      <Header
+        detail={`Hand ${view.handNumber} · ${view.smallBlind}/${view.bigBlind}`}
+        status={statusOf(view)}
+        onLeave={onLeave}
+      />
 
       <div className="felt mt-2.5 flex flex-1 flex-col" data-leaving={leaving}>
         <div className="felt__surface flex flex-1 flex-col items-center justify-evenly gap-1.5 px-2 py-3.5 short:py-2">

@@ -1338,3 +1338,167 @@ button {
     transform: none;
   }
 }
+
+/* ---------------------------------------------------------------- blackjack */
+
+/* Blackjack has two rows of cards where poker has three, so each can be
+   larger. The sizes are worked out again here because a custom property is
+   settled where it is defined: changing the overhead alone would not reach
+   sizes already computed at the root. */
+.bj-felt {
+  --table-overhead: 556px;
+  --card-rows: calc((100dvh - var(--table-overhead)) / 1.4);
+  --card-opponent: clamp(34px, min(13.5vw, var(--card-rows) * 0.34), 84px);
+  --card-board: clamp(40px, min(16.5vw, var(--card-rows) * 0.44), 104px);
+  --card-hero: clamp(46px, min(19vw, var(--card-rows) * 0.56), 124px);
+}
+
+@media (max-height: 740px) {
+  .bj-felt {
+    --table-overhead: 540px;
+  }
+}
+
+/* Cards in a blackjack hand overlap, each showing its index past the last, so
+   a hand of five takes little more room than a hand of two. */
+.fan {
+  display: flex;
+  justify-content: center;
+}
+
+.fan > * + * {
+  margin-left: calc(var(--w) * -0.42);
+}
+
+.total {
+  display: inline-grid;
+  min-width: 2.1rem;
+  place-items: center;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: var(--glass-strong);
+  border: 1px solid var(--hairline);
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--color-ivory);
+  transition:
+    color var(--t-medium),
+    border-color var(--t-medium);
+}
+
+.total[data-tone='good'] {
+  color: var(--color-gold-bright);
+  border-color: rgb(241 199 91 / 0.5);
+}
+
+.total[data-tone='bad'] {
+  color: rgb(245 241 232 / 0.45);
+}
+
+/* The hand being played stands a little forward of the others. */
+.bj-hand {
+  transition:
+    opacity var(--t-medium) var(--ease-soft),
+    scale var(--t-medium) var(--ease-soft);
+}
+
+.bj-hand[data-waiting='true'] {
+  opacity: 0.62;
+  scale: 0.94;
+}
+
+.bj-hand[data-outcome='win'] .pcard,
+.bj-hand[data-outcome='blackjack'] .pcard {
+  translate: 0 -5px;
+  filter: drop-shadow(0 0 12px rgb(241 199 91 / 0.38));
+}
+
+.bj-hand[data-outcome='lose'] .fan,
+.bj-hand[data-outcome='bust'] .fan {
+  opacity: 0.55;
+  filter: saturate(0.7);
+  transition:
+    opacity 600ms var(--ease-soft),
+    filter 600ms var(--ease-soft);
+}
+
+/* A betting chip you can press: the physical object is the control. */
+.chip-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  transition: transform var(--t-micro) var(--ease-soft);
+}
+
+.chip-button .chip {
+  --chip: clamp(46px, 13vw, 58px);
+}
+
+.chip-button span:last-child {
+  position: absolute;
+  font-size: 0.78rem;
+  font-weight: 750;
+  color: var(--color-ivory);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.7);
+}
+
+.chip-button[data-light='true'] span:last-child {
+  color: #1d1503;
+  text-shadow: none;
+}
+
+@media (hover: hover) {
+  .chip-button:hover:not(:disabled) {
+    transform: translateY(-3px) rotate(-6deg);
+  }
+}
+
+.chip-button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.96);
+}
+
+.chip-button:disabled {
+  opacity: 0.35;
+}
+
+/* ------------------------------------------------------------------- lobby */
+
+.game-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.35rem 1.4rem;
+  border: 1px solid var(--hairline);
+  border-radius: 26px;
+  text-align: left;
+  color: var(--color-ivory);
+  background: radial-gradient(120% 140% at 15% 0%, rgb(15 122 95 / 0.5), rgb(7 61 49 / 0.36) 55%, rgb(3 30 25 / 0.3));
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.06),
+    inset 0 0 50px rgb(0 0 0 / 0.3),
+    0 20px 50px rgb(0 0 0 / 0.4);
+  transition:
+    transform var(--t-micro) var(--ease-soft),
+    border-color var(--t-medium) var(--ease-soft),
+    box-shadow var(--t-medium) var(--ease-soft);
+}
+
+@media (hover: hover) {
+  .game-tile:hover {
+    transform: translateY(-3px);
+    border-color: rgb(241 199 91 / 0.4);
+    box-shadow:
+      inset 0 1px 1px rgb(255 255 255 / 0.06),
+      inset 0 0 50px rgb(0 0 0 / 0.3),
+      0 26px 60px rgb(0 0 0 / 0.45),
+      0 0 40px rgb(241 199 91 / 0.1);
+  }
+}
+
+.game-tile:active {
+  transform: translateY(1px) scale(0.99);
+}

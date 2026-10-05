@@ -1,27 +1,12 @@
-import { useState, type CSSProperties } from 'react'
+import type { CSSProperties } from 'react'
 import { Card, CardSlot } from '../casino/Card'
+import { useCountBefore } from '../casino/useCountBefore'
 import type { TableView } from './types'
 import { TIMING } from './usePresentation'
 
-/**
- * How many cards were already on the board before the latest ones arrived, so
- * the new ones can be dealt in turn. Kept as state adjusted during render,
- * which is how React asks for a value that depends on the previous one.
- */
-function useAlreadyDown(count: number, handNumber: number): number {
-  const [seen, setSeen] = useState({ count, handNumber, before: 0 })
-
-  if (seen.count !== count || seen.handNumber !== handNumber) {
-    const before = seen.handNumber === handNumber ? seen.count : 0
-    setSeen({ count, handNumber, before })
-    return before
-  }
-  return seen.before
-}
-
 /** The five community cards, dealt into their places a street at a time. */
 export function Board({ view }: { view: TableView }) {
-  const alreadyDown = useAlreadyDown(view.board.length, view.handNumber)
+  const alreadyDown = useCountBefore(view.board.length, view.handNumber)
 
   return (
     <section aria-label="Board">

@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import { Card } from '../casino/Card'
 import { ChipStack } from '../casino/Chip'
-import { Plate } from './Plate'
+import { Plate } from '../casino/Plate'
 import type { PlayerView, TableView } from './types'
 import { TIMING } from './usePresentation'
 

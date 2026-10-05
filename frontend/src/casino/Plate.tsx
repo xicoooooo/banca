@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { AnimatedNumber } from '../casino/AnimatedNumber'
+import { AnimatedNumber } from './AnimatedNumber'
 
 type PlateProps = {
   /** The seat number, which names the place chips fly to and from. */
