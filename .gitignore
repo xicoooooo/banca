@@ -34,3 +34,6 @@ pnpm-debug.log*
 # Logs and coverage
 *.log
 coverage/
+
+# Local tooling
+.claude/

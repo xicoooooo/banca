@@ -1,0 +1,117 @@
+package com.banca.ws
+
+import com.banca.module
+import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
+import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.client.plugins.websocket.webSocket
+import io.ktor.server.testing.ApplicationTestBuilder
+import io.ktor.server.testing.testApplication
+import io.ktor.websocket.Frame
+import io.ktor.websocket.readText
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlin.random.Random
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.time.Duration
+
+class TableSocketTest {
+
+    private fun table(test: suspend DefaultClientWebSocketSession.() -> Unit) = testApplication {
+        application {
+            module(TableSocketConfig(opponentDelay = Duration.ZERO, random = { Random(3) }))
+        }
+        socketClient().webSocket("/ws/table") { test() }
+    }
+
+    private fun ApplicationTestBuilder.socketClient() = createClient { install(WebSockets) }
+
+    private suspend fun DefaultClientWebSocketSession.receiveMessage(): JsonObject =
+        wireJson.parseToJsonElement((incoming.receive() as Frame.Text).readText()).jsonObject
+
+    /** Reads states until the person has a decision or the hand has ended. */
+    private suspend fun DefaultClientWebSocketSession.receiveUntilMyTurnOrOver(): JsonObject {
+        while (true) {
+            val view = receiveMessage().also { assertEquals("state", it.type) }.getValue("view").jsonObject
+            val myTurn = view["actorSeat"]?.takeIf { it !is JsonNull }?.jsonPrimitive?.int == 0
+            if (myTurn || view["result"] !is JsonNull) return view
+        }
+    }
+
+    private val JsonObject.type: String get() = getValue("type").jsonPrimitive.content
+
+    @Test
+    fun `connecting deals a hand and sends the person their view`() = table {
+        val view = receiveMessage().also { assertEquals("state", it.type) }.getValue("view").jsonObject
+
+        assertEquals(0, view.getValue("yourSeat").jsonPrimitive.int)
+        assertEquals(1, view.getValue("handNumber").jsonPrimitive.int)
+
+        val players = view.getValue("players").jsonArray.map { it.jsonObject }
+        assertEquals(2, players.size)
+        assertEquals(2, players[0].getValue("cards").jsonArray.size, "the person sees their own cards")
+        assertTrue(players[1].getValue("cards") is JsonNull, "and never the opponent's")
+    }
+
+    @Test
+    fun `folding ends the hand and a new one can be dealt`() = table {
+        receiveUntilMyTurnOrOver()
+
+        send(Frame.Text("""{"type":"act","action":"fold"}"""))
+        val over = receiveUntilMyTurnOrOver()
+        assertTrue(over["result"] !is JsonNull)
+
+        send(Frame.Text("""{"type":"next_hand"}"""))
+        val next = receiveMessage().getValue("view").jsonObject
+        assertEquals(2, next.getValue("handNumber").jsonPrimitive.int)
+    }
+
+    @Test
+    fun `a whole hand can be played to showdown over the socket`() = table {
+        var view = receiveUntilMyTurnOrOver()
+
+        var guard = 0
+        while (view["result"] is JsonNull) {
+            check(guard++ < 50) { "the hand did not finish" }
+            val canCheck = view.getValue("legal").jsonObject.getValue("canCheck").jsonPrimitive.content == "true"
+            send(Frame.Text("""{"type":"act","action":"${if (canCheck) "check" else "call"}"}"""))
+            view = receiveUntilMyTurnOrOver()
+        }
+
+        assertEquals("showdown", view.getValue("street").jsonPrimitive.content)
+        assertEquals(5, view.getValue("board").jsonArray.size)
+        val players = view.getValue("players").jsonArray.map { it.jsonObject }
+        assertTrue(players.all { it.getValue("cards") !is JsonNull }, "the showdown reveals both hands")
+    }
+
+    @Test
+    fun `an illegal action is answered with an error and the table carries on`() = table {
+        val view = receiveUntilMyTurnOrOver()
+        val maxTo = view.getValue("legal").jsonObject.getValue("maxTo").jsonPrimitive.content.toLong()
+
+        send(Frame.Text("""{"type":"act","action":"raise","amount":${maxTo + 1}}"""))
+        assertEquals("error", receiveMessage().type)
+
+        send(Frame.Text("""{"type":"act","action":"fold"}"""))
+        assertTrue(receiveUntilMyTurnOrOver()["result"] !is JsonNull, "the table still works afterwards")
+    }
+
+    @Test
+    fun `nonsense is answered with an error rather than a dropped connection`() = table {
+        receiveUntilMyTurnOrOver()
+
+        send(Frame.Text("this is not json"))
+        assertEquals("error", receiveMessage().type)
+
+        send(Frame.Text("""{"type":"act","action":"dance"}"""))
+        assertEquals("error", receiveMessage().type)
+
+        send(Frame.Text("""{"type":"next_hand"}"""))
+        assertEquals("error", receiveMessage().type, "a hand is still in progress")
+    }
+}

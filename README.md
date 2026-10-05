@@ -4,7 +4,7 @@ A multi-game social casino played with virtual chips: Texas Hold'em, blackjack a
 
 > **Play money only.** Chips are free, cannot be bought, cannot be cashed out, and have no value. Banca is not a gambling application and never handles real money.
 
-**Status:** early development. The design is settled and the build is starting; there is nothing to play yet.
+**Status:** in development. The Hold'em engine is complete and a heads-up table is playable in the browser against a placeholder opponent. The agent that replaces it is next.
 
 ## Why it exists
 
@@ -44,11 +44,19 @@ Everything runs on free tiers: Supabase for database and auth, Render for the ba
 
 ## Running locally
 
-Not yet runnable. Setup instructions arrive with the first working slice.
+You need JDK 21 or newer and Node 22. Nothing else: the table does not use the database yet.
 
 ```bash
-cp .env.example .env   # then fill in
+cd backend && ./gradlew run
 ```
+
+```bash
+cd frontend && npm install && npm run dev
+```
+
+Then open http://localhost:5173. The backend listens on port 8080, and the frontend talks to it over the WebSocket described in [`docs/protocol.md`](docs/protocol.md).
+
+Run the tests with `./gradlew test` in `backend/`.
 
 ## Author
 
