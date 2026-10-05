@@ -1,0 +1,16 @@
+name: Keep warm
+
+# Free hosting puts the backend to sleep after about fifteen minutes without a
+# request, and waking it takes close to a minute. A request every ten minutes
+# keeps it awake, within the free plan's monthly hours for one service.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the backend
+        run: curl --fail --silent --show-error --max-time 90 https://banca-backend-mmcc.onrender.com/health
