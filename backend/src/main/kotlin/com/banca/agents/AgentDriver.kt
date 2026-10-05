@@ -49,9 +49,10 @@ class AgentDriver(
 
     override suspend fun decide(view: TableView, trace: suspend (TraceEvent) -> Unit): Action {
         val tools = PokerTools(view, config.random)
+        val timing = Timing()
 
         val problem = try {
-            withTimeout(config.timeout) { converse(tools, trace) }
+            withTimeout(config.timeout) { converse(tools, trace, timing) }
             if (tools.decision == null) "it did not reach a decision" else null
         } catch (timeout: TimeoutCancellationException) {
             "it ran out of time"
@@ -61,6 +62,11 @@ class AgentDriver(
             log.warn("Agent turn failed", failure)
             "the model could not be reached"
         }
+
+        log.info(
+            "Agent turn took {} ms: {} ms connecting tools, {} ms in {} model calls, {} ms in {} tool calls",
+            timing.sinceStart(), timing.setup, timing.model, timing.modelCalls, timing.tools, timing.toolCalls,
+        )
 
         tools.decision?.let { decided ->
             trace(TraceEvent(TraceEvent.DECISION, "Decided to ${PokerTools.describe(decided)}"))
@@ -78,7 +84,28 @@ class AgentDriver(
         return safe
     }
 
-    private suspend fun converse(tools: PokerTools, trace: suspend (TraceEvent) -> Unit) {
+    /** Where a turn's time went, for the log. Hosting on little CPU makes this worth watching. */
+    private class Timing {
+        private val start = System.nanoTime()
+        var setup = 0L
+        var model = 0L
+        var modelCalls = 0
+        var tools = 0L
+        var toolCalls = 0
+
+        fun sinceStart(): Long = (System.nanoTime() - start) / 1_000_000
+
+        inline fun <T> timed(record: (Long) -> Unit, block: () -> T): T {
+            val began = System.nanoTime()
+            try {
+                return block()
+            } finally {
+                record((System.nanoTime() - began) / 1_000_000)
+            }
+        }
+    }
+
+    private suspend fun converse(tools: PokerTools, trace: suspend (TraceEvent) -> Unit, timing: Timing) {
         // The link's message pumps live on their own job so they can be stopped
         // however the conversation ends.
         val link = CoroutineScope(currentCoroutineContext() + Job())
@@ -86,11 +113,14 @@ class AgentDriver(
         val client = Client(Implementation(name = "banca-agent", version = "0.1.0"))
 
         try {
-            val (serverEnd, clientEnd) = LinkedTransport.pair(link)
-            server.createSession(serverEnd)
-            client.connect(clientEnd)
+            val listed = timing.timed({ timing.setup = it }) {
+                val (serverEnd, clientEnd) = LinkedTransport.pair(link)
+                server.createSession(serverEnd)
+                client.connect(clientEnd)
+                client.listTools().tools
+            }
 
-            val specs = client.listTools().tools.map { tool ->
+            val specs = listed.map { tool ->
                 ToolSpec(
                     name = tool.name,
                     description = tool.description.orEmpty(),
@@ -107,7 +137,7 @@ class AgentDriver(
             )
 
             repeat(config.maxModelCalls) {
-                val answer = model.chat(messages, specs)
+                val answer = timing.timed({ timing.model += it; timing.modelCalls++ }) { model.chat(messages, specs) }
                 // Small models sometimes write a tool call out as text instead
                 // of making it. Reading it back costs nothing and saves the turn.
                 val written = if (answer.toolCalls.isEmpty()) writtenToolCalls(answer.text, specs) else emptyList()
@@ -122,9 +152,11 @@ class AgentDriver(
                 }
 
                 for (call in reply.toolCalls) {
-                    val result = client.callTool(
-                        CallToolRequest(CallToolRequestParams(name = call.name, arguments = call.arguments)),
-                    )
+                    val result = timing.timed({ timing.tools += it; timing.toolCalls++ }) {
+                        client.callTool(
+                            CallToolRequest(CallToolRequestParams(name = call.name, arguments = call.arguments)),
+                        )
+                    }
                     val text = result.content.filterIsInstance<TextContent>().joinToString("\n") { it.text }
                     messages += ChatMessage.ToolResult(call.name, text)
 
@@ -196,18 +228,26 @@ class AgentDriver(
 
     private companion object {
         val SYSTEM_PROMPT = """
-            You are Banca, playing no-limit Texas Hold'em for play chips. You are a solid, slightly aggressive player.
+            You are Banca, playing heads-up no-limit Texas Hold'em for play chips. You play a tight-aggressive game: you bet and raise your good hands, and you give up your bad ones.
 
-            On every turn:
-            1. Call get_game_state, get_hand_equity and get_pot_odds together, in one step, to understand the spot. Call get_legal_actions only if you are unsure what is allowed.
-            2. Call submit_action exactly once to commit your decision.
+            Every turn, in this order:
+            1. Call get_game_state, get_hand_equity, get_pot_odds and get_legal_actions together, in one step.
+            2. Call submit_action exactly once. For a bet or raise, use one of the amounts get_legal_actions offers.
 
-            How to decide:
-            - Never fold when checking is free.
-            - Facing a bet, calling is profitable when your equity is higher than the pot odds.
-            - With strong equity (above about 0.65) bet or raise for value, usually between half the pot and the whole pot.
-            - With weak equity, check when you can and fold to large bets. Bluff only occasionally.
-            - Amounts are the total to have in front of you this street.
+            Your equity is measured against a random hand. An opponent who bets or raises usually holds better than random, so when you face a bet, treat your equity as about 0.10 lower than the tool says.
+
+            When you can check (nothing to call):
+            - Equity above 0.65: bet two thirds of the pot, or the whole pot with equity above 0.80.
+            - Equity 0.50 to 0.65: bet half the pot.
+            - Equity below 0.50: check. About one time in five, bet half the pot as a bluff instead.
+            - Before the flop, with equity above 0.55, raise rather than just check.
+
+            When you face a bet:
+            - Adjusted equity above 0.70: raise, to the half-pot or pot amount.
+            - Adjusted equity above the pot odds: call.
+            - Otherwise fold. Do not call just because the bet is small.
+
+            Never fold when you can check. Checking and calling every hand is losing poker: when the numbers say bet or raise, do it.
 
             Do not explain at length. If you write anything, keep it to one short sentence. Always finish by calling submit_action as a real tool call, never by writing it out as text.
         """.trimIndent()

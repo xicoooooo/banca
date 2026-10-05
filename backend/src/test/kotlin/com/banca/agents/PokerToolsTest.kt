@@ -149,8 +149,14 @@ class PokerToolsTest {
     }
 
     @Test
-    fun `fold is always accepted`() {
+    fun `folding to a bet is accepted`() {
         val tools = tools().also { submit(it, "fold") }
         assertEquals(Action.Fold, tools.decision)
+    }
+
+    @Test
+    fun `folding when checking is free becomes a check`() {
+        val tools = tools(checkedTo()).also { submit(it, "fold") }
+        assertEquals(Action.Check, tools.decision)
     }
 }

@@ -33,9 +33,7 @@ import kotlin.random.Random
 class PokerTools(
     private val view: TableView,
     private val random: Random = Random.Default,
-    // Enough for an estimate good to about two points either way, and cheap
-    // enough for the fraction of a processor that free hosting provides.
-    private val equityIterations: Int = 800,
+    private val equityIterations: Int = 3_000,
 ) {
     private val legal = view.legal ?: error("Tools are only built for the seat that is to act")
     private val me = view.players.single { it.seat == view.yourSeat }
@@ -75,12 +73,22 @@ class PokerTools(
             if (legal.canRaise) add(JsonPrimitive("raise"))
         }
         if (legal.canCall) put("call_cost", legal.callCost)
+        // Ready-made sizes, because a model asked to do pot arithmetic tends
+        // to reach for the minimum instead.
         if (legal.canBet) putJsonObject("bet_amount") {
             put("min", legal.minBet)
+            put("half_pot", (view.pot / 2).coerceIn(legal.minBet, legal.maxTo))
+            put("two_thirds_pot", (view.pot * 2 / 3).coerceIn(legal.minBet, legal.maxTo))
+            put("pot", view.pot.coerceIn(legal.minBet, legal.maxTo))
             put("max", legal.maxTo)
         }
         if (legal.canRaise) putJsonObject("raise_to_amount") {
+            // A raise is sized on the pot as it stands once the bet is called.
+            val matched = me.committed + legal.callCost
+            val potAfterCall = view.pot + legal.callCost
             put("min", legal.minRaiseTo)
+            put("half_pot", (matched + potAfterCall / 2).coerceIn(legal.minRaiseTo, legal.maxTo))
+            put("pot", (matched + potAfterCall).coerceIn(legal.minRaiseTo, legal.maxTo))
             put("max", legal.maxTo)
         }
         put("note", "Amounts are the total to have in front of you this street. The max is all-in.")
@@ -119,7 +127,8 @@ class PokerTools(
         val amount = arguments["amount"]?.jsonPrimitive?.longOrNull
 
         val action: Action = when (name) {
-            "fold" -> Action.Fold
+            // Folding when checking costs nothing only throws the hand away.
+            "fold" -> if (legal.canCheck) Action.Check else Action.Fold
             "check" -> if (legal.canCheck) Action.Check else return "Error: you cannot check, there is a bet to call."
             "call" -> when {
                 legal.canCall -> Action.Call
