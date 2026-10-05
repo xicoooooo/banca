@@ -32,6 +32,7 @@ dependencies {
 
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("io.ktor:ktor-client-websockets")
+    testImplementation("io.ktor:ktor-client-mock")
     testImplementation(kotlin("test"))
 }
 

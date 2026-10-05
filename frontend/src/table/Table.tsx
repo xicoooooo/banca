@@ -15,7 +15,7 @@ export function Table() {
       <Shell>
         <p className="m-auto text-white/60">
           {connection === 'closed'
-            ? 'Could not reach the table. Is the backend running?'
+            ? 'Could not reach the table. Try again in a minute.'
             : 'Waking up the table…'}
         </p>
       </Shell>

@@ -96,7 +96,6 @@ class PokerTools(
         return buildJsonObject {
             put("equity", equity.rounded())
             put("against", "$opponents random hand${if (opponents == 1) "" else "s"}")
-            put("meaning", "The share of the pot you win on average if the hand is played to showdown.")
         }
     }
 
@@ -104,14 +103,7 @@ class PokerTools(
         put("pot", view.pot)
         put("call_cost", legal.callCost)
         put("pot_odds", PokerMath.potOdds(view.pot, legal.callCost).rounded())
-        put(
-            "meaning",
-            if (legal.callCost == 0L) {
-                "Nothing to call, so checking is free."
-            } else {
-                "Calling pays off in the long run when your equity is higher than pot_odds."
-            },
-        )
+        if (legal.callCost == 0L) put("note", "Nothing to call, checking is free.")
     }
 
     /**
