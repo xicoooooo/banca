@@ -29,7 +29,10 @@ export function Table() {
   return (
     <Shell>
       <header className="flex items-center justify-between text-sm text-white/60">
-        <span className="font-semibold tracking-tight text-white">Banca</span>
+        <span className="flex items-center gap-2 font-semibold tracking-tight text-white">
+          <img src="/logo-192.png" alt="" width={28} height={28} className="h-7 w-7" />
+          Banca
+        </span>
         <span>
           Hand {view.handNumber} · Blinds {view.smallBlind}/{view.bigBlind}
         </span>

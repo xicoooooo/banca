@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="frontend/public/logo.png" alt="Banca logo" width="160" />
+</p>
+
 # Banca
 
 A multi-game social casino played with virtual chips: Texas Hold'em, blackjack and roulette, with opponents and coaches driven by a language model that decides by calling tools over the [Model Context Protocol](https://modelcontextprotocol.io). Their reasoning streams to the table as it happens, so you can watch an opponent work out its decision, or ask it to explain yours.
