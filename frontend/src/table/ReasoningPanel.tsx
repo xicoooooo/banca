@@ -1,17 +1,78 @@
+import type { CSSProperties } from 'react'
 import type { TraceEvent } from './types'
 import type { Reasoning } from './useTable'
 
-const MARKS: Record<TraceEvent['kind'], string> = {
-  tool: '⚙',
-  thought: '…',
-  decision: '→',
-  fallback: '!',
+/** Pulls the figures worth showing out of what a tool returned. */
+function summarise(detail: string): { tool: string; facts: string[] } | null {
+  const arrow = detail.indexOf(' → ')
+  if (arrow < 0) return null
+
+  const tool = detail.slice(0, arrow)
+  try {
+    const data = JSON.parse(detail.slice(arrow + 3)) as Record<string, unknown>
+    const percent = (value: unknown) => `${Math.round(Number(value) * 100)}%`
+
+    switch (tool) {
+      case 'get_game_state':
+        return {
+          tool,
+          facts: [
+            `Cards ${(data.your_cards as string[]).join(' ')}`,
+            (data.board as string[]).length > 0 ? `Board ${(data.board as string[]).join(' ')}` : 'No board yet',
+            `Pot ${data.pot}`,
+          ],
+        }
+      case 'get_hand_equity':
+        return { tool, facts: [`Equity ${percent(data.equity)}`, `against ${data.against}`] }
+      case 'get_pot_odds':
+        return {
+          tool,
+          facts: Number(data.call_cost) > 0
+            ? [`${data.call_cost} to call`, `needs ${percent(data.pot_odds)} to break even`]
+            : ['Nothing to call'],
+        }
+      case 'get_legal_actions':
+        return { tool, facts: [`May ${(data.actions as string[]).join(', ')}`] }
+      default:
+        return { tool, facts: [] }
+    }
+  } catch {
+    return { tool, facts: [] }
+  }
+}
+
+function Step({ event, index }: { event: TraceEvent; index: number }) {
+  const summary = event.detail ? summarise(event.detail) : null
+  const isDecision = event.kind === 'decision'
+
+  return (
+    <li
+      className="rise-in flex gap-3 border-b border-white/5 py-2.5 last:border-0"
+      style={{ '--rise-delay': `${Math.min(index, 12) * 35}ms` } as CSSProperties}
+    >
+      <span
+        aria-hidden
+        className={`mt-1.5 h-1.5 w-1.5 flex-none rounded-full ${
+          isDecision ? 'bg-gold-bright' : event.kind === 'fallback' ? 'bg-red-400' : 'bg-emerald-300/70'
+        }`}
+      />
+      <div className="min-w-0">
+        <p className={isDecision ? 'font-semibold text-gold-bright' : 'text-ivory'}>{event.label}</p>
+
+        {summary && summary.facts.length > 0 && (
+          <p className="figure pt-0.5 text-sm text-muted">{summary.facts.join(' · ')}</p>
+        )}
+        {summary && <p className="pt-0.5 font-mono text-[0.65rem] tracking-wide text-white/30">{summary.tool}</p>}
+        {event.detail && !summary && <p className="pt-0.5 text-sm text-muted">{event.detail}</p>}
+      </div>
+    </li>
+  )
 }
 
 /**
- * How the opponent reached its decisions this hand. While the hand is live
- * only the steps are listed; what each step returned would give its cards
- * away, so the server sends that only afterwards.
+ * The agent's account of a hand: every tool it called and what it decided.
+ * During the hand only the steps are known; what each returned arrives from
+ * the server once the hand is over.
  */
 export function ReasoningPanel({
   reasoning,
@@ -23,45 +84,38 @@ export function ReasoningPanel({
   onClose: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-10 flex items-end justify-center bg-black/50 sm:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 sm:items-center" onClick={onClose}>
       <section
         role="dialog"
+        aria-modal="true"
         aria-label={`${name}'s reasoning`}
         onClick={(event) => event.stopPropagation()}
-        className="flex max-h-[80dvh] w-full max-w-xl flex-col rounded-t-2xl bg-felt-800 p-4 shadow-xl sm:rounded-2xl"
+        className="glass glass--strong rise-in flex max-h-[82dvh] w-full max-w-lg flex-col rounded-t-3xl p-5 sm:rounded-3xl"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
       >
-        <header className="flex items-center justify-between pb-3">
-          <h2 className="font-semibold">How {name} played hand {reasoning.handNumber}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg bg-black/30 px-3 py-1 text-sm hover:bg-black/40">
+        <header className="flex items-start justify-between gap-4 pb-3">
+          <div>
+            <p className="label">Agent · Hand {reasoning.handNumber}</p>
+            <h2 className="pt-1 text-lg font-semibold text-ivory">How {name} played it</h2>
+          </div>
+          <button type="button" onClick={onClose} className="btn btn--quiet px-3!">
             Close
           </button>
         </header>
 
         {reasoning.events.length === 0 ? (
-          <p className="py-6 text-center text-sm text-white/60">{name} has not had to decide anything yet.</p>
+          <p className="py-8 text-center text-muted">{name} has not had to decide anything yet.</p>
         ) : (
-          <ol className="flex flex-col gap-2 overflow-y-auto">
+          <ol className="overflow-y-auto pr-1">
             {reasoning.events.map((event, index) => (
-              <li key={index} className="rounded-xl bg-black/25 px-3 py-2">
-                <p className={`flex gap-2 ${event.kind === 'decision' ? 'font-semibold text-chip-gold' : ''}`}>
-                  <span aria-hidden className="w-4 shrink-0 text-center opacity-70">
-                    {MARKS[event.kind]}
-                  </span>
-                  {event.label}
-                </p>
-                {event.detail && (
-                  <p className="mt-1 pl-6 font-mono text-xs break-words whitespace-pre-wrap text-white/70">
-                    {event.detail}
-                  </p>
-                )}
-              </li>
+              <Step key={index} event={event} index={index} />
             ))}
           </ol>
         )}
 
         {!reasoning.revealed && reasoning.events.length > 0 && (
-          <p className="pt-3 text-center text-xs text-white/50">
-            What each step returned stays hidden until the hand is over, or you would see its cards.
+          <p className="label pt-4 text-center leading-relaxed">
+            What each step found stays hidden until the hand is over
           </p>
         )}
       </section>
