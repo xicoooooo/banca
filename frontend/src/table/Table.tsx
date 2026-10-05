@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { CardBack, CardSlot, PlayingCard } from './PlayingCard'
+import { ReasoningPanel } from './ReasoningPanel'
 import type { ClientMessage, LegalView, PlayerView, TableView } from './types'
 import { useTable } from './useTable'
 
 const chips = (amount: number) => amount.toLocaleString('en-US')
 
 export function Table() {
-  const { view, connection, error, send } = useTable()
+  const { view, reasoning, connection, error, send } = useTable()
+  const [showReasoning, setShowReasoning] = useState(false)
 
   if (!view) {
     return (
@@ -22,6 +24,7 @@ export function Table() {
 
   const me = view.players.find((p) => p.seat === view.yourSeat)!
   const opponent = view.players.find((p) => p.seat !== view.yourSeat)!
+  const latestStep = reasoning.events.at(-1)?.label
 
   return (
     <Shell>
@@ -30,6 +33,13 @@ export function Table() {
         <span>
           Hand {view.handNumber} · Blinds {view.smallBlind}/{view.bigBlind}
         </span>
+        <button
+          type="button"
+          onClick={() => setShowReasoning(true)}
+          className="rounded-lg bg-black/30 px-3 py-1 text-white hover:bg-black/40"
+        >
+          Reasoning{reasoning.events.length > 0 && ` (${reasoning.events.length})`}
+        </button>
       </header>
 
       <div className="flex flex-1 flex-col items-center justify-evenly gap-4 py-4">
@@ -48,7 +58,12 @@ export function Table() {
           </p>
         )}
         {view.result ? (
-          <Result view={view} onNextHand={() => send({ type: 'next_hand' })} />
+          <Result
+            view={view}
+            onNextHand={() => send({ type: 'next_hand' })}
+            onShowReasoning={reasoning.events.length > 0 ? () => setShowReasoning(true) : undefined}
+            opponentName={opponent.name}
+          />
         ) : view.legal ? (
           <Actions
             // A fresh decision gets fresh controls, so the amount never carries over.
@@ -59,9 +74,17 @@ export function Table() {
             send={send}
           />
         ) : (
-          <p className="pt-6 text-center text-white/60">{opponent.name} is thinking…</p>
+          <div aria-live="polite" className="pt-6 text-center text-white/60">
+            <p>{opponent.name} is thinking…</p>
+            {/* Only the step is shown here; what it found stays private until the hand ends. */}
+            {latestStep && <p className="pt-1 text-sm text-white/40">{latestStep}</p>}
+          </div>
         )}
       </footer>
+
+      {showReasoning && (
+        <ReasoningPanel reasoning={reasoning} name={opponent.name} onClose={() => setShowReasoning(false)} />
+      )}
     </Shell>
   )
 }
@@ -240,7 +263,17 @@ function Actions({
   )
 }
 
-function Result({ view, onNextHand }: { view: TableView; onNextHand: () => void }) {
+function Result({
+  view,
+  onNextHand,
+  onShowReasoning,
+  opponentName,
+}: {
+  view: TableView
+  onNextHand: () => void
+  onShowReasoning?: () => void
+  opponentName: string
+}) {
   const result = view.result!
   const winners = Object.keys(result.winnings).map(Number)
   const mine = result.winnings[view.yourSeat] ?? 0
@@ -264,6 +297,11 @@ function Result({ view, onNextHand }: { view: TableView; onNextHand: () => void 
         <p className="text-xl font-semibold">{headline}</p>
         <p className="text-sm text-white/60">{detail}</p>
       </div>
+      {onShowReasoning && (
+        <button type="button" onClick={onShowReasoning} className="text-sm text-chip-gold underline underline-offset-4">
+          See how {opponentName} played it
+        </button>
+      )}
       <button
         type="button"
         onClick={onNextHand}

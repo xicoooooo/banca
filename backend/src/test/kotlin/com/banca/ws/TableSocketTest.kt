@@ -1,6 +1,9 @@
 package com.banca.ws
 
+import com.banca.games.poker.Action
 import com.banca.module
+import com.banca.sessions.SeatDriver
+import com.banca.sessions.TraceEvent
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocket
@@ -99,6 +102,49 @@ class TableSocketTest {
 
         send(Frame.Text("""{"type":"act","action":"fold"}"""))
         assertTrue(receiveUntilMyTurnOrOver()["result"] !is JsonNull, "the table still works afterwards")
+    }
+
+    @Test
+    fun `the opponent's reasoning is held back until the hand is over`() = testApplication {
+        val chatty = SeatDriver { view, trace ->
+            trace(TraceEvent(TraceEvent.TOOL, "Looked at the table", detail = "SECRET my cards are strong"))
+            if (view.legal!!.canCheck) Action.Check else Action.Call
+        }
+        application {
+            module(TableSocketConfig(opponentDelay = Duration.ZERO, opponent = { chatty }, random = { Random(3) }))
+        }
+
+        socketClient().webSocket("/ws/table") {
+            val duringHand = mutableListOf<String>()
+            var handOver = false
+
+            while (true) {
+                val raw = (incoming.receive() as Frame.Text).readText()
+                val message = wireJson.parseToJsonElement(raw).jsonObject
+
+                when (message.type) {
+                    "reveal" -> {
+                        assertTrue(handOver, "the reveal must not arrive while the hand is live")
+                        assertTrue("SECRET" in raw)
+                        break
+                    }
+                    "trace" -> duringHand += raw
+                    "state" -> {
+                        val view = message.getValue("view").jsonObject
+                        handOver = view["result"] !is JsonNull
+                        val myTurn = view["actorSeat"]?.takeIf { it !is JsonNull }?.jsonPrimitive?.int == 0
+                        if (myTurn) {
+                            val canCheck = view.getValue("legal").jsonObject.getValue("canCheck").jsonPrimitive.content == "true"
+                            send(Frame.Text("""{"type":"act","action":"${if (canCheck) "check" else "call"}"}"""))
+                        }
+                    }
+                }
+            }
+
+            assertTrue(duringHand.isNotEmpty(), "steps are still shown live")
+            assertTrue(duringHand.none { "SECRET" in it }, "but never with their private detail")
+            assertTrue(duringHand.all { "Looked at the table" in it })
+        }
     }
 
     @Test

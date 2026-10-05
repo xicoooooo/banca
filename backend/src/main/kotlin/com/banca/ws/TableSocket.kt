@@ -1,8 +1,10 @@
 package com.banca.ws
 
+import com.banca.games.poker.Action
 import com.banca.sessions.PassiveBot
 import com.banca.sessions.PokerTable
 import com.banca.sessions.SeatDriver
+import com.banca.sessions.TraceEvent
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.routing.routing
@@ -44,13 +46,32 @@ fun Application.configureTableSocket(config: TableSocketConfig = TableSocketConf
                 random = config.random(),
             )
             val opponent = config.opponent()
+            val reasoning = mutableListOf<TraceEvent>()
 
-            suspend fun pushState() = send(ServerMessage.State(table.view(HUMAN_SEAT)))
+            suspend fun pushState() {
+                send(ServerMessage.State(table.view(HUMAN_SEAT)))
+                // What the opponent was thinking would give its hand away
+                // mid-hand, so the detail is held back until nothing rides on it.
+                if (table.isHandComplete && reasoning.isNotEmpty()) {
+                    send(ServerMessage.Reveal(table.handNumber, reasoning.toList()))
+                    reasoning.clear()
+                }
+            }
 
             suspend fun playOpponentTurns() {
                 while (table.actorSeat == OPPONENT_SEAT) {
                     delay(config.opponentDelay)
-                    table.act(OPPONENT_SEAT, opponent.decide(table.view(OPPONENT_SEAT)))
+                    val action = opponent.decide(table.view(OPPONENT_SEAT)) { event ->
+                        reasoning += event
+                        send(ServerMessage.Trace(table.handNumber, event.withoutDetail()))
+                    }
+                    try {
+                        table.act(OPPONENT_SEAT, action)
+                    } catch (illegal: IllegalArgumentException) {
+                        // The engine has the last word on what a driver may do.
+                        val legal = table.view(OPPONENT_SEAT).legal
+                        table.act(OPPONENT_SEAT, if (legal?.canCheck == true) Action.Check else Action.Fold)
+                    }
                     pushState()
                 }
             }

@@ -4,7 +4,7 @@ A multi-game social casino played with virtual chips: Texas Hold'em, blackjack a
 
 > **Play money only.** Chips are free, cannot be bought, cannot be cashed out, and have no value. Banca is not a gambling application and never handles real money.
 
-**Status:** in development. The Hold'em engine is complete and a heads-up table is playable in the browser against a placeholder opponent. The agent that replaces it is next.
+**Status:** in development. Heads-up Hold'em is playable in the browser against an agent that decides by calling poker tools over MCP, with its reasoning shown step by step and revealed in full after each hand. Blackjack and roulette come next.
 
 ## Why it exists
 
@@ -44,7 +44,13 @@ Everything runs on free tiers: Supabase for database and auth, Render for the ba
 
 ## Running locally
 
-You need JDK 21 or newer and Node 22. Nothing else: the table does not use the database yet.
+You need JDK 21 or newer, Node 22, and [Ollama](https://ollama.com) with a tool-calling model for the opponent:
+
+```bash
+ollama pull qwen2.5:7b
+```
+
+To play without a model, start the backend with `MODEL_PROVIDER=passive` and the opponent will only check and call. The table does not use the database yet.
 
 ```bash
 cd backend && ./gradlew run

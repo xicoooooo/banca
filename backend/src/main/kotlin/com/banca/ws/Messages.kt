@@ -2,6 +2,7 @@ package com.banca.ws
 
 import com.banca.games.poker.Action
 import com.banca.sessions.TableView
+import com.banca.sessions.TraceEvent
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -39,6 +40,16 @@ sealed interface ServerMessage {
     @Serializable
     @SerialName("state")
     data class State(val view: TableView) : ServerMessage
+
+    /** A step the opponent took while deciding, with nothing private in it. */
+    @Serializable
+    @SerialName("trace")
+    data class Trace(val handNumber: Int, val event: TraceEvent) : ServerMessage
+
+    /** The opponent's full reasoning for a hand, sent only once it is over. */
+    @Serializable
+    @SerialName("reveal")
+    data class Reveal(val handNumber: Int, val events: List<TraceEvent>) : ServerMessage
 
     @Serializable
     @SerialName("error")

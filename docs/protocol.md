@@ -8,7 +8,7 @@ How a client talks to a live table. Version 1, JSON text frames over a WebSocket
 ws://<host>/ws/table
 ```
 
-Each connection gets a private heads-up poker table: the person who connected sits in seat 0 against a driven opponent in seat 1. A hand is dealt immediately and the first `state` message follows.
+Each connection gets a private heads-up poker table: the person who connected sits in seat 0 against an agent in seat 1. A hand is dealt immediately and the first `state` message follows.
 
 Shared tables and sign-in are not part of this version.
 
@@ -71,6 +71,33 @@ When the hand ends:
 ```
 
 `winnings` maps seat to chips collected from the pot. `showdown` maps seat to hand category and is empty when the hand ended by everyone else folding.
+
+### `trace`
+
+A step the opponent took while deciding, sent as it happens.
+
+```json
+{ "type": "trace", "handNumber": 1, "event": { "kind": "tool", "label": "Estimated its hand equity", "detail": null } }
+```
+
+`kind` is `tool`, `thought`, `decision` or `fallback`. `label` is safe to show at once. `detail` is always `null` here: what a step returned can give the opponent's cards away, so it is held back while the hand is live.
+
+### `reveal`
+
+The opponent's full reasoning for a hand, sent once, straight after the `state` that ends it. The same events as the `trace` messages, now with their `detail`.
+
+```json
+{
+  "type": "reveal",
+  "handNumber": 1,
+  "events": [
+    { "kind": "tool", "label": "Estimated its hand equity", "detail": "get_hand_equity → {\"equity\":0.522, ...}" },
+    { "kind": "decision", "label": "Decided to check", "detail": null }
+  ]
+}
+```
+
+Not sent for a hand in which the opponent never had to decide.
 
 ### `error`
 

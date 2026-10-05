@@ -41,8 +41,17 @@ export type TableView = {
   result: ResultView | null
 }
 
+export type TraceEvent = {
+  kind: 'tool' | 'thought' | 'decision' | 'fallback'
+  label: string
+  /** Private to the opponent, so only present once the hand is over. */
+  detail: string | null
+}
+
 export type ServerMessage =
   | { type: 'state'; view: TableView }
+  | { type: 'trace'; handNumber: number; event: TraceEvent }
+  | { type: 'reveal'; handNumber: number; events: TraceEvent[] }
   | { type: 'error'; message: string }
 
 export type ClientMessage =
