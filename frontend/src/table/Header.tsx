@@ -42,7 +42,10 @@ export function Header({ view }: { view: TableView }) {
 
       <p className="flex items-center gap-2" aria-live="polite">
         <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${DOT[status.tone]}`} />
-        <span className={`label ${status.tone === 'gold' ? 'text-gold-bright!' : ''}`}>{status.text}</span>
+        {/* A new status rises into place instead of swapping. */}
+        <span key={status.text} className={`label rise-in ${status.tone === 'gold' ? 'text-gold-bright!' : ''}`}>
+          {status.text}
+        </span>
       </p>
 
       <button

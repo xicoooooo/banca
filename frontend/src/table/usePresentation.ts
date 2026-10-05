@@ -9,7 +9,7 @@ import type { TableView } from './types'
 // the board is dealt; a showdown turns the cards before anyone is paid.
 const SWEEP_AT = 260
 const BOARD_AT = 520
-const BOARD_STAGGER = 140
+const BOARD_STAGGER = 170
 const PAYOUT_AT = 1150
 const SHOWDOWN_LASTS = 2600
 
@@ -18,6 +18,8 @@ export type Presentation = {
   actions: Record<number, string>
   /** True for a moment after a showdown begins, while the room is dimmed. */
   showdown: boolean
+  /** Changes each time chips reach the pot. `big` marks a sweep worth noticing. */
+  potPulse: { count: number; big: boolean }
 }
 
 /**
@@ -31,6 +33,7 @@ export function usePresentation(view: TableView | null): Presentation {
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const [actions, setActions] = useState<Record<number, string>>({})
   const [showdown, setShowdown] = useState(false)
+  const [potPulse, setPotPulse] = useState({ count: 0, big: false })
 
   useEffect(() => {
     // The same view seen twice means nothing happened, which development
@@ -51,7 +54,7 @@ export function usePresentation(view: TableView | null): Presentation {
         case 'hand_started':
           setActions({})
           setShowdown(false)
-          for (let card = 0; card < 4; card++) sound.cardDeal(card * 110)
+          for (let card = 0; card < 4; card++) sound.cardDeal(card * 135)
           break
 
         case 'blind':
@@ -74,17 +77,28 @@ export function usePresentation(view: TableView | null): Presentation {
           sound.fold()
           break
 
-        case 'collect':
-          event.seats.forEach((seat) => flyChips(`bet-${seat}`, 'pot', chips(view.bigBlind * 4), SWEEP_AT))
+        case 'collect': {
+          event.seats.forEach((seat, index) =>
+            // Each player's bet is pushed in a moment after the last.
+            flyChips(`bet-${seat}`, 'pot', chips(event.amounts[seat] ?? 0), SWEEP_AT + index * 90),
+          )
           sound.chipStack(SWEEP_AT)
+
+          // The pot answers as the chips arrive, more so when they are a
+          // large part of what it now holds.
+          const swept = Object.values(event.amounts).reduce((sum, amount) => sum + amount, 0)
+          later(SWEEP_AT + 480, () =>
+            setPotPulse((current) => ({ count: current.count + 1, big: swept * 2 >= view.pot })),
+          )
           break
+        }
 
         case 'board':
           // A new street starts with nothing said yet.
           later(BOARD_AT, () => setActions({}))
           for (let card = 0; card < event.cards; card++) {
             sound.cardDeal(BOARD_AT + card * BOARD_STAGGER)
-            sound.cardFlip(BOARD_AT + card * BOARD_STAGGER + 300)
+            sound.cardFlip(BOARD_AT + card * BOARD_STAGGER + 340)
           }
           break
 
@@ -97,7 +111,7 @@ export function usePresentation(view: TableView | null): Presentation {
 
         case 'won':
           event.seats.forEach((seat) =>
-            flyChips('pot', `stack-${seat}`, chips(event.amounts[seat] ?? 0), PAYOUT_AT),
+            flyChips('pot', `stack-${seat}`, chips(event.amounts[seat] ?? 0), PAYOUT_AT, 'gather'),
           )
           sound.chipStack(PAYOUT_AT)
           if (event.seats.includes(view.yourSeat)) sound.win(PAYOUT_AT + 250)
@@ -113,7 +127,7 @@ export function usePresentation(view: TableView | null): Presentation {
     return () => pending.forEach(clearTimeout)
   }, [])
 
-  return { actions, showdown }
+  return { actions, showdown, potPulse }
 }
 
 /** The delays the table components use, so cards and chips keep time with the sounds. */

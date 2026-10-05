@@ -25,6 +25,8 @@ export function useTable() {
   const [reasoning, setReasoning] = useState<Reasoning>(NO_REASONING)
   const [connection, setConnection] = useState<Connection>('connecting')
   const [error, setError] = useState<string | null>(null)
+  // Counts refusals, so the same error twice in a row is still seen as news.
+  const [refusals, setRefusals] = useState(0)
   const socket = useRef<WebSocket | null>(null)
 
   useEffect(() => {
@@ -77,6 +79,7 @@ export function useTable() {
             break
           case 'error':
             setError(message.message)
+            setRefusals((count) => count + 1)
             break
         }
       }
@@ -95,5 +98,5 @@ export function useTable() {
     socket.current?.send(JSON.stringify(message))
   }, [])
 
-  return { view, reasoning, connection, error, send }
+  return { view, reasoning, connection, error, refusals, send }
 }

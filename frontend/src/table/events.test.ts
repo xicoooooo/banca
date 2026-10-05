@@ -102,7 +102,7 @@ describe('deriveEvents', () => {
 
     expect(deriveEvents(facingBet, folded)).toEqual([
       { type: 'fold', seat: 1 },
-      { type: 'collect', seats: [0] },
+      { type: 'collect', seats: [0], amounts: { 0: 60 } },
       { type: 'won', seats: [0], amounts: { 0: 100 } },
     ])
   })
@@ -114,7 +114,7 @@ describe('deriveEvents', () => {
 
     expect(deriveEvents(facingBet, turn)).toEqual([
       { type: 'bet', seat: 1, amount: 60, label: 'Call 60' },
-      { type: 'collect', seats: [0, 1] },
+      { type: 'collect', seats: [0, 1], amounts: { 0: 60, 1: 60 } },
       { type: 'board', cards: 1 },
     ])
   })

@@ -30,8 +30,14 @@ export function ActionBar({ legal, pot, committed, send }: ActionBarProps) {
     { label: 'All-in', value: max },
   ]
 
-  const act = (message: ClientMessage) => {
+  // Which button was pressed, while the table has not yet answered. The bar is
+  // rebuilt for every new decision, so this never needs clearing by hand.
+  const [pending, setPending] = useState<'fold' | 'call' | 'raise' | null>(null)
+
+  const act = (button: 'fold' | 'call' | 'raise', message: ClientMessage) => {
+    if (pending) return
     sound.click()
+    setPending(button)
     send(message)
   }
 
@@ -87,17 +93,35 @@ export function ActionBar({ legal, pot, committed, send }: ActionBarProps) {
 
       <div className="flex gap-2.5">
         {!legal.canCheck && (
-          <button type="button" onClick={() => act({ type: 'act', action: 'fold' })} className="btn btn--fold flex-1">
+          <button
+            type="button"
+            onClick={() => act('fold', { type: 'act', action: 'fold' })}
+            disabled={pending !== null}
+            data-pending={pending === 'fold'}
+            className="btn btn--fold flex-1"
+          >
             Fold
           </button>
         )}
 
         {legal.canCheck ? (
-          <button type="button" onClick={() => act({ type: 'act', action: 'check' })} className="btn btn--call flex-1">
+          <button
+            type="button"
+            onClick={() => act('call', { type: 'act', action: 'check' })}
+            disabled={pending !== null}
+            data-pending={pending === 'call'}
+            className="btn btn--call flex-1"
+          >
             Check
           </button>
         ) : (
-          <button type="button" onClick={() => act({ type: 'act', action: 'call' })} className="btn btn--call flex-1">
+          <button
+            type="button"
+            onClick={() => act('call', { type: 'act', action: 'call' })}
+            disabled={pending !== null}
+            data-pending={pending === 'call'}
+            className="btn btn--call flex-1"
+          >
             Call <span className="figure">{chips(legal.callCost)}</span>
           </button>
         )}
@@ -105,7 +129,9 @@ export function ActionBar({ legal, pot, committed, send }: ActionBarProps) {
         {canSize && (
           <button
             type="button"
-            onClick={() => act({ type: 'act', action: legal.canBet ? 'bet' : 'raise', amount: chosen })}
+            onClick={() => act('raise', { type: 'act', action: legal.canBet ? 'bet' : 'raise', amount: chosen })}
+            disabled={pending !== null}
+            data-pending={pending === 'raise'}
             className="btn btn--raise flex-[1.2]"
           >
             {chosen === max ? 'All-in' : legal.canBet ? 'Bet' : 'Raise'} <span className="figure">{chips(chosen)}</span>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CasinoShell } from '../casino/CasinoShell'
 import { Loading } from '../casino/Loading'
+import { prefersReducedMotion } from '../casino/motion'
 import { ActionBar } from './ActionBar'
 import { AgentThinking } from './AgentThinking'
 import { Board } from './Board'
@@ -17,9 +18,11 @@ import { useTable } from './useTable'
  * ever drawn here; [usePresentation] adds the movement and sound on top.
  */
 export function Table() {
-  const { view, reasoning, connection, error, send } = useTable()
-  const { actions, showdown } = usePresentation(view)
+  const { view, reasoning, connection, error, refusals, send } = useTable()
+  const { actions, showdown, potPulse } = usePresentation(view)
   const [showReasoning, setShowReasoning] = useState(false)
+  // The hand being cleared away, if Next hand has just been pressed.
+  const [clearing, setClearing] = useState<number | null>(null)
 
   if (!view) {
     return (
@@ -36,12 +39,22 @@ export function Table() {
   const me = view.players.find((player) => player.seat === view.yourSeat)!
   const opponent = view.players.find((player) => player.seat !== view.yourSeat)!
   const opponentThinking = view.actorSeat === opponent.seat
+  const leaving = clearing === view.handNumber
+
+  // The cards and chips are gathered up before the next hand is asked for, so
+  // one hand runs into the next without a cut. The wait is the player's own
+  // button press, never a state from the server.
+  const nextHand = () => {
+    if (prefersReducedMotion()) return send({ type: 'next_hand' })
+    setClearing(view.handNumber)
+    setTimeout(() => send({ type: 'next_hand' }), 260)
+  }
 
   return (
     <CasinoShell showdown={showdown}>
       <Header view={view} />
 
-      <div className="felt mt-2.5 flex flex-1 flex-col">
+      <div className="felt mt-2.5 flex flex-1 flex-col" data-leaving={leaving}>
         <div className="felt__surface flex flex-1 flex-col items-center justify-evenly gap-1.5 px-2 py-3.5 short:py-2">
           <Seat player={opponent} view={view} />
 
@@ -53,7 +66,7 @@ export function Table() {
               decided={view.result ? undefined : actions[opponent.seat]}
               onOpen={() => setShowReasoning(true)}
             />
-            <Pot view={view} />
+            <Pot view={view} pulse={potPulse} />
           </div>
 
           <Board view={view} />
@@ -77,13 +90,15 @@ export function Table() {
           <HandResult
             view={view}
             opponentName={opponent.name}
-            onNextHand={() => send({ type: 'next_hand' })}
+            onNextHand={nextHand}
+            leaving={leaving}
             onShowReasoning={reasoning.events.length > 0 ? () => setShowReasoning(true) : undefined}
           />
         ) : view.legal ? (
           <ActionBar
             // A fresh decision gets fresh controls, so an amount never carries over.
-            key={`${view.handNumber}-${view.street}-${view.legal.minRaiseTo}-${view.legal.callCost}`}
+            // A refusal means the last action did not stand, so the controls come back.
+            key={`${view.handNumber}-${view.street}-${view.legal.minRaiseTo}-${view.legal.callCost}-${refusals}`}
             legal={view.legal}
             pot={view.pot}
             committed={me.committed}
@@ -95,7 +110,12 @@ export function Table() {
       </footer>
 
       {showReasoning && (
-        <ReasoningPanel reasoning={reasoning} name={opponent.name} onClose={() => setShowReasoning(false)} />
+        <ReasoningPanel
+          reasoning={reasoning}
+          name={opponent.name}
+          thinking={opponentThinking}
+          onClose={() => setShowReasoning(false)}
+        />
       )}
     </CasinoShell>
   )

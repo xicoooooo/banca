@@ -13,8 +13,8 @@ export type TableEvent =
   | { type: 'bet'; seat: number; amount: number; label: string }
   | { type: 'check'; seat: number }
   | { type: 'fold'; seat: number }
-  /** Bets in front of these seats are swept into the pot. */
-  | { type: 'collect'; seats: number[] }
+  /** Bets in front of these seats are swept into the pot, with how much each had there. */
+  | { type: 'collect'; seats: number[]; amounts: Record<number, number> }
   | { type: 'board'; cards: number }
   | { type: 'showdown' }
   | { type: 'won'; seats: number[]; amounts: Record<number, number> }
@@ -73,8 +73,10 @@ export function deriveEvents(before: TableView | null, now: TableView): TableEve
   }
 
   if (boardGrew || handEnded) {
-    const seats = [...inFront].filter(([, chips]) => chips > 0).map(([seat]) => seat)
-    if (seats.length > 0) events.push({ type: 'collect', seats })
+    const swept = [...inFront].filter(([, chips]) => chips > 0)
+    if (swept.length > 0) {
+      events.push({ type: 'collect', seats: swept.map(([seat]) => seat), amounts: Object.fromEntries(swept) })
+    }
   }
 
   if (boardGrew) {

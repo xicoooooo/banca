@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react'
+import { variance } from './motion'
 
 const SUITS: Record<string, { symbol: string; name: string; red: boolean }> = {
   s: { symbol: '♠', name: 'spades', red: false },
@@ -25,6 +26,8 @@ type CardProps = {
   /** Milliseconds after a face becomes known before the card turns over. */
   flipDelay?: number
   liftable?: boolean
+  /** Any number that is this card's own. It decides the small ways it differs from its neighbours. */
+  seed?: number
 }
 
 /**
@@ -32,7 +35,7 @@ type CardProps = {
  * over, never swapped: when its face becomes known the card flips, which is
  * what makes a reveal at showdown feel like one.
  */
-export function Card({ card, dealDelay, dealFrom, flipDelay = 0, liftable = false }: CardProps) {
+export function Card({ card, dealDelay, dealFrom, flipDelay = 0, liftable = false, seed = 0 }: CardProps) {
   const [faceUp, setFaceUp] = useState(false)
 
   useEffect(() => {
@@ -55,9 +58,13 @@ export function Card({ card, dealDelay, dealFrom, flipDelay = 0, liftable = fals
       data-face={faceUp ? 'up' : 'down'}
       style={
         {
-          '--deal-delay': `${dealDelay ?? 0}ms`,
+          // Each card leaves the dealer's hand a little differently and comes
+          // to rest a fraction off square, the same way every time it is drawn.
+          '--deal-delay': `${Math.max(0, (dealDelay ?? 0) + variance(seed + 1, 22))}ms`,
           '--deal-x': dealFrom?.x,
           '--deal-y': dealFrom?.y,
+          '--deal-rot': `${-14 + variance(seed + 2, 9)}deg`,
+          '--rest-rot': `${variance(seed + 3, 1.3)}deg`,
         } as CSSProperties
       }
     >

@@ -25,7 +25,7 @@ export function Board({ view }: { view: TableView }) {
 
   return (
     <section aria-label="Board">
-      <div className="flex justify-center gap-1.5 sm:gap-2.5" style={{ '--w': 'var(--card-board)' } as CSSProperties}>
+      <div className="board-row flex justify-center gap-1.5 sm:gap-2.5" style={{ '--w': 'var(--card-board)' } as CSSProperties}>
         {[0, 1, 2, 3, 4].map((index) => {
           const card = view.board[index]
           if (!card) return <CardSlot key={index} />
@@ -41,7 +41,8 @@ export function Board({ view }: { view: TableView }) {
               card={card}
               dealDelay={dealAt}
               dealFrom={{ x: `${(2 - index) * 40}px`, y: '-20vh' }}
-              flipDelay={dealAt + 300}
+              flipDelay={dealAt + 340}
+              seed={view.handNumber * 10 + 5 + index}
             />
           )
         })}

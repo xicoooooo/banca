@@ -1,123 +1,279 @@
-import type { CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { prefersReducedMotion } from '../casino/motion'
 import type { TraceEvent } from './types'
 import type { Reasoning } from './useTable'
 
-/** Pulls the figures worth showing out of what a tool returned. */
-function summarise(detail: string): { tool: string; facts: string[] } | null {
+const SUITS: Record<string, { symbol: string; red: boolean }> = {
+  s: { symbol: '♠', red: false },
+  h: { symbol: '♥', red: true },
+  d: { symbol: '♦', red: true },
+  c: { symbol: '♣', red: false },
+}
+
+function MiniCards({ cards }: { cards: string[] }) {
+  return (
+    <>
+      {cards.map((card) => {
+        const suit = SUITS[card[1]]
+        return (
+          <span key={card} className="mini-card" data-red={suit?.red ?? false}>
+            {card[0] === 'T' ? '10' : card[0]}
+            {suit?.symbol}
+          </span>
+        )
+      })}
+    </>
+  )
+}
+
+/** What a step shows: the finding, a line of context, and the tool it came from. */
+type Finding = { result?: ReactNode; note?: ReactNode; tool?: string; street?: string }
+
+const percent = (value: unknown) => `${Math.round(Number(value) * 100)}%`
+const capitalise = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+
+/** Reads what a tool returned into something a person would say. */
+function findingOf(event: TraceEvent): Finding {
+  const detail = event.detail
+  if (!detail) return {}
+
   const arrow = detail.indexOf(' → ')
-  if (arrow < 0) return null
+  if (arrow < 0) return { note: detail }
 
   const tool = detail.slice(0, arrow)
   try {
     const data = JSON.parse(detail.slice(arrow + 3)) as Record<string, unknown>
-    const percent = (value: unknown) => `${Math.round(Number(value) * 100)}%`
 
     switch (tool) {
-      case 'get_game_state':
+      case 'get_game_state': {
+        const board = data.board as string[]
         return {
           tool,
-          facts: [
-            `Cards ${(data.your_cards as string[]).join(' ')}`,
-            (data.board as string[]).length > 0 ? `Board ${(data.board as string[]).join(' ')}` : 'No board yet',
-            `Pot ${data.pot}`,
-          ],
+          street: String(data.street),
+          result: <MiniCards cards={data.your_cards as string[]} />,
+          note: (
+            <>
+              {board.length > 0 ? <MiniCards cards={board} /> : 'No board yet · '}
+              Pot {Number(data.pot).toLocaleString('en-US')}
+            </>
+          ),
         }
+      }
       case 'get_hand_equity':
-        return { tool, facts: [`Equity ${percent(data.equity)}`, `against ${data.against}`] }
+        return { tool, result: percent(data.equity), note: `against ${data.against}` }
       case 'get_pot_odds':
-        return {
-          tool,
-          facts: Number(data.call_cost) > 0
-            ? [`${data.call_cost} to call`, `needs ${percent(data.pot_odds)} to break even`]
-            : ['Nothing to call'],
-        }
+        return Number(data.call_cost) > 0
+          ? {
+              tool,
+              result: `${Number(data.call_cost).toLocaleString('en-US')} to call`,
+              note: `${percent(data.pot_odds)} needed to break even`,
+            }
+          : { tool, result: 'Nothing to call' }
       case 'get_legal_actions':
-        return { tool, facts: [`May ${(data.actions as string[]).join(', ')}`] }
+        return { tool, note: (data.actions as string[]).map(capitalise).join(' · ') }
       default:
-        return { tool, facts: [] }
+        return { tool }
     }
   } catch {
-    return { tool, facts: [] }
+    return { tool }
   }
 }
 
-function Step({ event, index }: { event: TraceEvent; index: number }) {
-  const summary = event.detail ? summarise(event.detail) : null
-  const isDecision = event.kind === 'decision'
+/** One decision the agent made, with the steps that led to it. */
+type Turn = { steps: TraceEvent[]; street?: string }
+
+function turnsOf(events: TraceEvent[]): Turn[] {
+  const turns: Turn[] = []
+  let steps: TraceEvent[] = []
+
+  const close = () => {
+    if (steps.length === 0) return
+    const street = steps.map((step) => findingOf(step).street).find(Boolean)
+    turns.push({ steps, street })
+    steps = []
+  }
+
+  for (const event of events) {
+    steps.push(event)
+    if (event.kind === 'decision' || event.kind === 'fallback') close()
+  }
+  close()
+  return turns
+}
+
+function Step({ event, state }: { event: TraceEvent; state: 'done' | 'active' }) {
+  if (event.kind === 'decision') {
+    return (
+      <li className="timeline__step" data-kind="decision" data-state={state}>
+        <span aria-hidden className="timeline__node" />
+        <p className="timeline__action">Decision</p>
+        <p className="timeline__decision">{event.label.replace(/^Decided to /, '')}</p>
+      </li>
+    )
+  }
+
+  const finding = findingOf(event)
 
   return (
-    <li
-      className="rise-in flex gap-3 border-b border-white/5 py-2.5 last:border-0"
-      style={{ '--rise-delay': `${Math.min(index, 12) * 35}ms` } as CSSProperties}
-    >
-      <span
-        aria-hidden
-        className={`mt-1.5 h-1.5 w-1.5 flex-none rounded-full ${
-          isDecision ? 'bg-gold-bright' : event.kind === 'fallback' ? 'bg-red-400' : 'bg-emerald-300/70'
-        }`}
-      />
-      <div className="min-w-0">
-        <p className={isDecision ? 'font-semibold text-gold-bright' : 'text-ivory'}>{event.label}</p>
-
-        {summary && summary.facts.length > 0 && (
-          <p className="figure pt-0.5 text-sm text-muted">{summary.facts.join(' · ')}</p>
-        )}
-        {summary && <p className="pt-0.5 font-mono text-[0.65rem] tracking-wide text-white/30">{summary.tool}</p>}
-        {event.detail && !summary && <p className="pt-0.5 text-sm text-muted">{event.detail}</p>}
-      </div>
+    <li className="timeline__step" data-kind={event.kind} data-state={state}>
+      <span aria-hidden className="timeline__node" />
+      <p className="timeline__action">{event.label}</p>
+      {finding.result && <p className="timeline__result figure">{finding.result}</p>}
+      {finding.note && <p className="timeline__note figure">{finding.note}</p>}
+      {finding.tool && <p className="timeline__tool">{finding.tool}</p>}
     </li>
   )
 }
 
-/**
- * The agent's account of a hand: every tool it called and what it decided.
- * During the hand only the steps are known; what each returned arrives from
- * the server once the hand is over.
- */
-export function ReasoningPanel({
-  reasoning,
-  name,
-  onClose,
-}: {
+type ReasoningPanelProps = {
   reasoning: Reasoning
   name: string
+  /** Whether the agent is working on a decision right now. */
+  thinking: boolean
   onClose: () => void
-}) {
+}
+
+/**
+ * The agent's decision trace, as a timeline: each tool it reached for, what it
+ * learned, and what it chose. While it thinks the steps arrive live; what each
+ * one found is sent by the server only once the hand is over, and fills in then.
+ *
+ * Opened to watch the agent think, it steps aside when the agent decides, so
+ * the choice is seen in the trace and then carried out on the table.
+ */
+export function ReasoningPanel({ reasoning, name, thinking, onClose }: ReasoningPanelProps) {
+  const [closing, setClosing] = useState(false)
+  const closeButton = useRef<HTMLButtonElement>(null)
+  const end = useRef<HTMLDivElement>(null)
+
+  // The table redraws many times while this is open, handing over a new
+  // onClose each time. Holding the latest in a ref keeps `close` the same
+  // function throughout, so the timers and listeners below are set up once.
+  const latestOnClose = useRef(onClose)
+  useEffect(() => {
+    latestOnClose.current = onClose
+  })
+
+  const close = useCallback(() => {
+    if (prefersReducedMotion()) return latestOnClose.current()
+    setClosing(true)
+  }, [])
+
+  // Leave once the closing animation has played.
+  useEffect(() => {
+    if (!closing) return
+    const timer = setTimeout(() => latestOnClose.current(), 250)
+    return () => clearTimeout(timer)
+  }, [closing])
+
+  // Escape closes it, and focus goes back to where it was.
+  useEffect(() => {
+    const before = document.activeElement as HTMLElement | null
+    closeButton.current?.focus()
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      before?.focus?.()
+    }
+  }, [close])
+
+  const decisions = reasoning.events.filter((event) => event.kind === 'decision' || event.kind === 'fallback').length
+
+  // Opened mid-thought, it closes a beat after the decision lands in the trace.
+  // Opened at any other time it is being read, so it stays.
+  const watching = useRef({ live: thinking, decisions })
+  useEffect(() => {
+    if (!watching.current.live || decisions <= watching.current.decisions || reasoning.revealed) return
+    const timer = setTimeout(close, 1100)
+    return () => clearTimeout(timer)
+  }, [decisions, reasoning.revealed, close])
+
+  // While watching live, keep the newest step in view as the trace grows. A
+  // trace opened to be read starts at the top and is left where the reader puts it.
+  useEffect(() => {
+    if (!watching.current.live) return
+    end.current?.scrollIntoView({ block: 'end', behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+  }, [reasoning.events.length, thinking])
+
+  const turns = turnsOf(reasoning.events)
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 sm:items-center" onClick={onClose}>
+    <div className="dossier-backdrop" onClick={close}>
       <section
         role="dialog"
         aria-modal="true"
         aria-label={`${name}'s reasoning`}
+        data-closing={closing}
         onClick={(event) => event.stopPropagation()}
-        className="glass glass--strong rise-in flex max-h-[82dvh] w-full max-w-lg flex-col rounded-t-3xl p-5 sm:rounded-3xl"
-        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
+        className="dossier"
       >
-        <header className="flex items-start justify-between gap-4 pb-3">
+        <header className="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
           <div>
-            <p className="label">Agent · Hand {reasoning.handNumber}</p>
-            <h2 className="pt-1 text-lg font-semibold text-ivory">How {name} played it</h2>
+            <p className="label text-gold!">Decision trace · Hand {reasoning.handNumber}</p>
+            <h2 className="pt-1.5 text-xl font-semibold tracking-tight text-ivory">Inside {name}'s head</h2>
           </div>
-          <button type="button" onClick={onClose} className="btn btn--quiet px-3!">
+          <button ref={closeButton} type="button" onClick={close} className="btn btn--quiet px-3!">
             Close
           </button>
         </header>
 
-        {reasoning.events.length === 0 ? (
-          <p className="py-8 text-center text-muted">{name} has not had to decide anything yet.</p>
-        ) : (
-          <ol className="overflow-y-auto pr-1">
-            {reasoning.events.map((event, index) => (
-              <Step key={index} event={event} index={index} />
-            ))}
-          </ol>
-        )}
+        <div
+          className="overflow-y-auto px-5"
+          style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
+        >
+          {turns.length === 0 && !thinking && (
+            <p className="py-10 text-center text-muted">{name} has not had to decide anything yet.</p>
+          )}
 
-        {!reasoning.revealed && reasoning.events.length > 0 && (
-          <p className="label pt-4 text-center leading-relaxed">
-            What each step found stays hidden until the hand is over
-          </p>
-        )}
+          {turns.map((turn, index) => (
+            <div key={index}>
+              <p className="timeline__turn label">
+                Decision {index + 1}
+                {turn.street ? ` · ${turn.street}` : ''}
+              </p>
+              <ol className="timeline">
+                {turn.steps.map((step, stepIndex) => (
+                  <Step key={stepIndex} event={step} state="done" />
+                ))}
+                {/* The step in progress: the agent has not said what it is yet. */}
+                {thinking && index === turns.length - 1 && turn.steps.at(-1)?.kind === 'tool' && (
+                  <li className="timeline__step" data-state="active">
+                    <span aria-hidden className="timeline__node" />
+                    <p className="timeline__action">Working</p>
+                  </li>
+                )}
+              </ol>
+            </div>
+          ))}
+
+          {/* The first turn, before any step. Later turns wait for their first
+              step instead: a decision and the state that ends the turn arrive a
+              moment apart, and a heading for a turn that is not coming must not
+              flash up in between. */}
+          {thinking && turns.length === 0 && (
+            <div>
+              <p className="timeline__turn label">Decision {turns.length + 1}</p>
+              <ol className="timeline">
+                <li className="timeline__step" data-state="active">
+                  <span aria-hidden className="timeline__node" />
+                  <p className="timeline__action">Thinking</p>
+                </li>
+              </ol>
+            </div>
+          )}
+
+          {!reasoning.revealed && reasoning.events.length > 0 && (
+            <p className="label pb-2 text-center leading-relaxed">
+              What each step found is revealed when the hand is over
+            </p>
+          )}
+
+          <div ref={end} />
+        </div>
       </section>
     </div>
   )
