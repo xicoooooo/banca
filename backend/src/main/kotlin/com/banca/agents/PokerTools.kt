@@ -33,7 +33,9 @@ import kotlin.random.Random
 class PokerTools(
     private val view: TableView,
     private val random: Random = Random.Default,
-    private val equityIterations: Int = 3_000,
+    // Enough for an estimate good to about two points either way, and cheap
+    // enough for the fraction of a processor that free hosting provides.
+    private val equityIterations: Int = 800,
 ) {
     private val legal = view.legal ?: error("Tools are only built for the seat that is to act")
     private val me = view.players.single { it.seat == view.yourSeat }

@@ -24,13 +24,23 @@ object PokerMath {
         require(opponents >= 1) { "Equity needs at least one opponent" }
         require(iterations > 0) { "Need at least one iteration" }
 
-        val unseen = Deck.full() - hole.toSet() - board.toSet()
+        val unseen = (Deck.full() - hole.toSet() - board.toSet()).toMutableList()
         val boardToCome = 5 - board.size
+        val needed = boardToCome + opponents * 2
         var share = 0.0
 
         repeat(iterations) {
-            val dealt = unseen.shuffled(random)
-            val fullBoard = board + dealt.take(boardToCome)
+            // Only the cards that will be looked at are drawn, by shuffling just
+            // the front of the deck. Shuffling all of it each time costs several
+            // times more for the same result.
+            for (i in 0 until needed) {
+                val j = i + random.nextInt(unseen.size - i)
+                val swap = unseen[i]
+                unseen[i] = unseen[j]
+                unseen[j] = swap
+            }
+            val dealt = unseen
+            val fullBoard = board + dealt.subList(0, boardToCome)
             val mine = HandEvaluator.evaluate(hole + fullBoard)
 
             var beaten = false

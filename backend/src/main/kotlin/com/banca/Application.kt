@@ -39,9 +39,7 @@ private fun tableSocketFromEnvironment(): TableSocketConfig =
             val names = (System.getenv("GROQ_MODELS")?.takeIf { it.isNotBlank() } ?: DEFAULT_GROQ_MODELS)
                 .split(',').map { it.trim() }.filter { it.isNotEmpty() }
             val model = FallbackProvider(names.map { it to OpenAiCompatibleProvider.groq(apiKey = key, model = it) })
-            // A hosted model answers fast enough to need a pause, or the
-            // opponent's reply lands before the eye has left the button.
-            TableSocketConfig(opponent = { AgentDriver(model) })
+            TableSocketConfig(opponentDelay = Duration.ZERO, opponent = { AgentDriver(model) })
         }
         "passive" -> TableSocketConfig()
         else -> error("Unknown MODEL_PROVIDER '$provider', expected ollama, groq or passive")

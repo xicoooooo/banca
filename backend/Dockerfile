@@ -12,8 +12,10 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/build/libs/banca-backend-all.jar app.jar
 
-# Free hosting gives the container 512 MB, so leave the JVM some headroom.
-ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75"
+# Free hosting gives the container 512 MB and a fraction of a processor. Leave
+# the JVM memory headroom, and keep it to the quick compiler: the optimising
+# one never pays for itself on so little CPU and slows the first hands badly.
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:TieredStopAtLevel=1"
 
 # The host says which port to listen on through PORT; 8080 is the fallback.
 EXPOSE 8080
