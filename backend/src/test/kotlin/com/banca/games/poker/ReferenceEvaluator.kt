@@ -1,5 +1,8 @@
 package com.banca.games.poker
 
+
+import com.banca.games.cards.Card
+import com.banca.games.cards.Rank
 /**
  * The original evaluator, kept as the yardstick the fast one is checked
  * against. It scores seven cards by trying all twenty-one five-card

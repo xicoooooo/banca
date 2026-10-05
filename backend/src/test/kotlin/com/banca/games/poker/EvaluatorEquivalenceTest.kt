@@ -1,5 +1,10 @@
 package com.banca.games.poker
 
+
+import com.banca.games.cards.Card
+import com.banca.games.cards.Deck
+import com.banca.games.cards.Rank
+import com.banca.games.cards.Suit
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals

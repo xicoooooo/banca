@@ -1,7 +1,7 @@
 package com.banca.sessions
 
 import com.banca.games.poker.Action
-import com.banca.games.poker.Deck
+import com.banca.games.cards.Deck
 import com.banca.games.poker.Hand
 import com.banca.games.poker.Player
 import kotlin.random.Random

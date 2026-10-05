@@ -50,8 +50,4 @@ sealed interface ServerMessage {
     @Serializable
     @SerialName("reveal")
     data class Reveal(val handNumber: Int, val events: List<TraceEvent>) : ServerMessage
-
-    @Serializable
-    @SerialName("error")
-    data class Error(val message: String) : ServerMessage
 }

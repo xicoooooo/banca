@@ -1,7 +1,7 @@
 package com.banca.agents
 
 import com.banca.games.poker.Action
-import com.banca.games.poker.Card
+import com.banca.games.cards.Card
 import com.banca.sessions.TableView
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions

@@ -1,7 +1,7 @@
 package com.banca.agents
 
-import com.banca.games.poker.Card
-import com.banca.games.poker.Deck
+import com.banca.games.cards.Card
+import com.banca.games.cards.Deck
 import com.banca.games.poker.HandEvaluator
 import kotlin.random.Random
 

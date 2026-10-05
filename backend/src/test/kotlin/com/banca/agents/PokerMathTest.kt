@@ -1,6 +1,6 @@
 package com.banca.agents
 
-import com.banca.games.poker.Card
+import com.banca.games.cards.Card
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals

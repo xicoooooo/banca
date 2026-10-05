@@ -6,8 +6,9 @@ import com.banca.agents.ModelProvider
 import com.banca.agents.OllamaProvider
 import com.banca.agents.OpenAiCompatibleProvider
 import com.banca.agents.Warmup
+import com.banca.ws.BlackjackSocketConfig
 import com.banca.ws.TableSocketConfig
-import com.banca.ws.configureTableSocket
+import com.banca.ws.configureGameSockets
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStarted
 import io.ktor.server.engine.embeddedServer
@@ -78,10 +79,13 @@ private fun warmUpInBackground(model: ModelProvider) {
 // reply, which costs more round trips and tokens, so they only stand in for it.
 private const val DEFAULT_GROQ_MODELS = "qwen/qwen3.8-27b,openai/gpt-oss-120b,openai/gpt-oss-20b"
 
-fun Application.module(tableSocket: TableSocketConfig = TableSocketConfig()) {
+fun Application.module(
+    tableSocket: TableSocketConfig = TableSocketConfig(),
+    blackjack: BlackjackSocketConfig = BlackjackSocketConfig(),
+) {
     configureSerialization()
     configureLogging()
     configureCors()
     configureRouting()
-    configureTableSocket(tableSocket)
+    configureGameSockets(poker = tableSocket, blackjack = blackjack)
 }

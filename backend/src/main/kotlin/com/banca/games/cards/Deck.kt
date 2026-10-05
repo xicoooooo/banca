@@ -1,4 +1,4 @@
-package com.banca.games.poker
+package com.banca.games.cards
 
 import kotlin.random.Random
 

@@ -1,5 +1,7 @@
 package com.banca.games.poker
 
+
+import com.banca.games.cards.Card
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

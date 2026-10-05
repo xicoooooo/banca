@@ -5,16 +5,7 @@ import com.banca.sessions.PassiveBot
 import com.banca.sessions.PokerTable
 import com.banca.sessions.SeatDriver
 import com.banca.sessions.TraceEvent
-import io.ktor.server.application.Application
-import io.ktor.server.application.install
-import io.ktor.server.routing.routing
-import io.ktor.server.websocket.DefaultWebSocketServerSession
-import io.ktor.server.websocket.WebSockets
-import io.ktor.server.websocket.webSocket
-import io.ktor.websocket.Frame
-import io.ktor.websocket.readText
 import kotlinx.coroutines.delay
-import kotlinx.serialization.SerializationException
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -30,79 +21,64 @@ class TableSocketConfig(
 )
 
 /**
- * One private heads-up table per connection: the person who connected against
- * a driven seat. Shared tables and identity arrive with the lobby.
+ * A private heads-up poker table: the person who connected against a driven
+ * seat. Shared tables and identity arrive with the lobby.
  */
-fun Application.configureTableSocket(config: TableSocketConfig = TableSocketConfig()) {
-    install(WebSockets)
+class PokerConnection(private val config: TableSocketConfig, private val send: Send) : GameConnection {
 
-    routing {
-        webSocket("/ws/table") {
-            val table = PokerTable(
-                names = mapOf(HUMAN_SEAT to "You", OPPONENT_SEAT to "Banca"),
-                startingStack = 2_000,
-                smallBlind = 10,
-                bigBlind = 20,
-                random = config.random(),
-            )
-            val opponent = config.opponent()
-            val reasoning = mutableListOf<TraceEvent>()
+    private val table = PokerTable(
+        names = mapOf(HUMAN_SEAT to "You", OPPONENT_SEAT to "Banca"),
+        startingStack = 2_000,
+        smallBlind = 10,
+        bigBlind = 20,
+        random = config.random(),
+    )
+    private val opponent = config.opponent()
+    private val reasoning = mutableListOf<TraceEvent>()
 
-            suspend fun pushState() {
-                send(ServerMessage.State(table.view(HUMAN_SEAT)))
-                // What the opponent was thinking would give its hand away
-                // mid-hand, so the detail is held back until nothing rides on it.
-                if (table.isHandComplete && reasoning.isNotEmpty()) {
-                    send(ServerMessage.Reveal(table.handNumber, reasoning.toList()))
-                    reasoning.clear()
-                }
-            }
+    override suspend fun opened() {
+        table.startHand()
+        pushState()
+        playOpponentTurns()
+    }
 
-            suspend fun playOpponentTurns() {
-                while (table.actorSeat == OPPONENT_SEAT) {
-                    delay(config.opponentDelay)
-                    val action = opponent.decide(table.view(OPPONENT_SEAT)) { event ->
-                        reasoning += event
-                        send(ServerMessage.Trace(table.handNumber, event.withoutDetail()))
-                    }
-                    try {
-                        table.act(OPPONENT_SEAT, action)
-                    } catch (illegal: IllegalArgumentException) {
-                        // The engine has the last word on what a driver may do.
-                        val legal = table.view(OPPONENT_SEAT).legal
-                        table.act(OPPONENT_SEAT, if (legal?.canCheck == true) Action.Check else Action.Fold)
-                    }
-                    pushState()
-                }
-            }
+    override suspend fun received(text: String) {
+        when (val message = wireJson.decodeFromString<ClientMessage>(text)) {
+            is ClientMessage.Act -> table.act(HUMAN_SEAT, message.toAction())
+            is ClientMessage.NextHand -> table.startHand()
+        }
+        pushState()
+        playOpponentTurns()
+    }
 
-            table.startHand()
-            pushState()
-            playOpponentTurns()
-
-            for (frame in incoming) {
-                if (frame !is Frame.Text) continue
-
-                // A bad message is the sender's problem and must never take the
-                // table down with it.
-                try {
-                    when (val message = wireJson.decodeFromString<ClientMessage>(frame.readText())) {
-                        is ClientMessage.Act -> table.act(HUMAN_SEAT, message.toAction())
-                        is ClientMessage.NextHand -> table.startHand()
-                    }
-                    pushState()
-                    playOpponentTurns()
-                } catch (problem: SerializationException) {
-                    send(ServerMessage.Error("That message could not be read"))
-                } catch (problem: IllegalArgumentException) {
-                    send(ServerMessage.Error(problem.message ?: "That is not allowed"))
-                } catch (problem: IllegalStateException) {
-                    send(ServerMessage.Error(problem.message ?: "That is not possible right now"))
-                }
-            }
+    private suspend fun pushState() {
+        emit(ServerMessage.State(table.view(HUMAN_SEAT)))
+        // What the opponent was thinking would give its hand away mid-hand,
+        // so the detail is held back until nothing rides on it.
+        if (table.isHandComplete && reasoning.isNotEmpty()) {
+            emit(ServerMessage.Reveal(table.handNumber, reasoning.toList()))
+            reasoning.clear()
         }
     }
-}
 
-private suspend fun DefaultWebSocketServerSession.send(message: ServerMessage) =
-    send(Frame.Text(wireJson.encodeToString(ServerMessage.serializer(), message)))
+    private suspend fun playOpponentTurns() {
+        while (table.actorSeat == OPPONENT_SEAT) {
+            delay(config.opponentDelay)
+            val action = opponent.decide(table.view(OPPONENT_SEAT)) { event ->
+                reasoning += event
+                emit(ServerMessage.Trace(table.handNumber, event.withoutDetail()))
+            }
+            try {
+                table.act(OPPONENT_SEAT, action)
+            } catch (illegal: IllegalArgumentException) {
+                // The engine has the last word on what a driver may do.
+                val legal = table.view(OPPONENT_SEAT).legal
+                table.act(OPPONENT_SEAT, if (legal?.canCheck == true) Action.Check else Action.Fold)
+            }
+            pushState()
+        }
+    }
+
+    private suspend fun emit(message: ServerMessage) =
+        send(wireJson.encodeToString(ServerMessage.serializer(), message))
+}

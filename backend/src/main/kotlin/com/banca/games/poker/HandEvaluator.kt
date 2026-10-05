@@ -1,5 +1,7 @@
 package com.banca.games.poker
 
+
+import com.banca.games.cards.Card
 /**
  * Scores the best five-card poker hand in five to seven cards.
  *
