@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
 import { BancaPill } from '../casino/BancaPill'
+import { useDialog } from '../casino/useDialog'
 import type { Advice, BlackjackAction, CoachStep } from './types'
 import type { Coaching } from './useBlackjack'
 
@@ -103,21 +103,7 @@ type CoachPanelProps = { coach: Coaching; roundNumber: number; onClose: () => vo
  * what the player can already see.
  */
 export function CoachPanel({ coach, roundNumber, onClose }: CoachPanelProps) {
-  const closeButton = useRef<HTMLButtonElement>(null)
-
-  // Escape closes it, and focus goes back to where it was.
-  useEffect(() => {
-    const before = document.activeElement as HTMLElement | null
-    closeButton.current?.focus()
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      before?.focus?.()
-    }
-  }, [onClose])
+  const closeButton = useDialog(onClose)
 
   const { advice } = coach
   // Bars are drawn from the worst play to the best, so the gap between them is what shows.

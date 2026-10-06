@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { sound } from '../casino/sound'
+import { useDialog } from '../casino/useDialog'
 import type { ChatLine, Phrase, RoomPlayer } from './types'
 
 type RoomDrawerProps = {
@@ -40,21 +41,8 @@ export function RoomDrawer({ name, players, chat, phrases, onSay, onType, muted,
   }
 
   const heard = chat.filter((line) => !muted.has(line.from))
-  const closeButton = useRef<HTMLButtonElement>(null)
+  const closeButton = useDialog(onClose)
   const end = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const before = document.activeElement as HTMLElement | null
-    closeButton.current?.focus()
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      before?.focus?.()
-    }
-  }, [onClose])
 
   // The newest line is the one to see.
   useEffect(() => {

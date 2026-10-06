@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
 import { BancaPill } from '../casino/BancaPill'
+import { useDialog } from '../casino/useDialog'
 import { colorOf } from './layout'
 import type { ReadStep } from './types'
 import type { Reading } from './useRoulette'
@@ -54,21 +54,7 @@ function findingOf(step: ReadStep): string | null {
  * pocket, and are the same whatever words Banca chose.
  */
 export function AnalystPanel({ reading, onClose }: { reading: Reading; onClose: () => void }) {
-  const closeButton = useRef<HTMLButtonElement>(null)
-
-  // Escape closes it, and focus goes back to where it was.
-  useEffect(() => {
-    const before = document.activeElement as HTMLElement | null
-    closeButton.current?.focus()
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      before?.focus?.()
-    }
-  }, [onClose])
+  const closeButton = useDialog(onClose)
 
   const read = reading.read
   const figures = read?.figures
