@@ -8,7 +8,7 @@ A multi-game social casino played with virtual chips: Texas Hold'em, blackjack a
 
 > **Play money only.** Chips are free, cannot be bought, cannot be cashed out, and have no value. Banca is not a gambling application and never handles real money.
 
-**Status:** in development, and playable. Heads-up Hold'em runs against an agent that decides by calling poker tools over MCP, with its reasoning shown step by step and revealed in full after each hand. Blackjack is playable against the house. The blackjack coach and roulette come next.
+**Status:** in development, and playable. Heads-up Hold'em runs against an agent that decides by calling poker tools over MCP, with its reasoning shown step by step and revealed in full after each hand. Blackjack is playable against the house. Chips, history and statistics belong to the player and follow them from table to table, with a profile page built from the rounds they have really played. The blackjack coach and roulette come next.
 
 ## Why it exists
 
@@ -28,8 +28,7 @@ The agent is not a chatbot bolted to a game. It receives only what a player in i
 backend/        Kotlin + Ktor
   games/        poker, blackjack, roulette engines + shared interface
   sessions/     live tables
-  wallet/       append-only chip ledger
-  progression/  streaks, XP, achievements, leaderboards
+  players/      identity, the chip ledger, and the statistics drawn from it
   ws/           WebSocket gateway
   agents/       agent runtime + pluggable model providers
 mcp-servers/    MCP tool servers
@@ -54,7 +53,9 @@ You need JDK 21 or newer, Node 22, and [Ollama](https://ollama.com) with a tool-
 ollama pull qwen2.5:7b
 ```
 
-To play without a model, start the backend with `MODEL_PROVIDER=passive` and the opponent will only check and call. The table does not use the database yet.
+To play without a model, start the backend with `MODEL_PROVIDER=passive` and the opponent will only check and call.
+
+Players and their history are kept in Postgres when `DATABASE_URL` is set, with the migrations in [`db/migrations`](db/migrations) applied in order. Without it the server keeps them in memory and forgets them when it stops, which is enough to try the game. Settings are read from the environment, then from `backend/.env`.
 
 ```bash
 cd backend && ./gradlew run
@@ -66,7 +67,7 @@ cd frontend && npm install && npm run dev
 
 Then open http://localhost:5173. The backend listens on port 8080, and the frontend talks to it over the WebSocket described in [`docs/protocol.md`](docs/protocol.md).
 
-Run the tests with `./gradlew test` in `backend/`.
+Run the tests with `./gradlew test` in `backend/`. The Postgres store is tested as well when `TEST_DATABASE_URL` points at a database with the migrations applied; never point it at one whose data you want to keep.
 
 ## Author
 

@@ -11,19 +11,20 @@ import com.banca.games.cards.Deck
 import kotlin.random.Random
 
 /**
- * A live blackjack table for one player: their chips between rounds, the shoe
- * the cards come from, and the round in progress.
+ * A live blackjack table for one player: the shoe the cards come from and the
+ * round in progress. The player's chips are their bankroll, held elsewhere;
+ * the table is told what they have and reports what each round did to it.
  *
  * Not thread safe. Each table is driven by a single coroutine.
  */
 class BlackjackTable(
-    private val startingStack: Long,
-    private val minBet: Long,
+    stack: Long,
+    val minBet: Long,
     private val maxBet: Long,
     private val rules: Rules,
     private val random: Random,
 ) {
-    private var stack: Long = startingStack
+    private var stack: Long = stack
     private var shoe: List<Card> = emptyList()
     private var round: Round? = null
     private var lastBet: Long? = null
@@ -42,7 +43,6 @@ class BlackjackTable(
         // A shoe is played most of the way down, then shuffled afresh.
         if (shoe.size < Round.CARDS_NEEDED) shoe = (1..rules.decks).flatMap { Deck.full() }.shuffled(random)
 
-        refilled = false
         lastBet = amount
         roundNumber++
         keep(Round.deal(bet = amount, stack = stack, shoe = shoe, rules = rules))
@@ -58,13 +58,20 @@ class BlackjackTable(
         round = next
         shoe = next.shoe
         stack = next.stack
+    }
 
-        // Until the wallet exists, a player who cannot make the smallest bet
-        // is simply staked again.
-        if (next.isSettled && stack < minBet) {
-            stack = startingStack
-            refilled = true
-        }
+    /** The round in progress or just finished, for whoever keeps the record. */
+    val current: Round? get() = round
+
+    /**
+     * Sets what the player has to bet with, between rounds. The chips are the
+     * bankroll's, not the table's, so the table is told rather than deciding.
+     * [refilled] says the player had run out and has been staked again.
+     */
+    fun fund(stack: Long, refilled: Boolean) {
+        check(isBetting) { "Chips cannot change hands mid-round" }
+        this.stack = stack
+        this.refilled = refilled
     }
 
     fun view(): BlackjackView {

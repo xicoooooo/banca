@@ -1,17 +1,30 @@
 package com.banca.ws
 
 import com.banca.games.poker.Action
+import com.banca.players.FinishedRound
+import com.banca.players.Game
+import com.banca.players.PlayerSession
+import com.banca.players.RoundOutcome
 import com.banca.sessions.PassiveBot
 import com.banca.sessions.PokerTable
 import com.banca.sessions.SeatDriver
 import com.banca.sessions.TraceEvent
 import kotlinx.coroutines.delay
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import java.util.UUID
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val HUMAN_SEAT = 0
 private const val OPPONENT_SEAT = 1
+
+private const val SMALL_BLIND = 10L
+private const val BIG_BLIND = 20L
+
+/** The most either seat brings to a hand: a hundred big blinds. */
+private const val BUY_IN = 2_000L
 
 class TableSocketConfig(
     /** A pause before the opponent acts, so a person can follow the hand. */
@@ -22,43 +35,103 @@ class TableSocketConfig(
 
 /**
  * A private heads-up poker table: the person who connected against a driven
- * seat. Shared tables and identity arrive with the lobby.
+ * seat.
+ *
+ * It is played as a cash game backed by the player's bankroll. Each hand they
+ * sit down with what they have, up to the buy-in, and the house sits down with
+ * a full one. What the hand wins or loses goes straight to their ledger, so the
+ * table never holds chips of its own between hands.
  */
-class PokerConnection(private val config: TableSocketConfig, private val send: Send) : GameConnection {
+class PokerConnection(
+    private val config: TableSocketConfig,
+    private val send: Send,
+    private val session: PlayerSession,
+) : GameConnection {
 
+    private val tableId = UUID.randomUUID().toString()
     private val table = PokerTable(
         names = mapOf(HUMAN_SEAT to "You", OPPONENT_SEAT to "Banca"),
-        startingStack = 2_000,
-        smallBlind = 10,
-        bigBlind = 20,
+        startingStack = BUY_IN,
+        smallBlind = SMALL_BLIND,
+        bigBlind = BIG_BLIND,
         random = config.random(),
     )
     private val opponent = config.opponent()
     private val reasoning = mutableListOf<TraceEvent>()
 
+    /** What the player did this hand, by name, for the record of how they play. */
+    private val actions = mutableMapOf<String, Int>()
+    private var recordedHand = 0
+
     override suspend fun opened() {
-        table.startHand()
+        deal()
         pushState()
         playOpponentTurns()
     }
 
     override suspend fun received(text: String) {
         when (val message = wireJson.decodeFromString<ClientMessage>(text)) {
-            is ClientMessage.Act -> table.act(HUMAN_SEAT, message.toAction())
-            is ClientMessage.NextHand -> table.startHand()
+            is ClientMessage.Act -> {
+                table.act(HUMAN_SEAT, message.toAction())
+                actions.merge(message.action, 1, Int::plus)
+            }
+            is ClientMessage.NextHand -> deal()
         }
         pushState()
         playOpponentTurns()
     }
 
+    private suspend fun deal() {
+        check(table.isHandComplete) { "The current hand is still being played" }
+
+        // Someone who cannot post a blind is staked again before the cards come.
+        val balance = session.topUpIfShort(BIG_BLIND) ?: session.balance()
+        actions.clear()
+        table.startHand(mapOf(HUMAN_SEAT to minOf(balance, BUY_IN), OPPONENT_SEAT to BUY_IN))
+    }
+
     private suspend fun pushState() {
+        // The hand is written down before the player is told it is over, so
+        // anything they look at next already includes it.
+        record()
         emit(ServerMessage.State(table.view(HUMAN_SEAT)))
+
         // What the opponent was thinking would give its hand away mid-hand,
         // so the detail is held back until nothing rides on it.
         if (table.isHandComplete && reasoning.isNotEmpty()) {
             emit(ServerMessage.Reveal(table.handNumber, reasoning.toList()))
             reasoning.clear()
         }
+    }
+
+    private suspend fun record() {
+        val summary = table.summary(HUMAN_SEAT) ?: return
+        if (recordedHand == table.handNumber) return
+        recordedHand = table.handNumber
+
+        session.settle(
+            FinishedRound(
+                game = Game.POKER,
+                tableId = tableId,
+                staked = summary.staked,
+                net = summary.net,
+                outcome = when {
+                    summary.net > 0 -> RoundOutcome.WIN
+                    summary.net < 0 -> RoundOutcome.LOSS
+                    else -> RoundOutcome.PUSH
+                },
+                detail = buildJsonObject {
+                    put("pot", summary.pot)
+                    put("showdown", summary.wentToShowdown)
+                    summary.hand?.let { put("hand", it) }
+                    put("folded", summary.folded)
+                    put("bets", actions["bet"] ?: 0)
+                    put("raises", actions["raise"] ?: 0)
+                    put("calls", actions["call"] ?: 0)
+                    put("checks", actions["check"] ?: 0)
+                },
+            ),
+        )
     }
 
     private suspend fun playOpponentTurns() {

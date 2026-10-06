@@ -26,10 +26,14 @@ import kotlin.time.Duration
 class TableSocketTest {
 
     private fun table(test: suspend DefaultClientWebSocketSession.() -> Unit) = testApplication {
+        val guest = TestPlayers()
         application {
-            module(TableSocketConfig(opponentDelay = Duration.ZERO, random = { Random(3) }))
+            module(TableSocketConfig(opponentDelay = Duration.ZERO, random = { Random(3) }), players = guest.players)
         }
-        socketClient().webSocket("/ws/table") { test() }
+        socketClient().webSocket("/ws/table") {
+            sayHello(guest.token)
+            test()
+        }
     }
 
     private fun ApplicationTestBuilder.socketClient() = createClient { install(WebSockets) }
@@ -110,11 +114,16 @@ class TableSocketTest {
             trace(TraceEvent(TraceEvent.TOOL, "Looked at the table", detail = "SECRET my cards are strong"))
             if (view.legal!!.canCheck) Action.Check else Action.Call
         }
+        val guest = TestPlayers()
         application {
-            module(TableSocketConfig(opponentDelay = Duration.ZERO, opponent = { chatty }, random = { Random(3) }))
+            module(
+                TableSocketConfig(opponentDelay = Duration.ZERO, opponent = { chatty }, random = { Random(3) }),
+                players = guest.players,
+            )
         }
 
         socketClient().webSocket("/ws/table") {
+            sayHello(guest.token)
             val duringHand = mutableListOf<String>()
             var handOver = false
 

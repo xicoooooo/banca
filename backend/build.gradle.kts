@@ -26,6 +26,9 @@ dependencies {
     implementation("io.ktor:ktor-server-websockets")
     implementation("ch.qos.logback:logback-classic:1.5.17")
 
+    implementation("org.postgresql:postgresql:42.7.7")
+    implementation("com.zaxxer:HikariCP:6.3.0")
+
     implementation("io.modelcontextprotocol:kotlin-sdk:0.15.0")
     implementation("io.ktor:ktor-client-cio")
     implementation("io.ktor:ktor-client-content-negotiation")

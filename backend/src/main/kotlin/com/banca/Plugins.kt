@@ -1,5 +1,7 @@
 package com.banca
 
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
@@ -22,9 +24,14 @@ fun Application.configureSerialization() {
  */
 fun Application.configureCors() {
     install(CORS) {
+        // The player endpoints are called with a token and a JSON body.
+        allowHeader(HttpHeaders.Authorization)
+        allowHeader(HttpHeaders.ContentType)
+        allowMethod(HttpMethod.Patch)
+
         allowHost("localhost:5173")
         allowHost("127.0.0.1:5173")
-        System.getenv("FRONTEND_ORIGINS")
+        Config["FRONTEND_ORIGINS"]
             ?.split(',')
             ?.map { it.trim() }
             ?.filter { it.isNotEmpty() }

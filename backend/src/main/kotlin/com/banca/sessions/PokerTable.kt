@@ -37,12 +37,22 @@ class PokerTable(
 
     val isHandComplete: Boolean get() = hand?.isComplete ?: true
 
-    fun startHand() {
+    /**
+     * Deals the next hand. Given [buyIns], each seat starts the hand with that
+     * many chips, which is how a table backed by a bankroll plays. Without
+     * them the chips won and lost stay on the table from hand to hand, and a
+     * busted table starts over.
+     */
+    fun startHand(buyIns: Map<Int, Long>? = null) {
         check(isHandComplete) { "The current hand is still being played" }
 
-        hand?.let { finished -> stacks = finished.players.associate { it.seat to it.stack } }
-        // Until the wallet exists, a busted table simply starts over.
-        if (stacks.values.any { it == 0L }) stacks = stacks.mapValues { startingStack }
+        if (buyIns != null) {
+            require(buyIns.keys == names.keys) { "A buy-in is needed for every seat" }
+            stacks = buyIns
+        } else {
+            hand?.let { finished -> stacks = finished.players.associate { it.seat to it.stack } }
+            if (stacks.values.any { it == 0L }) stacks = stacks.mapValues { startingStack }
+        }
 
         buttonSeat = seatAfter(buttonSeat)
         handNumber++
@@ -60,6 +70,22 @@ class PokerTable(
         check(!current.isComplete) { "The hand is over" }
         require(current.actorSeat == seat) { "It is not seat $seat's turn" }
         hand = current.act(action)
+    }
+
+    /** What the finished hand came to for [seat], or null while it is still being played. */
+    fun summary(seat: Int): HandSummary? {
+        val finished = hand?.takeIf { it.isComplete } ?: return null
+        val result = finished.result ?: return null
+        val player = finished.player(seat)
+
+        return HandSummary(
+            staked = player.contributed,
+            net = (result.winnings[seat] ?: 0) - player.contributed,
+            pot = finished.players.sumOf { it.contributed },
+            wentToShowdown = result.wentToShowdown,
+            hand = result.showdown[seat]?.category?.name?.lowercase(),
+            folded = !player.isContesting,
+        )
     }
 
     fun view(seat: Int): TableView {
@@ -116,3 +142,14 @@ class PokerTable(
         maxTo = maxTo,
     )
 }
+
+/** How a hand ended for one seat. */
+data class HandSummary(
+    val staked: Long,
+    val net: Long,
+    val pot: Long,
+    val wentToShowdown: Boolean,
+    /** The category of the seat's hand, when it was shown. */
+    val hand: String?,
+    val folded: Boolean,
+)

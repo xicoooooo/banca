@@ -1,0 +1,66 @@
+package com.banca.players
+
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.time.Clock
+import java.time.Instant
+import java.util.UUID
+
+/**
+ * Players kept in memory, gone when the server stops. Used by the tests, and
+ * by a server started without a database so the games can still be played.
+ */
+class InMemoryPlayerStore(private val clock: Clock = Clock.systemUTC()) : PlayerStore {
+
+    private class Account(var player: Player, val tokenHash: String) {
+        val ledger = mutableListOf<LedgerEntry>()
+        val rounds = mutableListOf<RoundRecord>()
+    }
+
+    private val accounts = mutableMapOf<UUID, Account>()
+    private val lock = Mutex()
+
+    private fun account(id: UUID) = accounts[id] ?: error("No player $id")
+
+    override suspend fun create(name: String, tokenHash: String, openingChips: Long): Player = lock.withLock {
+        val player = Player(UUID.randomUUID(), name, Instant.now(clock))
+        val account = Account(player, tokenHash)
+        account.ledger += LedgerEntry(openingChips, LedgerReason.SIGNUP_GRANT, player.createdAt)
+        accounts[player.id] = account
+        player
+    }
+
+    override suspend fun findByTokenHash(tokenHash: String): Player? = lock.withLock {
+        accounts.values.firstOrNull { it.tokenHash == tokenHash }?.player
+    }
+
+    override suspend fun rename(id: UUID, name: String): Player = lock.withLock {
+        val account = account(id)
+        account.player = account.player.copy(name = name)
+        account.player
+    }
+
+    override suspend fun balance(id: UUID): Long = lock.withLock { account(id).ledger.sumOf { it.amount } }
+
+    override suspend fun recordRound(id: UUID, round: FinishedRound): Long = lock.withLock {
+        val account = account(id)
+        val now = Instant.now(clock)
+        account.rounds += RoundRecord(round.game, now, round.staked, round.net, round.outcome, round.detail)
+        account.ledger += LedgerEntry(round.net, LedgerReason.ROUND, now)
+        account.ledger.sumOf { it.amount }
+    }
+
+    override suspend fun grant(id: UUID, amount: Long, reason: LedgerReason): Long = lock.withLock {
+        val account = account(id)
+        account.ledger += LedgerEntry(amount, reason, Instant.now(clock))
+        account.ledger.sumOf { it.amount }
+    }
+
+    override suspend fun rounds(id: UUID, limit: Int): List<RoundRecord> = lock.withLock {
+        account(id).rounds.asReversed().take(limit)
+    }
+
+    override suspend fun ledger(id: UUID, limit: Int): List<LedgerEntry> = lock.withLock {
+        account(id).ledger.takeLast(limit)
+    }
+}

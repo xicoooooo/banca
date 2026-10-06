@@ -21,8 +21,12 @@ import kotlin.test.assertTrue
 class BlackjackSocketTest {
 
     private fun table(seed: Int = 4, test: suspend DefaultClientWebSocketSession.() -> Unit) = testApplication {
-        application { module(blackjack = BlackjackSocketConfig(random = { Random(seed) })) }
-        createClient { install(WebSockets) }.webSocket("/ws/blackjack") { test() }
+        val guest = TestPlayers()
+        application { module(blackjack = BlackjackSocketConfig(random = { Random(seed) }), players = guest.players) }
+        createClient { install(WebSockets) }.webSocket("/ws/blackjack") {
+            sayHello(guest.token)
+            test()
+        }
     }
 
     private suspend fun DefaultClientWebSocketSession.receiveMessage(): JsonObject =

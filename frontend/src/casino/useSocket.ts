@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-
-// One address is configured, the poker table's, and the others are found
-// beside it. That keeps a deployment to a single setting.
-const BASE = (import.meta.env.VITE_WS_URL ?? 'ws://localhost:8080/ws/table').replace(/\/ws\/table$/, '')
+import { forgetPlayer, playerToken } from '../player/identity'
+import { socketUrl } from './server'
 
 // Free hosting puts the backend to sleep when idle and takes up to a minute to
 // wake it, so a first connection that fails is retried for a while.
@@ -11,10 +9,14 @@ const MAX_ATTEMPTS = 30
 
 export type Connection = 'connecting' | 'open' | 'closed'
 
+/** What the server says before the game begins: who it takes this player to be, or that it does not know them. */
+type Greeting = { type: 'welcome' } | { type: 'error'; code?: string }
+
 /**
- * A connection to one game's table, shared by every game. Messages from the
- * server are handed to [onMessage] as they arrive; what they mean is the
- * game's business.
+ * A connection to one game's table, shared by every game. It says who the
+ * player is before anything else, and from then on messages from the server
+ * are handed to [onMessage] as they arrive; what they mean is the game's
+ * business.
  */
 export function useSocket<Incoming, Outgoing>(path: string, onMessage: (message: Incoming) => void) {
   const [connection, setConnection] = useState<Connection>('connecting')
@@ -31,30 +33,61 @@ export function useSocket<Incoming, Outgoing>(path: string, onMessage: (message:
     let attempts = 0
     let retry: ReturnType<typeof setTimeout> | undefined
 
-    const connect = () => {
-      attempts++
-      let opened = false
-      const ws = new WebSocket(BASE + path)
-      socket.current = ws
-
-      ws.onopen = () => {
-        opened = true
-        setConnection('open')
-      }
-      ws.onclose = () => {
-        if (disposed) return
-        // A table that was open and dropped is gone, since its state lived on
-        // that connection. One that never opened is probably still waking.
-        if (!opened && attempts < MAX_ATTEMPTS) {
-          retry = setTimeout(connect, RETRY_EVERY_MS)
-        } else {
-          setConnection('closed')
-        }
-      }
-      ws.onmessage = (event) => handler.current(JSON.parse(event.data as string) as Incoming)
+    const tryAgainOrGiveUp = () => {
+      if (attempts < MAX_ATTEMPTS) retry = setTimeout(connect, RETRY_EVERY_MS)
+      else setConnection('closed')
     }
 
-    connect()
+    const connect = async () => {
+      attempts++
+
+      let token: string
+      try {
+        token = await playerToken()
+      } catch {
+        if (!disposed) tryAgainOrGiveUp()
+        return
+      }
+      if (disposed) return
+
+      let welcomed = false
+      let stranger = false
+      const ws = new WebSocket(socketUrl(path))
+      socket.current = ws
+
+      ws.onopen = () => ws.send(JSON.stringify({ type: 'hello', token }))
+
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data as string) as Incoming | Greeting
+        if (!welcomed) {
+          const greeting = message as Greeting
+          if (greeting.type === 'welcome') {
+            welcomed = true
+            setConnection('open')
+          } else if (greeting.type === 'error' && greeting.code === 'unknown_player') {
+            // The server has forgotten this guest; the next attempt asks for a new one.
+            stranger = true
+            forgetPlayer(token)
+          }
+          return
+        }
+        handler.current(message as Incoming)
+      }
+
+      ws.onclose = () => {
+        if (disposed) return
+        if (stranger && attempts < MAX_ATTEMPTS) {
+          void connect()
+          return
+        }
+        // A table that was open and dropped is gone, since its state lived on
+        // that connection. One that never opened is probably still waking.
+        if (welcomed) setConnection('closed')
+        else tryAgainOrGiveUp()
+      }
+    }
+
+    void connect()
 
     return () => {
       disposed = true

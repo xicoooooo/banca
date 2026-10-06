@@ -1502,3 +1502,347 @@ button {
 .game-tile:active {
   transform: translateY(1px) scale(0.99);
 }
+
+/* ------------------------------------------------------------------ profile */
+
+/* Up and down are told apart by more than colour wherever they appear: a
+   sign on every figure, and direction in every chart. */
+:root {
+  --gain: #7fe3bf;
+  --loss: #f0998c;
+}
+
+[data-tone='gain'] {
+  color: var(--gain);
+}
+
+[data-tone='loss'] {
+  color: var(--loss);
+}
+
+.panel {
+  padding: 1.25rem;
+  border: 1px solid var(--hairline);
+  border-radius: 24px;
+  background: var(--glass);
+  box-shadow:
+    0 14px 40px rgb(0 0 0 / 0.3),
+    inset 0 1px 0 rgb(255 255 255 / 0.05);
+  backdrop-filter: blur(14px) saturate(125%);
+  -webkit-backdrop-filter: blur(14px) saturate(125%);
+}
+
+@media (min-width: 640px) {
+  .panel {
+    padding: 1.5rem;
+  }
+}
+
+.monogram {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border: 1px solid rgb(241 199 91 / 0.55);
+  border-radius: 50%;
+  font-family: var(--font-serif);
+  font-size: 1.6rem;
+  color: var(--color-gold-bright);
+  background: radial-gradient(circle at 30% 25%, rgb(241 199 91 / 0.22), rgb(3 30 25 / 0.5) 70%);
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.12),
+    0 8px 22px rgb(0 0 0 / 0.4);
+}
+
+.monogram--small {
+  width: 2.6rem;
+  height: 2.6rem;
+  font-size: 1.2rem;
+}
+
+.name-field {
+  padding: 0.55rem 0.8rem;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: 12px;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--color-ivory);
+  background: rgb(0 0 0 / 0.28);
+}
+
+.name-field[aria-invalid='true'] {
+  border-color: var(--loss);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--hairline);
+}
+
+@media (min-width: 640px) {
+  .stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.stat {
+  padding: 0.9rem 1rem;
+  background: rgb(4 36 30 / 0.92);
+}
+
+/* Nine figures in two columns leave one over; it takes the full row. */
+@media (max-width: 639px) {
+  .stat:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
+}
+
+.chart {
+  position: relative;
+  height: 9.5rem;
+  touch-action: pan-y;
+  cursor: crosshair;
+}
+
+.chart svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.chart__line {
+  fill: none;
+  stroke: var(--color-gold-bright);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.chart__marker {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--color-gold-bright);
+  border-radius: 50%;
+  background: var(--color-felt-deepest);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 12px rgb(241 199 91 / 0.6);
+  pointer-events: none;
+}
+
+.daybars {
+  display: flex;
+  gap: 4px;
+  height: 7rem;
+  /* The line the bars rise and fall from. */
+  background: linear-gradient(var(--hairline), var(--hairline)) center / 100% 1px no-repeat;
+}
+
+.daybars__day {
+  position: relative;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: default;
+}
+
+.daybars__day[data-pointed='true'] {
+  background: rgb(255 255 255 / 0.05);
+}
+
+.daybars__bar {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  height: max(3px, calc(var(--size) * (50% - 4px)));
+  border-radius: 3px;
+  background: rgb(255 255 255 / 0.14);
+}
+
+/* A day without play is a faint tick on the line; a day that came out even is a brighter one. */
+.daybars__day[data-played='false'] .daybars__bar {
+  top: calc(50% - 1px);
+  height: 2px;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.daybars__day[data-played='true'][data-tone='even'] .daybars__bar {
+  top: calc(50% - 2px);
+  height: 4px;
+  background: rgb(245 241 232 / 0.5);
+}
+
+.daybars__day[data-tone='gain'] .daybars__bar {
+  bottom: calc(50% + 1px);
+  background: var(--gain);
+}
+
+.daybars__day[data-tone='loss'] .daybars__bar {
+  top: calc(50% + 1px);
+  background: var(--loss);
+}
+
+.split {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.split span {
+  min-width: 3px;
+}
+
+.split [data-tone='gain'] {
+  background: var(--gain);
+}
+
+.split [data-tone='even'] {
+  background: rgb(245 241 232 / 0.35);
+}
+
+.split [data-tone='loss'] {
+  background: var(--loss);
+}
+
+.meter {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.35);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.5);
+}
+
+.meter span {
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--color-gold-warm), var(--color-gold-bright));
+  transition: width var(--t-major) var(--ease-soft);
+}
+
+.meter--thin {
+  height: 4px;
+}
+
+.level-badge {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 16px;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #2a1d05;
+  background: linear-gradient(150deg, var(--color-gold-bright), var(--color-gold-warm));
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.5),
+    0 8px 22px rgb(0 0 0 / 0.4);
+}
+
+.award {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  background: rgb(0 0 0 / 0.16);
+}
+
+.award[data-earned='true'] {
+  border-color: rgb(241 199 91 / 0.35);
+  background: linear-gradient(140deg, rgb(241 199 91 / 0.1), rgb(0 0 0 / 0.16) 60%);
+}
+
+.award__seal {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  color: rgb(245 241 232 / 0.4);
+  background: rgb(255 255 255 / 0.06);
+}
+
+.award[data-earned='true'] .award__seal {
+  color: #2a1d05;
+  background: linear-gradient(150deg, var(--color-gold-bright), var(--color-gold-warm));
+}
+
+.round {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.round:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.round:last-child {
+  padding-bottom: 0;
+}
+
+.round__mark {
+  flex: none;
+  width: 3px;
+  height: 1.9rem;
+  border-radius: 2px;
+  background: rgb(245 241 232 / 0.3);
+}
+
+.round__mark[data-tone='gain'] {
+  background: var(--gain);
+}
+
+.round__mark[data-tone='loss'] {
+  background: var(--loss);
+}
+
+/* The player's card in the lobby, which opens the profile. */
+.player-card {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 0.8rem;
+  border: 1px solid var(--hairline);
+  border-radius: 20px;
+  text-align: left;
+  color: var(--color-ivory);
+  background: var(--glass);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.28);
+  backdrop-filter: blur(14px) saturate(125%);
+  -webkit-backdrop-filter: blur(14px) saturate(125%);
+  transition:
+    border-color var(--t-medium) var(--ease-soft),
+    transform var(--t-micro) var(--ease-soft);
+}
+
+@media (hover: hover) {
+  .player-card:hover {
+    border-color: rgb(241 199 91 / 0.4);
+  }
+}
+
+.player-card:active {
+  transform: scale(0.99);
+}

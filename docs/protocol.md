@@ -1,6 +1,33 @@
 # Table protocol
 
-Two games are served, each at its own address: [poker](#connecting) and [blackjack](#blackjack). They share one rule: the client draws what it is sent and never decides an outcome.
+Two games are served, each at its own address: [poker](#connecting) and [blackjack](#blackjack). They share two rules: the client draws what it is sent and never decides an outcome, and nothing is dealt until the client has said [who is playing](#players).
+
+## Players
+
+A player's chips, history and statistics belong to the player and are kept by the server. A table only borrows the bankroll while the player sits at it.
+
+For now every player is a guest. The server makes one on request and returns a secret token, once; the client keeps it and presents it from then on. Only a hash of the token is stored.
+
+| Request | Answer |
+|---|---|
+| `POST /players` | `201` `{ "token": "...", "player": { "name": "Guest 4821", "balance": 2000 } }` |
+| `GET /players/me` | `{ "name": "...", "balance": 1940 }` |
+| `PATCH /players/me` with `{ "name": "Ana" }` | The same, renamed. `400` with `{ "message": "..." }` if the name is refused |
+| `GET /players/me/dashboard` | Everything the profile page shows, worked out from the player's rounds |
+
+All but the first need `Authorization: Bearer <token>`, and answer `401` to a token the server does not know.
+
+A new player is granted 2,000 chips, once. After that the balance changes only as rounds are won and lost, except that a player left unable to make the smallest bet is brought back up to 2,000. Every change is a line in a ledger and the balance is their sum.
+
+### Saying hello
+
+The first frame on either WebSocket must be:
+
+```json
+{ "type": "hello", "token": "..." }
+```
+
+The server answers `{ "type": "welcome", "player": { "name": "...", "balance": 1940 } }` and the game begins. A token it does not know is answered with `{ "type": "error", "code": "unknown_player", "message": "..." }` and the connection is closed; the client should ask for a new guest and connect again.
 
 ## Poker
 
@@ -12,9 +39,11 @@ How a client talks to a live table. Version 1, JSON text frames over a WebSocket
 ws://<host>/ws/table
 ```
 
-Each connection gets a private heads-up poker table: the person who connected sits in seat 0 against an agent in seat 1. A hand is dealt immediately and the first `state` message follows.
+Each connection gets a private heads-up poker table: the person who connected sits in seat 0 against an agent in seat 1. Once the client has [said hello](#saying-hello), a hand is dealt and the first `state` message follows.
 
-Shared tables and sign-in are not part of this version.
+The table is a cash game. Each hand the player sits down with their bankroll, up to 2,000 chips, against 2,000 for the agent, and what they win or lose in the hand is written to their bankroll as it ends.
+
+Shared tables are not part of this version.
 
 ## Server to client
 
@@ -147,7 +176,7 @@ Version 1, JSON text frames over a WebSocket, at its own address:
 ws://<host>/ws/blackjack
 ```
 
-Each connection gets a private table: one player against the house, with 2,000 chips, bets from 10 to 500, six decks, and a dealer who stands on every seventeen. Nothing is dealt until a bet is placed, so the first `state` shows a table waiting for one.
+Each connection gets a private table: one player against the house, playing from their own bankroll, with bets from 10 to 500, six decks, and a dealer who stands on every seventeen. Nothing is dealt until a bet is placed, so the first `state` after the [hello](#saying-hello) shows a table waiting for one. `stack` is the player's bankroll, and each round's result is written to it as the round settles.
 
 ## Server to client
 

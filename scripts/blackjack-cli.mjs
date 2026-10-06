@@ -4,6 +4,15 @@
 import readline from 'node:readline'
 
 const url = process.argv[2] ?? 'ws://localhost:8080/ws/blackjack'
+
+// The server deals to nobody it does not know, so each run plays as a new guest.
+const guest = await fetch(url.replace(/^ws/, 'http').replace(/\/ws\/blackjack$/, '/players'), { method: 'POST' })
+  .then((response) => response.json())
+  .catch(() => {
+    console.log(`Could not reach the server behind ${url}. Is the backend running?`)
+    process.exit(1)
+  })
+
 const ws = new WebSocket(url)
 const rl = readline.createInterface({ input: process.stdin })
 
@@ -111,9 +120,13 @@ function quit() {
 
 let latest = null
 
-ws.onopen = () => console.log(`Connected to ${url}`)
+ws.onopen = () => ws.send(JSON.stringify({ type: 'hello', token: guest.token }))
 ws.onmessage = (event) => {
   const message = JSON.parse(event.data)
+  if (message.type === 'welcome') {
+    console.log(`Connected to ${url} as ${message.player.name}`)
+    return
+  }
   if (message.type === 'error') {
     console.log(`Refused: ${message.message}`)
   } else {

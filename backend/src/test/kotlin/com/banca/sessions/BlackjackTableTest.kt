@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 class BlackjackTableTest {
 
     private fun table(seed: Int = 1, startingStack: Long = 2_000, minBet: Long = 10) = BlackjackTable(
-        startingStack = startingStack,
+        stack = startingStack,
         minBet = minBet,
         maxBet = 500,
         rules = Rules(),
@@ -102,17 +102,15 @@ class BlackjackTableTest {
     }
 
     @Test
-    fun `a player who cannot cover the smallest bet is staked again`() {
-        // One bet's worth of chips, so the first loss leaves nothing.
-        val refilled = (1..200).firstNotNullOf { seed ->
-            val table = table(seed, startingStack = 10)
-            table.bet(10)
-            table.playOut()
-            table.view().takeIf { assertNotNull(it.result).net < 0 }
-        }
+    fun `the table is told what the player has, and only between rounds`() {
+        val table = tableInPlay()
+        assertFailsWith<IllegalStateException> { table.fund(5_000, refilled = false) }
 
-        assertTrue(assertNotNull(refilled.result).refilled)
-        assertEquals(10, refilled.stack)
+        table.act(BlackjackAction.Stand)
+        table.fund(5_000, refilled = true)
+
+        assertEquals(5_000, table.view().stack)
+        assertTrue(assertNotNull(table.view().result).refilled, "the view passes on that the player was staked again")
     }
 
     @Test
@@ -122,6 +120,8 @@ class BlackjackTableTest {
         repeat(400) {
             table.bet(10)
             table.playOut()
+            // The bankroll's job now: keep the player able to bet.
+            if (table.view().stack < 10) table.fund(2_000, refilled = true)
         }
 
         assertEquals(400, table.roundNumber)
