@@ -5,7 +5,7 @@ import type { Dashboard } from './types'
 /** A request the server understood and refused, with its reason. */
 export class Refused extends Error {}
 
-async function request(path: string, init: RequestInit = {}, secondTry = false): Promise<Response> {
+export async function request(path: string, init: RequestInit = {}, secondTry = false): Promise<Response> {
   const token = await playerToken()
   const response = await fetch(httpUrl(path), {
     ...init,

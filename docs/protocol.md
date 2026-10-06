@@ -6,18 +6,33 @@ Two games are served, each at its own address: [poker](#connecting) and [blackja
 
 A player's chips, history and statistics belong to the player and are kept by the server. A table only borrows the bankroll while the player sits at it.
 
-For now every player is a guest. The server makes one on request and returns a secret token, once; the client keeps it and presents it from then on. Only a hash of the token is stored.
+Every player starts as a guest. The server makes one on request and returns a secret token, once; the client keeps it and presents it from then on. Only a hash of the token is stored. A guest's profile can be reached only from the browser that holds its token, until they [sign in](#signing-in).
 
 | Request | Answer |
 |---|---|
-| `POST /players` | `201` `{ "token": "...", "player": { "name": "Guest 4821", "balance": 2000 } }` |
-| `GET /players/me` | `{ "name": "...", "balance": 1940 }` |
+| `POST /players` | `201` `{ "token": "...", "player": { "name": "Guest 4821", "balance": 2000, "signedIn": false } }` |
+| `GET /players/me` | `{ "name": "...", "balance": 1940, "signedIn": false }` |
 | `PATCH /players/me` with `{ "name": "Ana" }` | The same, renamed. `400` with `{ "message": "..." }` if the name is refused |
 | `GET /players/me/dashboard` | Everything the profile page shows, worked out from the player's rounds |
 
 All but the first need `Authorization: Bearer <token>`, and answer `401` to a token the server does not know.
 
 A new player is granted 2,000 chips, once. After that the balance changes only as rounds are won and lost, except that a player left unable to make the smallest bet is brought back up to 2,000. Every change is a line in a ledger and the balance is their sum.
+
+### Signing in
+
+Signing in saves a profile to an account so it can be reached from any device. Accounts are held by Supabase Auth, and Google is the only way in for now. The provider is used only to establish who the player is; after that the server's own token stands for them, exactly as for a guest.
+
+| Request | Answer |
+|---|---|
+| `GET /sign-in` | `{ "url": "...", "publicKey": "..." }`, what the browser needs to send the player to the provider. Both null when signing in is not set up |
+| `POST /players/me/account` with `{ "accessToken": "..." }` | `{ "token": null, "player": { ... } }`. `403` if the provider does not confirm the access token |
+| `DELETE /players/me/session` | `204`. The token used for the request stops working; the profile stays with its account |
+
+The browser sends the player to the provider, comes back with a code, trades it for an access token, and posts that with its own bearer token. The server asks the provider whose access token it is, then:
+
+- **The account has no profile yet.** It takes the profile the browser already has, so nothing a guest has won or played is lost. `token` is null and the browser carries on with the one it had.
+- **The account already has a profile.** `token` is a new one for that profile, and the browser must use it from then on. The guest profile it arrived with is left behind: two bankrolls are never added together, or making guests would be a way of making chips.
 
 ### Saying hello
 

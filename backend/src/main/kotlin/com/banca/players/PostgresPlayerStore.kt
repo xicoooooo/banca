@@ -38,28 +38,56 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
     }
 
     override suspend fun create(name: String, tokenHash: String, openingChips: Long): Player = transaction { connection ->
-        val player = connection.prepareStatement(
-            "insert into profiles (display_name, token_hash) values (?, ?) returning id, display_name, created_at",
-        ).use { statement ->
+        val player = connection.prepareStatement("insert into profiles (display_name) values (?) returning $PLAYER").use { statement ->
             statement.setString(1, name)
-            statement.setString(2, tokenHash)
             statement.executeQuery().use { rows -> rows.next(); rows.toPlayer() }
         }
+        connection.addToken(player.id, tokenHash)
         connection.addEntry(player.id, openingChips, LedgerReason.SIGNUP_GRANT, reference = null)
         player
     }
 
     override suspend fun findByTokenHash(tokenHash: String): Player? = query { connection ->
-        connection.prepareStatement("select id, display_name, created_at from profiles where token_hash = ?").use { statement ->
+        connection.prepareStatement(
+            "select $PLAYER from profiles where id = (select profile_id from player_tokens where token_hash = ?)",
+        ).use { statement ->
             statement.setString(1, tokenHash)
             statement.executeQuery().use { rows -> if (rows.next()) rows.toPlayer() else null }
         }
     }
 
-    override suspend fun rename(id: UUID, name: String): Player = query { connection ->
+    override suspend fun addToken(id: UUID, tokenHash: String): Unit = query { it.addToken(id, tokenHash) }
+
+    override suspend fun removeToken(tokenHash: String): Unit = query { connection ->
+        connection.prepareStatement("delete from player_tokens where token_hash = ?").use { statement ->
+            statement.setString(1, tokenHash)
+            statement.executeUpdate()
+        }
+    }
+
+    override suspend fun findByAccount(accountId: String): Player? = query { connection ->
+        connection.prepareStatement("select $PLAYER from profiles where auth_user_id = ?::uuid").use { statement ->
+            statement.setString(1, accountId)
+            statement.executeQuery().use { rows -> if (rows.next()) rows.toPlayer() else null }
+        }
+    }
+
+    override suspend fun linkAccount(id: UUID, accountId: String): Player = query { connection ->
+        // The unique constraint refuses an account that already has a profile.
         connection.prepareStatement(
-            "update profiles set display_name = ? where id = ? returning id, display_name, created_at",
+            "update profiles set auth_user_id = ?::uuid where id = ? and auth_user_id is null returning $PLAYER",
         ).use { statement ->
+            statement.setString(1, accountId)
+            statement.setObject(2, id)
+            statement.executeQuery().use { rows ->
+                check(rows.next()) { "This profile already belongs to an account" }
+                rows.toPlayer()
+            }
+        }
+    }
+
+    override suspend fun rename(id: UUID, name: String): Player = query { connection ->
+        connection.prepareStatement("update profiles set display_name = ? where id = ? returning $PLAYER").use { statement ->
             statement.setString(1, name)
             statement.setObject(2, id)
             statement.executeQuery().use { rows ->
@@ -156,6 +184,14 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
         }
     }
 
+    private fun Connection.addToken(id: UUID, tokenHash: String) {
+        prepareStatement("insert into player_tokens (token_hash, profile_id) values (?, ?)").use { statement ->
+            statement.setString(1, tokenHash)
+            statement.setObject(2, id)
+            statement.executeUpdate()
+        }
+    }
+
     private fun Connection.addEntry(id: UUID, amount: Long, reason: LedgerReason, reference: String?) {
         prepareStatement(
             "insert into wallet_entries (profile_id, amount, reason, ref_id) values (?, ?, ?::wallet_reason, ?)",
@@ -178,9 +214,13 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
         id = getObject("id", UUID::class.java),
         name = getString("display_name"),
         createdAt = getTimestamp("created_at").toInstant(),
+        accountId = getString("auth_user_id"),
     )
 
     companion object {
+        /** The columns a player is read from. */
+        private const val PLAYER = "id, display_name, created_at, auth_user_id"
+
         /**
          * Opens a pool from an address of the usual form,
          * postgresql://user:password@host:port/database. The pool is kept small:

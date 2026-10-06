@@ -57,6 +57,8 @@ To play without a model, start the backend with `MODEL_PROVIDER=passive` and the
 
 Players and their history are kept in Postgres when `DATABASE_URL` is set, with the migrations in [`db/migrations`](db/migrations) applied in order. Without it the server keeps them in memory and forgets them when it stops, which is enough to try the game. Settings are read from the environment, then from `backend/.env`.
 
+Everyone can play as a guest. With `SUPABASE_URL` and `SUPABASE_ANON_KEY` set, and Google enabled as a provider in that Supabase project, players can also sign in to save their profile and reach it from another device.
+
 ```bash
 cd backend && ./gradlew run
 ```

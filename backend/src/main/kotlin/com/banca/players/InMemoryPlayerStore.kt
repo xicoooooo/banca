@@ -12,26 +12,49 @@ import java.util.UUID
  */
 class InMemoryPlayerStore(private val clock: Clock = Clock.systemUTC()) : PlayerStore {
 
-    private class Account(var player: Player, val tokenHash: String) {
+    private class Entry(var player: Player) {
         val ledger = mutableListOf<LedgerEntry>()
         val rounds = mutableListOf<RoundRecord>()
     }
 
-    private val accounts = mutableMapOf<UUID, Account>()
+    private val accounts = mutableMapOf<UUID, Entry>()
+    private val tokens = mutableMapOf<String, UUID>()
     private val lock = Mutex()
 
     private fun account(id: UUID) = accounts[id] ?: error("No player $id")
 
     override suspend fun create(name: String, tokenHash: String, openingChips: Long): Player = lock.withLock {
         val player = Player(UUID.randomUUID(), name, Instant.now(clock))
-        val account = Account(player, tokenHash)
+        val account = Entry(player)
         account.ledger += LedgerEntry(openingChips, LedgerReason.SIGNUP_GRANT, player.createdAt)
         accounts[player.id] = account
+        tokens[tokenHash] = player.id
         player
     }
 
     override suspend fun findByTokenHash(tokenHash: String): Player? = lock.withLock {
-        accounts.values.firstOrNull { it.tokenHash == tokenHash }?.player
+        tokens[tokenHash]?.let { accounts[it] }?.player
+    }
+
+    override suspend fun addToken(id: UUID, tokenHash: String): Unit = lock.withLock {
+        account(id)
+        tokens[tokenHash] = id
+    }
+
+    override suspend fun removeToken(tokenHash: String): Unit = lock.withLock {
+        tokens.remove(tokenHash)
+    }
+
+    override suspend fun findByAccount(accountId: String): Player? = lock.withLock {
+        accounts.values.firstOrNull { it.player.accountId == accountId }?.player
+    }
+
+    override suspend fun linkAccount(id: UUID, accountId: String): Player = lock.withLock {
+        val account = account(id)
+        check(account.player.accountId == null) { "This profile already belongs to an account" }
+        check(accounts.values.none { it.player.accountId == accountId }) { "This account already has a profile" }
+        account.player = account.player.copy(accountId = accountId)
+        account.player
     }
 
     override suspend fun rename(id: UUID, name: String): Player = lock.withLock {

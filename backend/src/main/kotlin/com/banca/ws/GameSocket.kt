@@ -68,7 +68,7 @@ fun Route.gameSocket(path: String, players: Players, connect: (Send, PlayerSessi
         }
 
         val session = PlayerSession(player, players)
-        send(wireJson.encodeToString(Welcome.serializer(), Welcome(player = Identity(player.name, session.balance()))))
+        send(wireJson.encodeToString(Welcome.serializer(), Welcome(player = Identity(player.name, session.balance(), signedIn = player.accountId != null))))
 
         val connection = connect(send, session)
         connection.opened()

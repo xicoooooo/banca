@@ -1,8 +1,9 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { AnimatedNumber } from '../casino/AnimatedNumber'
 import { CasinoShell } from '../casino/CasinoShell'
 import { Header } from '../casino/Header'
 import { Loading } from '../casino/Loading'
+import { canSignIn, signInWithGoogle, signOut } from '../player/account'
 import { Refused, renamePlayer } from '../player/api'
 import type { Achievement, Dashboard, GameBreakdown } from '../player/types'
 import { useDashboard } from '../player/useDashboard'
@@ -12,10 +13,12 @@ import { GAME_NAMES, ago, chips, levelProgress, monthAndYear, percent, signed, t
 type ProfileProps = {
   onLeave: () => void
   onPlay: (game: 'poker' | 'blackjack') => void
+  /** True when the player has just come back from a sign-in that did not go through. */
+  signInFailed?: boolean
 }
 
 /** The player's own page: who they are, what they have, and how they have played. */
-export function Profile({ onLeave, onPlay }: ProfileProps) {
+export function Profile({ onLeave, onPlay, signInFailed = false }: ProfileProps) {
   const { status, dashboard, refresh } = useDashboard()
 
   return (
@@ -29,6 +32,7 @@ export function Profile({ onLeave, onPlay }: ProfileProps) {
       ) : (
         <div className="flex flex-col gap-4 py-4 sm:gap-5 sm:py-6">
           <Identity dashboard={dashboard} onRenamed={refresh} />
+          <AccountPanel signedIn={dashboard.player.signedIn} failed={signInFailed} onSignedOut={refresh} />
           <BankrollPanel dashboard={dashboard} />
 
           {dashboard.totals.rounds === 0 ? (
@@ -116,6 +120,88 @@ function Identity({ dashboard, onRenamed }: { dashboard: Dashboard; onRenamed: (
           </>
         )}
       </div>
+    </section>
+  )
+}
+
+/* ----------------------------------------------------------------- account */
+
+/**
+ * For a guest, the way to save their profile; for someone signed in, the
+ * assurance that it is saved and the way out. Shown only where the server
+ * offers signing in.
+ */
+function AccountPanel({ signedIn, failed, onSignedOut }: { signedIn: boolean; failed: boolean; onSignedOut: () => void }) {
+  const [offered, setOffered] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState<string | null>(failed ? 'That sign-in did not go through. Nothing has changed; try again.' : null)
+
+  useEffect(() => {
+    let disposed = false
+    void canSignIn().then((can) => {
+      if (!disposed) setOffered(can)
+    })
+    return () => {
+      disposed = true
+    }
+  }, [])
+
+  if (!offered && !signedIn) return null
+
+  const start = async () => {
+    setBusy(true)
+    setProblem(null)
+    try {
+      await signInWithGoogle()
+      // The browser is on its way to Google; the button stays busy until it goes.
+    } catch {
+      setProblem('Could not reach Google just now. Try again in a moment.')
+      setBusy(false)
+    }
+  }
+
+  const leave = async () => {
+    setBusy(true)
+    try {
+      await signOut()
+      onSignedOut()
+    } catch {
+      setProblem('Could not sign out just now. Try again in a moment.')
+    }
+    setBusy(false)
+  }
+
+  return (
+    <section className="panel rise-in flex flex-wrap items-center gap-x-5 gap-y-3" style={{ ['--rise-delay' as string]: '40ms' }}>
+      <div className="min-w-56 flex-1">
+        <h2 className="label text-gold!">{signedIn ? 'Saved to your account' : 'Save your progress'}</h2>
+        <p className="pt-1.5 text-sm leading-relaxed text-muted">
+          {signedIn
+            ? 'Your chips and history are saved. Sign in with the same Google account on any device to pick up where you left off.'
+            : 'You are playing as a guest, so your chips and history live only in this browser. Sign in to keep them and play from any device.'}
+        </p>
+        {problem && (
+          <p role="alert" className="pt-2 text-sm" data-tone="loss">
+            {problem}
+          </p>
+        )}
+      </div>
+
+      {signedIn ? (
+        <button type="button" className="btn btn--quiet px-5! text-sm" onClick={leave} disabled={busy}>
+          Sign out
+        </button>
+      ) : (
+        <button type="button" className="google-button" onClick={start} disabled={busy}>
+          <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden>
+            <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 01-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
+            <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.33-1.58-5.04-3.71H.96v2.33A9 9 0 009 18z" />
+            <path fill="#FBBC05" d="M3.96 10.71A5.41 5.41 0 013.68 9c0-.6.1-1.17.28-1.71V4.96H.96A9 9 0 000 9c0 1.45.35 2.83.96 4.04l3-2.33z" />
+            <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59C13.46.89 11.43 0 9 0A9 9 0 00.96 4.96l3 2.33C4.67 5.16 6.66 3.58 9 3.58z" />
+          </svg>
+          {busy ? 'Opening Google' : 'Continue with Google'}
+        </button>
+      )}
     </section>
   )
 }

@@ -42,6 +42,7 @@ object DashboardBuilder {
 
         return Dashboard(
             player = PlayerCard(
+                signedIn = player.accountId != null,
                 name = player.name,
                 memberSince = player.createdAt.toString(),
                 level = level,

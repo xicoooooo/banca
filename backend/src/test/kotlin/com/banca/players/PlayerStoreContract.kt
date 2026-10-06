@@ -116,6 +116,47 @@ abstract class PlayerStoreContract {
         assertEquals("Ana Sofia", store.rename(player.id, "Ana Sofia").name)
         assertEquals("Ana Sofia", assertNotNull(store.findByTokenHash(mine)).name)
     }
+
+    @Test
+    fun `a player can be known by several tokens, and each can be taken away alone`() = with { store ->
+        val phone = token()
+        val laptop = token()
+        val player = store.create("Ana", phone, 2_000)
+        store.addToken(player.id, laptop)
+
+        assertEquals(player.id, assertNotNull(store.findByTokenHash(laptop)).id)
+
+        store.removeToken(phone)
+        assertNull(store.findByTokenHash(phone))
+        assertEquals(player.id, assertNotNull(store.findByTokenHash(laptop)).id, "the other device is untouched")
+        assertEquals(2_000, store.balance(player.id), "and so is the profile")
+    }
+
+    @Test
+    fun `a profile saved to an account is found by it`() = with { store ->
+        val account = UUID.randomUUID().toString()
+        val mine = token()
+        val player = store.create("Ana", mine, 2_000)
+        assertNull(player.accountId)
+        assertNull(store.findByAccount(account))
+
+        assertEquals(account, store.linkAccount(player.id, account).accountId)
+
+        assertEquals(player.id, assertNotNull(store.findByAccount(account)).id)
+        assertEquals(account, assertNotNull(store.findByTokenHash(mine)).accountId)
+    }
+
+    @Test
+    fun `an account has one profile and a profile one account`() = with { store ->
+        val account = UUID.randomUUID().toString()
+        val ana = store.create("Ana", token(), 2_000)
+        val rui = store.create("Rui", token(), 2_000)
+        store.linkAccount(ana.id, account)
+
+        assertTrue(runCatching { store.linkAccount(rui.id, account) }.isFailure, "the account is taken")
+        assertTrue(runCatching { store.linkAccount(ana.id, UUID.randomUUID().toString()) }.isFailure, "the profile is taken")
+        assertEquals(ana.id, assertNotNull(store.findByAccount(account)).id)
+    }
 }
 
 class InMemoryPlayerStoreTest : PlayerStoreContract() {

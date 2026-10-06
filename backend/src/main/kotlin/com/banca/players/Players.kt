@@ -10,19 +10,72 @@ import kotlin.random.Random
  * The rules about players: who someone is, what they start with, and what
  * happens when they run out.
  *
- * There are no accounts yet. A browser is given a secret token the first time
- * it arrives and shows it again on each visit, which makes it a guest with a
- * profile of its own. The token is only ever stored as a hash.
+ * A browser is given a secret token the first time it arrives and shows it
+ * again on each visit, which makes it a guest with a profile of its own. The
+ * token is only ever stored as a hash. Signing in saves that profile to an
+ * account, and from then on any device that signs in to the account is given
+ * a token of its own for the same profile.
  */
 class Players(private val store: PlayerStore, private val clock: Clock = Clock.systemUTC()) {
 
     private val random = SecureRandom()
 
+    private fun newToken(): String =
+        ByteArray(32).also(random::nextBytes).let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
+
     suspend fun createGuest(): Pair<Player, String> {
-        val token = ByteArray(32).also(random::nextBytes).let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
+        val token = newToken()
         val player = store.create(name = "Guest ${Random.nextInt(1000, 10_000)}", tokenHash = hash(token), openingChips = OPENING_CHIPS)
         return player to token
     }
+
+    /**
+     * What signing in came to: the profile the device is now playing as, and a
+     * new token for it when that is not the profile it arrived with.
+     */
+    class SignedIn(val player: Player, val token: String?)
+
+    /**
+     * Signs the device holding [token], currently playing as [current], in to [account].
+     *
+     * An account with no profile yet takes the one the device has, so nothing
+     * a guest has won or played is lost by signing in. An account that already
+     * has a profile brings it to this device, and the guest profile is left
+     * behind: two bankrolls are never added together, or making guests would
+     * be a way of making chips.
+     */
+    suspend fun signIn(current: Player, token: String, account: Account): SignedIn {
+        val saved = store.findByAccount(account.id)
+        if (saved?.id == current.id) return SignedIn(current, null)
+
+        if (saved != null) {
+            val fresh = newToken()
+            store.addToken(saved.id, hash(fresh))
+            // A guest left behind has no other way in, so its token is no use to anyone.
+            if (current.accountId == null) store.removeToken(hash(token))
+            return SignedIn(saved, fresh)
+        }
+
+        if (current.accountId == null) {
+            var linked = store.linkAccount(current.id, account.id)
+            // A guest who never chose a name takes their first name. No more
+            // than that: a name here may one day be shown to other players.
+            val known = account.name?.trim()?.split(Regex("\\s+"))?.firstOrNull()?.take(20)
+            if (GUEST_NAME.matches(linked.name) && known != null && NAME.matches(known)) {
+                linked = store.rename(linked.id, known)
+            }
+            return SignedIn(linked, null)
+        }
+
+        // The device is playing as someone else's saved profile, which stays
+        // theirs. This account starts one of its own.
+        val fresh = newToken()
+        val started = store.create(name = "Guest ${Random.nextInt(1000, 10_000)}", tokenHash = hash(fresh), openingChips = OPENING_CHIPS)
+        return SignedIn(store.linkAccount(started.id, account.id), fresh)
+    }
+
+    /** Signs one device out. The profile stays with its account, to be signed in to again. */
+    suspend fun signOut(token: String) = store.removeToken(hash(token))
 
     suspend fun authenticate(token: String): Player? =
         if (token.isBlank()) null else store.findByTokenHash(hash(token))
@@ -67,5 +120,6 @@ class Players(private val store: PlayerStore, private val clock: Clock = Clock.s
         private const val HISTORY_LIMIT = 5_000
 
         private val NAME = Regex("^[\\p{L}\\p{N} ._'-]{2,20}$")
+        private val GUEST_NAME = Regex("^Guest \\d{4}$")
     }
 }

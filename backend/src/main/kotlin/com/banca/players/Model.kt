@@ -24,7 +24,14 @@ enum class LedgerReason {
     DAILY_REWARD,
 }
 
-data class Player(val id: UUID, val name: String, val createdAt: Instant)
+/**
+ * [accountId] is the account the profile is saved to, or null for a guest,
+ * whose profile can only be reached from the device that made it.
+ */
+data class Player(val id: UUID, val name: String, val createdAt: Instant, val accountId: String? = null)
+
+/** Someone the sign-in provider vouches for. */
+data class Account(val id: String, val name: String?)
 
 /**
  * What one round did to one player. The round itself, its table and its game,

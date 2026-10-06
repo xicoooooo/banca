@@ -16,6 +16,17 @@ interface PlayerStore {
 
     suspend fun findByTokenHash(tokenHash: String): Player?
 
+    /** Lets another device be this player, known there by [tokenHash]. */
+    suspend fun addToken(id: UUID, tokenHash: String)
+
+    /** Forgets a token, so the device holding it is no longer this player. */
+    suspend fun removeToken(tokenHash: String)
+
+    suspend fun findByAccount(accountId: String): Player?
+
+    /** Saves the profile to an account. An account has one profile, and a profile one account. */
+    suspend fun linkAccount(id: UUID, accountId: String): Player
+
     suspend fun rename(id: UUID, name: String): Player
 
     suspend fun balance(id: UUID): Long

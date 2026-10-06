@@ -18,6 +18,8 @@ data class Dashboard(
 @Serializable
 data class PlayerCard(
     val name: String,
+    /** True when the profile is saved to an account, false for a guest. */
+    val signedIn: Boolean,
     val memberSince: String,
     val level: Int,
     val title: String,

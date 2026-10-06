@@ -8,6 +8,8 @@ export type Outcome = 'win' | 'loss' | 'push'
 export type Dashboard = {
   player: {
     name: string
+    /** True when the profile is saved to an account, false for a guest. */
+    signedIn: boolean
     memberSince: string
     level: number
     title: string

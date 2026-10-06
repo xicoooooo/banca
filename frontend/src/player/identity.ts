@@ -51,6 +51,11 @@ export function playerToken(): Promise<string> {
   return arriving
 }
 
+/** Takes up the token for a saved profile, in place of the one this browser had. */
+export function replaceToken(token: string) {
+  store(token)
+}
+
 /** Drops a token the server no longer knows, so the next request starts afresh. */
 export function forgetPlayer(token: string) {
   if (stored() === token) store(null)

@@ -10,6 +10,8 @@ import com.banca.players.InMemoryPlayerStore
 import com.banca.players.PlayerStore
 import com.banca.players.Players
 import com.banca.players.PostgresPlayerStore
+import com.banca.players.SignInConfig
+import com.banca.players.SupabaseAccounts
 import com.banca.players.configurePlayerRoutes
 import com.banca.ws.BlackjackSocketConfig
 import com.banca.ws.TableSocketConfig
@@ -27,9 +29,10 @@ fun main() {
     val port = Config["PORT"]?.toIntOrNull() ?: 8080
     val startup = startupFromEnvironment()
     val players = Players(playerStoreFromEnvironment())
+    val signIn = signInFromEnvironment()
 
     embeddedServer(Netty, port = port, host = "0.0.0.0") {
-        module(tableSocket = startup.tableSocket, players = players)
+        module(tableSocket = startup.tableSocket, players = players, signIn = signIn)
         // Only once the server is answering, so rehearsing never delays the
         // health check that tells the host the deploy worked.
         startup.modelToWarmUp?.let { model ->
@@ -53,6 +56,20 @@ private fun playerStoreFromEnvironment(): PlayerStore {
         log.warn("DATABASE_URL is not set: players are kept in memory and will be forgotten on restart")
         InMemoryPlayerStore()
     }
+}
+
+/**
+ * Signing in is offered when SUPABASE_URL and SUPABASE_ANON_KEY are set. Both
+ * are public values. Without them everyone plays as a guest.
+ */
+private fun signInFromEnvironment(): SignInConfig? {
+    val url = Config["SUPABASE_URL"]
+    val key = Config["SUPABASE_ANON_KEY"]
+    if (url == null || key == null) {
+        LoggerFactory.getLogger("com.banca.Application").warn("SUPABASE_URL or SUPABASE_ANON_KEY is not set: signing in is off")
+        return null
+    }
+    return SignInConfig(url, key, SupabaseAccounts(url, key))
 }
 
 private class Startup(val tableSocket: TableSocketConfig, val modelToWarmUp: ModelProvider? = null)
@@ -107,11 +124,12 @@ fun Application.module(
     tableSocket: TableSocketConfig = TableSocketConfig(),
     blackjack: BlackjackSocketConfig = BlackjackSocketConfig(),
     players: Players = Players(InMemoryPlayerStore()),
+    signIn: SignInConfig? = null,
 ) {
     configureSerialization()
     configureLogging()
     configureCors()
     configureRouting()
-    configurePlayerRoutes(players)
+    configurePlayerRoutes(players, signIn)
     configureGameSockets(players = players, poker = tableSocket, blackjack = blackjack)
 }
