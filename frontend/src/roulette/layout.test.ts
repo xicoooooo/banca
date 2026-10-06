@@ -4,6 +4,7 @@ import {
   ROWS,
   WHEEL_ORDER,
   amountOn,
+  betsFrom,
   angleOf,
   colorOf,
   nextRotation,
@@ -95,6 +96,12 @@ describe('placing chips', () => {
     const nearlyOut = { ...limits, stack: 55 }
     const bets = place(NO_BETS, 'red', 50, nearlyOut)
     expect(place(bets, 'black', 25, nearlyOut)).toBe(bets)
+  })
+
+  it('can be rebuilt from the wagers the server holds', () => {
+    const bets = placing(['red', 50], ['red', 25], ['straight:7', 10], ['dozen:2', 50])
+    expect(wagersOf(betsFrom(wagersOf(bets)))).toEqual(wagersOf(bets))
+    expect(totalOf(betsFrom([{ kind: 'straight', number: 0, amount: 10 }]))).toBe(10)
   })
 
   it('takes back the last chip put down', () => {

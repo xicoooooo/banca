@@ -22,8 +22,8 @@ const GAMES: { id: Game; name: string; line: string; detail: string }[] = [
   {
     id: 'roulette',
     name: 'Roulette',
-    line: 'You against the wheel',
-    detail: 'A European wheel with a single zero. Lay your chips out and spin.',
+    line: 'One wheel for the whole room',
+    detail: 'A European wheel with a single zero. Join a room with other players, or take a table to yourself.',
   },
 ]
 

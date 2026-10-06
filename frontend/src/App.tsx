@@ -5,6 +5,8 @@ import { Loading } from './casino/Loading'
 import { Lobby, type Game } from './lobby/Lobby'
 import { confirmSignIn, returningFromSignIn } from './player/account'
 import { Profile } from './profile/Profile'
+import { RoomPicker } from './roulette/RoomPicker'
+import { RoomTable } from './roulette/RoomTable'
 import { RouletteTable } from './roulette/RouletteTable'
 import { Table } from './table/Table'
 
@@ -12,20 +14,26 @@ type Screen = Game | 'profile'
 
 const SCREENS: Screen[] = ['poker', 'blackjack', 'roulette', 'profile']
 
-function screenInAddress(): Screen | null {
-  const name = window.location.hash.replace(/^#\/?/, '')
-  return SCREENS.find((screen) => screen === name) ?? null
+/** Where the address points: a screen, and for roulette which room within it. */
+type Place = { screen: Screen; room: string | null }
+
+function placeInAddress(): Place | null {
+  const [name, room] = window.location.hash.replace(/^#\/?/, '').split('/')
+  const screen = SCREENS.find((known) => known === name)
+  // A room is named by a short word; anything else in the address is not one.
+  return screen ? { screen, room: room && /^[a-z]{1,20}$/.test(room) ? room : null } : null
 }
 
 /**
  * Which screen is open is kept in the address, after the #, so the browser's
- * back button leaves a table and a link can point straight at one. That is all
- * the routing a handful of screens need.
+ * back button leaves a table and a link can point straight at one, down to the
+ * room. That is all the routing a handful of screens need.
  */
 function App() {
   // Read once: the address is tidied straight after, and the answer must outlive that.
   const [returning] = useState(returningFromSignIn)
-  const [screen, setScreen] = useState<Screen | null>(() => (returning ? 'profile' : screenInAddress()))
+  const [place, setPlace] = useState<Place | null>(() => (returning ? { screen: 'profile', room: null } : placeInAddress()))
+  const screen = place?.screen ?? null
   // Set while a player who has just come back from signing in is being confirmed.
   const [arrival, setArrival] = useState<'none' | 'confirming' | 'failed'>(returning ? 'confirming' : 'none')
 
@@ -44,7 +52,7 @@ function App() {
   }, [returning])
 
   useEffect(() => {
-    const onChange = () => setScreen(screenInAddress())
+    const onChange = () => setPlace(placeInAddress())
     window.addEventListener('hashchange', onChange)
     return () => window.removeEventListener('hashchange', onChange)
   }, [])
@@ -67,7 +75,20 @@ function App() {
 
   if (screen === 'poker') return <Table onLeave={leave} />
   if (screen === 'blackjack') return <BlackjackTable onLeave={leave} />
-  if (screen === 'roulette') return <RouletteTable onLeave={leave} />
+  if (screen === 'roulette') {
+    // Leaving a room goes back to the choice of rooms, not all the way out.
+    const toRooms = () => open('roulette')
+    if (place?.room === 'private') return <RouletteTable onLeave={toRooms} />
+    if (place?.room) return <RoomTable key={place.room} roomId={place.room} onLeave={toRooms} />
+    return (
+      <RoomPicker
+        onLeave={leave}
+        onChoose={(room) => {
+          window.location.hash = `/roulette/${room}`
+        }}
+      />
+    )
+  }
   if (screen === 'profile') return <Profile onLeave={leave} onPlay={open} signInFailed={arrival === 'failed'} />
   return <Lobby onChoose={open} onProfile={() => open('profile')} />
 }

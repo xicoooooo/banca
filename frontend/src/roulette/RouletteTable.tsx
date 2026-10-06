@@ -2,24 +2,17 @@ import { useState } from 'react'
 import { AnimatedNumber } from '../casino/AnimatedNumber'
 import { CasinoShell } from '../casino/CasinoShell'
 import { OutOfChips, StakedNote } from '../casino/ChipNotices'
-import { CHIP_CLASS, type ChipColor } from '../casino/chips'
 import { Header, type Status } from '../casino/Header'
 import { ConnectionNote } from '../casino/ConnectionNote'
 import { Loading } from '../casino/Loading'
 import { sound } from '../casino/sound'
 import { AnalystPanel, AnalystPill } from './Analyst'
+import { ChipPicker } from './ChipPicker'
 import { Felt } from './Felt'
 import { NO_BETS, colorOf, outlook, place, totalOf, undo, wagersOf, type Bets, type Spot } from './layout'
 import type { RouletteView } from './types'
 import { useRoulette } from './useRoulette'
 import { Wheel } from './Wheel'
-
-const CHIPS: { value: number; color: ChipColor }[] = [
-  { value: 10, color: 'emerald' },
-  { value: 25, color: 'deep' },
-  { value: 50, color: 'ivory' },
-  { value: 100, color: 'gold' },
-]
 
 function statusOf(view: RouletteView, spinning: boolean, staked: number): Status {
   if (spinning) return { text: 'No more bets', tone: 'emerald' }
@@ -166,25 +159,7 @@ export function RouletteTable({ onLeave }: { onLeave?: () => void }) {
         ) : (
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex gap-2">
-                {CHIPS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => {
-                      sound.click()
-                      setChip(option.value)
-                    }}
-                    aria-pressed={chip === option.value}
-                    aria-label={`Bet with ${option.value} chips`}
-                    className="chip-button chip-button--pick"
-                    data-light={option.color === 'ivory' || option.color === 'gold'}
-                  >
-                    <span aria-hidden className={CHIP_CLASS[option.color]} />
-                    <span aria-hidden>{option.value}</span>
-                  </button>
-                ))}
-              </div>
+              <ChipPicker chip={chip} onPick={setChip} />
 
               <div className="flex gap-1.5">
                 <button type="button" className="btn btn--quiet px-3! text-xs" onClick={() => change(undo(bets))} disabled={spinning || total === 0}>

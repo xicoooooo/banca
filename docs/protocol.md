@@ -424,3 +424,91 @@ A bet covering *n* numbers pays 36 / *n* − 1 to one, which gives every payout 
 Banca has no bet to recommend, because there is none: the tools it reads a layout through give it the figures above and nothing else. It is never shown where the ball has landed before, so it has nothing from which to suggest that a number is due.
 
 A layout is taken whole or refused whole. Every bet must be at least `minBet`; a bet on the numbers themselves (`straight` to `six_line`) at most `maxInside`, and any other at most `maxOutside`. Chips on the same bet are counted together. The layout may not come to more than the player has.
+
+---
+
+# Roulette rooms
+
+Version 1, JSON text frames over a WebSocket. Besides the private table above, roulette is played in shared rooms, each at its own address:
+
+```
+ws://<host>/ws/roulette/rooms/<room>
+```
+
+`GET /roulette/rooms` lists them, with how many players are in each and where its ball has landed lately:
+
+```json
+[{ "id": "emerald", "name": "Emerald Room", "players": 2, "history": [17, 10] }]
+```
+
+A room is one wheel shared by everyone in it, and it keeps time for them all. Each round has three phases: `betting`, while chips may go down; `spinning`, from the moment bets close until the ball is seen to land; and `results`. Then the next round opens. With the default timings a round is half a minute. A room with nobody in it stops, and starts again when someone walks in.
+
+Each player's chips are still their own. The room holds a player's bets until the spin, settles them against the same pocket as everyone else's, and writes the result to that player's record exactly as a private table would. The rules and limits are those of the private table.
+
+## Client to server
+
+```json
+{ "type": "bets", "bets": [{ "kind": "red", "amount": 50 }] }
+{ "type": "chat", "say": "good_luck" }
+{ "type": "analyse", "bets": [{ "kind": "red", "amount": 50 }] }
+```
+
+`bets` is the player's whole layout for the round, replacing whatever they had down; an empty list takes it all back. It is sent every time the layout changes, so the room always holds what the player sees, and is refused once bets have closed. There is no message to spin: the room does that.
+
+`chat` says one of the room's set phrases, named by its id. Players choose from a list and cannot type, so a room of strangers needs nobody to moderate it. One line every second and a half at most.
+
+`analyse` is as at the private table.
+
+## Server to client
+
+### `state`
+
+```json
+{
+  "type": "state",
+  "view": {
+    "room": "emerald",
+    "name": "Emerald Room",
+    "roundNumber": 3,
+    "phase": "betting",
+    "msLeft": 14200,
+    "stack": 1950,
+    "minBet": 10,
+    "maxInside": 100,
+    "maxOutside": 500,
+    "history": [17, 10],
+    "pocket": null,
+    "bets": [{ "kind": "red", "amount": 50 }],
+    "crowd": [
+      { "kind": "red", "number": null, "other": null, "amount": 50, "players": 1 },
+      { "kind": "straight", "number": 8, "other": null, "amount": 10, "players": 1 }
+    ],
+    "players": [
+      { "name": "Ana", "staked": 50, "net": null, "you": true },
+      { "name": "Marta", "staked": 10, "net": null, "you": false }
+    ],
+    "result": null
+  }
+}
+```
+
+Sent to everyone in the room whenever the phase changes or anyone's bets do, each from their own seat. `msLeft` is how long the phase has to run by the server's clock; the client counts down from when the message arrived. `stack` leaves out chips the player has on the felt. `crowd` is the chips on each bet, everyone's together.
+
+`pocket` is where the ball is landing, from the moment bets close. The server has decided it by then and the player's `result` and record are already settled, but nothing that would give it away early is shown: until `results`, `stack` is still what the player had with their bets down, the pocket is not yet in `history`, and no player's `net` is set. In `results`, `players[].net` shows how everyone did.
+
+### `chat_log` and `chat`
+
+```json
+{ "type": "chat_log", "lines": [{ "from": "Marta", "text": "Good luck", "emote": false }], "phrases": [{ "id": "good_luck", "text": "Good luck", "emote": false }] }
+{ "type": "chat", "line": { "from": "Ana", "text": "👏", "emote": true } }
+```
+
+`chat_log` is sent on walking in: what has been said lately, and everything that can be said. `chat` is a line as it is spoken.
+
+### `trace`, `read` and `error`
+
+As at the private table.
+
+## Dropping and leaving
+
+A bet made is a bet made. If a player's connection drops, their chips stay on the felt and are played at the next spin. Coming back shows them the room as it stands, their result included. A player who does not come back is shown out once nothing of theirs is riding.

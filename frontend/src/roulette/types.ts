@@ -60,4 +60,47 @@ export type RouletteServerMessage =
   | { type: 'read'; read: LayoutRead }
   | { type: 'error'; message: string }
 
+/** Someone in a shared room, as the others see them. `net` is what the last spin did for them, once the ball has landed. */
+export type RoomPlayer = { name: string; staked: number; net: number | null; you: boolean }
+
+/** The chips on one bet, everyone's together, and how many players put them there. */
+export type CrowdSpot = { kind: Wager['kind']; number: number | null; amount: number; players: number }
+
+/** Something said in a room. Every line is one of the room's set phrases. */
+export type ChatLine = { from: string; text: string; emote: boolean }
+
+export type Phrase = { id: string; text: string; emote: boolean }
+
+/** A shared room as one player sees it. The room keeps the time; `msLeft` is how long its current phase has to run. */
+export type RoomView = {
+  room: string
+  name: string
+  roundNumber: number
+  phase: 'betting' | 'spinning' | 'results'
+  msLeft: number
+  stack: number
+  minBet: number
+  maxInside: number
+  maxOutside: number
+  history: number[]
+  pocket: number | null
+  bets: Wager[]
+  crowd: CrowdSpot[]
+  players: RoomPlayer[]
+  result: RouletteResult | null
+}
+
+export type RoomSummary = { id: string; name: string; players: number; history: number[] }
+
+export type RoomServerMessage =
+  | ChipNotice
+  | { type: 'state'; view: RoomView }
+  | { type: 'chat_log'; lines: ChatLine[]; phrases: Phrase[] }
+  | { type: 'chat'; line: ChatLine }
+  | { type: 'trace'; event: ReadStep }
+  | { type: 'read'; read: LayoutRead }
+  | { type: 'error'; message: string }
+
+export type RoomClientMessage = { type: 'bets'; bets: Wager[] } | { type: 'chat'; say: string } | { type: 'analyse'; bets: Wager[] }
+
 export type RouletteClientMessage = { type: 'spin'; bets: Wager[] } | { type: 'analyse'; bets: Wager[] }

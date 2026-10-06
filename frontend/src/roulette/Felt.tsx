@@ -7,6 +7,8 @@ type FeltProps = {
   landed: number | null
   disabled: boolean
   onPlace: (spot: Spot) => void
+  /** In a shared room: what other players have on each spot. */
+  others?: Record<Spot, number>
 }
 
 const EVEN_MONEY: { spot: Spot; label: string; color?: 'red' | 'black' }[] = [
@@ -28,7 +30,7 @@ function short(amount: number): string {
  * rows of twelve numbers, and the outside bets around them. Pressing a box
  * puts the chosen chip on it.
  */
-export function Felt({ bets, landed, disabled, onPlace }: FeltProps) {
+export function Felt({ bets, landed, disabled, onPlace, others = {} }: FeltProps) {
   const box = (spot: Spot, label: string, style: CSSProperties, color?: string, name?: string) => {
     const amount = amountOn(bets, spot)
     // The number the ball found is always lit; any other box only if chips on it were paid.
@@ -45,9 +47,11 @@ export function Felt({ bets, landed, disabled, onPlace }: FeltProps) {
         data-lost={landed !== null && amount > 0 && !covers}
         disabled={disabled}
         onClick={() => onPlace(spot)}
-        aria-label={`${name ?? label}${amount > 0 ? `, ${amount} on it` : ''}`}
+        aria-label={`${name ?? label}${amount > 0 ? `, ${amount} on it` : ''}${others[spot] ? `, ${others[spot]} from other players` : ''}`}
       >
         <span className="spot__label">{label}</span>
+        {/* Other players' chips are marked in a corner, so the player's own stay the ones that stand out. */}
+        {others[spot] > 0 && <span aria-hidden className="spot__others" />}
         {amount > 0 && (
           <span aria-hidden className="spot__chip figure">
             {short(amount)}

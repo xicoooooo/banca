@@ -2287,3 +2287,196 @@ button {
 .wheel-share__key[data-tone='loss'] {
   background: var(--loss);
 }
+
+/* -------------------------------------------------------------------- rooms */
+
+/* Other players' chips on a spot: a small ivory mark in the corner, so the
+   player's own chips stay the ones that stand out. */
+.spot__others {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgb(0 0 0 / 0.45);
+  border-radius: 50%;
+  background: var(--color-ivory);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+}
+
+.icon-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  color: rgb(245 241 232 / 0.8);
+  background: rgb(0 0 0 / 0.22);
+  transition:
+    background var(--t-micro) var(--ease-soft),
+    opacity var(--t-micro) var(--ease-soft);
+}
+
+@media (hover: hover) {
+  .icon-button:hover:not(:disabled) {
+    background: rgb(0 0 0 / 0.38);
+  }
+}
+
+.icon-button:disabled {
+  opacity: 0.35;
+}
+
+/* Something has been said that has not been read. */
+.icon-button__dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-gold-bright);
+  box-shadow: 0 0 8px rgb(241 199 91 / 0.8);
+}
+
+/* The room's clock. It empties as the phase runs out, and says so in words too. */
+.round-clock {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 3rem;
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ivory);
+  background: rgb(0 0 0 / 0.28);
+}
+
+.round-clock__fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left;
+  background: linear-gradient(90deg, rgb(184 135 47 / 0.55), rgb(241 199 91 / 0.4));
+  animation: clock-run linear both;
+}
+
+.round-clock[data-phase='spinning'] .round-clock__fill {
+  background: rgb(20 152 119 / 0.4);
+}
+
+.round-clock[data-phase='results'] .round-clock__fill {
+  background: rgb(255 255 255 / 0.08);
+}
+
+@keyframes clock-run {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.chat-toast {
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.85rem;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-ivory);
+}
+
+.chat-log {
+  flex: 1;
+  min-height: 7rem;
+  max-height: 34dvh;
+  overflow-y: auto;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  background: rgb(0 0 0 / 0.22);
+}
+
+.chat-line {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  margin: 0;
+  padding: 0.2rem 0;
+}
+
+.phrase {
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--color-ivory);
+  background: rgb(255 255 255 / 0.05);
+  transition: background var(--t-micro) var(--ease-soft);
+}
+
+@media (hover: hover) {
+  .phrase:hover {
+    background: rgb(241 199 91 / 0.16);
+  }
+}
+
+.phrase:active {
+  background: rgb(241 199 91 / 0.28);
+}
+
+.phrase--emote {
+  flex: 1;
+  padding: 0.3rem 0;
+  font-size: 1.25rem;
+}
+
+.room-player {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  max-width: 100%;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: rgb(245 241 232 / 0.85);
+  background: rgb(0 0 0 / 0.2);
+}
+
+.room-player[data-you='true'] {
+  border-color: rgb(241 199 91 / 0.4);
+}
+
+/* A room's recent results on its card in the list of rooms. */
+.history__pocket {
+  display: grid;
+  place-items: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--color-ivory);
+}
+
+.history__pocket[data-color='red'] {
+  background: #a8261d;
+}
+
+.history__pocket[data-color='black'] {
+  background: #141a19;
+}
+
+.history__pocket[data-color='green'] {
+  background: #0f8a68;
+}

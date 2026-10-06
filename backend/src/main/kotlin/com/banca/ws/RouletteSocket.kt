@@ -110,6 +110,84 @@ sealed interface RouletteServerMessage {
     data class Read(val read: LayoutRead) : RouletteServerMessage
 }
 
+/**
+ * What any roulette table at Banca will take, private or shared: the limits,
+ * and how a layout sent by a player is read, answered and written down.
+ */
+object RouletteHouse {
+    const val MIN_BET = 10L
+
+    /** A single number pays 35 to 1, so what may go on one is kept small. */
+    const val MAX_INSIDE = 100L
+    const val MAX_OUTSIDE = 500L
+
+    const val MOST_BETS = 60
+    const val HISTORY = 12
+
+    /**
+     * Reads the layout a player sent into wagers, refusing it whole if any
+     * part of it is not allowed. Chips on the same bet are counted together.
+     */
+    fun wagersIn(bets: List<WagerMessage>, balance: Long): List<Wager> {
+        require(bets.size <= MOST_BETS) { "That is more bets than the table takes" }
+
+        val wagers = bets
+            .groupBy({ it.toBet() }, { it.amount })
+            .map { (bet, amounts) ->
+                require(amounts.all { it > 0 }) { "A bet must be for at least one chip" }
+                Wager(bet, amounts.sum())
+            }
+
+        for (wager in wagers) {
+            val most = if (wager.bet.isInside) MAX_INSIDE else MAX_OUTSIDE
+            require(wager.amount >= MIN_BET) { "Each bet must be at least $MIN_BET" }
+            require(wager.amount <= most) { "The most on that bet is $most" }
+        }
+        val total = wagers.sumOf { it.amount }
+        require(total <= balance) { "Those bets come to $total and you have $balance" }
+        return wagers
+    }
+
+    /** A spin as the player is shown it: each bet in the words it came in, with what it returned. */
+    fun resultView(spin: SpinResult, sent: List<WagerMessage>, refilled: Boolean): RouletteResultView {
+        val described = sent.associateBy { it.toBet() }
+        return RouletteResultView(
+            pocket = spin.pocket,
+            color = spin.color.name.lowercase(),
+            wagers = spin.wagers.map { result ->
+                val wager = described.getValue(result.wager.bet)
+                WagerView(wager.kind, wager.number, wager.other, result.wager.amount, result.returned)
+            },
+            staked = spin.staked,
+            net = spin.net,
+            refilled = refilled,
+        )
+    }
+
+    /** A spin as it is written to the player's record. */
+    fun finished(spin: SpinResult, tableId: String): FinishedRound = FinishedRound(
+        game = Game.ROULETTE,
+        tableId = tableId,
+        staked = spin.staked,
+        net = spin.net,
+        outcome = when {
+            spin.net > 0 -> RoundOutcome.WIN
+            spin.net < 0 -> RoundOutcome.LOSS
+            else -> RoundOutcome.PUSH
+        },
+        detail = buildJsonObject {
+            put("pocket", spin.pocket)
+            put("color", spin.color.name.lowercase())
+            put("bets", spin.wagers.size)
+            put("betsWon", spin.wagers.count { it.won })
+            put("insideStake", spin.wagers.filter { it.wager.bet.isInside }.sumOf { it.wager.amount })
+            put("outsideStake", spin.wagers.filterNot { it.wager.bet.isInside }.sumOf { it.wager.amount })
+            put("straightBets", spin.wagers.count { it.wager.bet is Bet.Straight })
+            put("straightHit", spin.wagers.any { it.wager.bet is Bet.Straight && it.won })
+        },
+    )
+}
+
 class RouletteSocketConfig(
     val random: () -> Random = { Random.Default },
     /** Who answers when the player asks about their layout. The figures alone, unless a model is given. */
@@ -168,34 +246,12 @@ class RouletteConnection(
         history.addFirst(spin.pocket)
         while (history.size > HISTORY) history.removeLast()
 
-        session.settle(
-            FinishedRound(
-                game = Game.ROULETTE,
-                tableId = tableId,
-                staked = spin.staked,
-                net = spin.net,
-                outcome = when {
-                    spin.net > 0 -> RoundOutcome.WIN
-                    spin.net < 0 -> RoundOutcome.LOSS
-                    else -> RoundOutcome.PUSH
-                },
-                detail = buildJsonObject {
-                    put("pocket", spin.pocket)
-                    put("color", spin.color.name.lowercase())
-                    put("bets", spin.wagers.size)
-                    put("betsWon", spin.wagers.count { it.won })
-                    put("insideStake", spin.wagers.filter { it.wager.bet.isInside }.sumOf { it.wager.amount })
-                    put("outsideStake", spin.wagers.filterNot { it.wager.bet.isInside }.sumOf { it.wager.amount })
-                    put("straightBets", spin.wagers.count { it.wager.bet is Bet.Straight })
-                    put("straightHit", spin.wagers.any { it.wager.bet is Bet.Straight && it.won })
-                },
-            ),
-        )
+        session.settle(RouletteHouse.finished(spin, tableId))
 
         // Chips cannot be bought, so a player left unable to bet is staked by
         // the house, if it has not done so too recently.
         val after = session.fund(MIN_BET)
-        result = view(spin, message.bets, refilled = after is Funding.Staked)
+        result = RouletteHouse.resultView(spin, message.bets, refilled = after is Funding.Staked)
         pushState(after.balance)
         if (after is Funding.Broke) tell(after)
     }
@@ -226,45 +282,9 @@ class RouletteConnection(
     private suspend fun emit(message: RouletteServerMessage) =
         send(wireJson.encodeToString(RouletteServerMessage.serializer(), message))
 
-    /**
-     * Reads the layout the player sent into wagers, refusing it whole if any
-     * part of it is not allowed. Chips on the same bet are counted together.
-     */
     private fun wagersIn(bets: List<WagerMessage>, balance: Long): List<Wager> {
         require(bets.isNotEmpty()) { "Place a bet before spinning" }
-        require(bets.size <= MOST_BETS) { "That is more bets than the table takes" }
-
-        val wagers = bets
-            .groupBy({ it.toBet() }, { it.amount })
-            .map { (bet, amounts) ->
-                require(amounts.all { it > 0 }) { "A bet must be for at least one chip" }
-                Wager(bet, amounts.sum())
-            }
-
-        for (wager in wagers) {
-            val most = if (wager.bet.isInside) MAX_INSIDE else MAX_OUTSIDE
-            require(wager.amount >= MIN_BET) { "Each bet must be at least $MIN_BET" }
-            require(wager.amount <= most) { "The most on that bet is $most" }
-        }
-        val total = wagers.sumOf { it.amount }
-        require(total <= balance) { "Those bets come to $total and you have $balance" }
-        return wagers
-    }
-
-    private fun view(spin: SpinResult, sent: List<WagerMessage>, refilled: Boolean): RouletteResultView {
-        // Each bet goes back in the words it came in, with what it returned.
-        val described = sent.associateBy { it.toBet() }
-        return RouletteResultView(
-            pocket = spin.pocket,
-            color = spin.color.name.lowercase(),
-            wagers = spin.wagers.map { result ->
-                val wager = described.getValue(result.wager.bet)
-                WagerView(wager.kind, wager.number, wager.other, result.wager.amount, result.returned)
-            },
-            staked = spin.staked,
-            net = spin.net,
-            refilled = refilled,
-        )
+        return RouletteHouse.wagersIn(bets, balance)
     }
 
     private suspend fun tell(funding: Funding) {
@@ -293,13 +313,9 @@ class RouletteConnection(
     )
 
     private companion object {
-        const val MIN_BET = 10L
-
-        /** A single number pays 35 to 1, so what may go on one is kept small. */
-        const val MAX_INSIDE = 100L
-        const val MAX_OUTSIDE = 500L
-
-        const val MOST_BETS = 60
-        const val HISTORY = 12
+        const val MIN_BET = RouletteHouse.MIN_BET
+        const val MAX_INSIDE = RouletteHouse.MAX_INSIDE
+        const val MAX_OUTSIDE = RouletteHouse.MAX_OUTSIDE
+        const val HISTORY = RouletteHouse.HISTORY
     }
 }

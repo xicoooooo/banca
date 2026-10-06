@@ -104,6 +104,11 @@ export function place(bets: Bets, spot: Spot, chip: number, limits: Limits): Bet
   return { placed: [...bets.placed, { spot, amount }] }
 }
 
+/** A layout rebuilt from the wagers the server holds, one stack of chips to a spot. */
+export function betsFrom(wagers: Wager[]): Bets {
+  return { placed: wagers.map((wager) => ({ spot: spotOf(wager.kind, wager.number ?? undefined), amount: wager.amount })) }
+}
+
 export function undo(bets: Bets): Bets {
   return { placed: bets.placed.slice(0, -1) }
 }
