@@ -1,10 +1,15 @@
 package com.banca.players
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import org.junit.jupiter.api.Assumptions.assumeTrue
+import java.time.Instant
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -156,6 +161,51 @@ abstract class PlayerStoreContract {
         assertTrue(runCatching { store.linkAccount(rui.id, account) }.isFailure, "the account is taken")
         assertTrue(runCatching { store.linkAccount(ana.id, UUID.randomUUID().toString()) }.isFailure, "the profile is taken")
         assertEquals(ana.id, assertNotNull(store.findByAccount(account)).id)
+    }
+
+    @Test
+    fun `a grant that may only happen once in a while is refused the second time`() = with { store ->
+        val player = store.create("Ana", token(), 2_000)
+        val since = Instant.now().minusSeconds(3_600)
+
+        assertEquals(2_200, store.grantUnlessSince(player.id, 200, LedgerReason.DAILY_REWARD, since))
+        assertNull(store.grantUnlessSince(player.id, 200, LedgerReason.DAILY_REWARD, since))
+        assertEquals(2_200, store.balance(player.id))
+
+        assertEquals(2_700, store.grantUnlessSince(player.id, 500, LedgerReason.BUST_TOP_UP, since), "each reason is counted alone")
+        assertEquals(
+            2_900,
+            store.grantUnlessSince(player.id, 200, LedgerReason.DAILY_REWARD, Instant.now().plusSeconds(60)),
+            "and one from before the period does not count",
+        )
+    }
+
+    @Test
+    fun `two claims arriving together are paid once`() = with { store ->
+        val player = store.create("Ana", token(), 2_000)
+        val since = Instant.now().minusSeconds(3_600)
+
+        val paid = coroutineScope {
+            (1..8).map { async(Dispatchers.Default) { store.grantUnlessSince(player.id, 200, LedgerReason.DAILY_REWARD, since) } }.awaitAll()
+        }
+
+        assertEquals(1, paid.count { it != null })
+        assertEquals(2_200, store.balance(player.id))
+    }
+
+    @Test
+    fun `the moments a player was given chips for a reason are listed newest first`() = with { store ->
+        val player = store.create("Ana", token(), 2_000)
+        assertTrue(store.grantsOf(player.id, LedgerReason.DAILY_REWARD, 10).isEmpty())
+
+        store.grant(player.id, 200, LedgerReason.DAILY_REWARD)
+        store.grant(player.id, 500, LedgerReason.BUST_TOP_UP)
+        store.grant(player.id, 300, LedgerReason.DAILY_REWARD)
+
+        val claims = store.grantsOf(player.id, LedgerReason.DAILY_REWARD, 10)
+        assertEquals(2, claims.size)
+        assertTrue(!claims[0].isBefore(claims[1]))
+        assertEquals(1, store.grantsOf(player.id, LedgerReason.DAILY_REWARD, 1).size)
     }
 }
 

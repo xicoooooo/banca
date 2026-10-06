@@ -1,5 +1,6 @@
 package com.banca.players
 
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -36,6 +37,16 @@ interface PlayerStore {
 
     /** Adds chips for a reason that is not a round, and returns the balance after it. */
     suspend fun grant(id: UUID, amount: Long, reason: LedgerReason): Long
+
+    /**
+     * Adds chips for [reason] unless the player has already had some for it
+     * since [since], and returns the balance after it, or null if they had.
+     * Two requests arriving together must not both be paid.
+     */
+    suspend fun grantUnlessSince(id: UUID, amount: Long, reason: LedgerReason, since: Instant): Long?
+
+    /** When the player was last given chips for [reason], newest first. */
+    suspend fun grantsOf(id: UUID, reason: LedgerReason, limit: Int): List<Instant>
 
     /** The player's rounds, newest first. */
     suspend fun rounds(id: UUID, limit: Int): List<RoundRecord>

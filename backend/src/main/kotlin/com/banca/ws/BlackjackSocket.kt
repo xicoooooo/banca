@@ -5,6 +5,7 @@ import com.banca.games.blackjack.Rules
 import com.banca.games.blackjack.valueOf
 import com.banca.games.cards.Rank
 import com.banca.players.FinishedRound
+import com.banca.players.Funding
 import com.banca.players.Game
 import com.banca.players.PlayerSession
 import com.banca.players.RoundOutcome
@@ -71,39 +72,62 @@ class BlackjackConnection(
 
     // Unlike poker, nothing is dealt until the player has put chips down.
     override suspend fun opened() {
-        val toppedUp = session.topUpIfShort(MIN_BET)
+        val funding = session.fund(MIN_BET)
         table = BlackjackTable(
-            stack = toppedUp ?: session.balance(),
+            stack = funding.balance,
             minBet = MIN_BET,
             maxBet = MAX_BET,
             rules = config.rules,
             random = config.random(),
         )
         pushState()
+        tell(funding)
+    }
+
+    /** Says what the house did, or would not do, for a player short of chips. */
+    private suspend fun tell(funding: Funding) {
+        when (funding) {
+            is Funding.Staked -> send(stakedNotice(funding))
+            is Funding.Broke -> send(brokeNotice(funding))
+            is Funding.Ready -> Unit
+        }
     }
 
     override suspend fun received(text: String) {
         when (val message = wireJson.decodeFromString<BlackjackClientMessage>(text)) {
             is BlackjackClientMessage.Bet -> {
                 check(table.isBetting) { "The round is still being played" }
-                // The bankroll may have moved at another table since this one last looked.
-                table.fund(session.balance(), refilled = false)
+                // The bankroll may have moved since this table last looked: at
+                // another table, or by a reward claimed in the meantime.
+                val funding = session.fund(MIN_BET)
+                table.fund(funding.balance, refilled = false)
+                if (funding !is Funding.Ready) {
+                    pushState()
+                    tell(funding)
+                    if (funding is Funding.Broke) return
+                }
                 table.bet(message.amount)
             }
             is BlackjackClientMessage.Act -> table.act(message.toAction())
         }
-        record()
+        val afterRound = record()
         pushState()
+        // Only being unable to go on needs saying here; a stake is part of the result.
+        if (afterRound is Funding.Broke) tell(afterRound)
     }
 
-    /** Writes a round to the ledger as it settles, once, and tells the table what the player now has. */
-    private suspend fun record() {
-        val round = table.current?.takeIf { it.isSettled } ?: return
-        if (recordedRound == table.roundNumber) return
+    /**
+     * Writes a round to the ledger as it settles, once, and tells the table
+     * what the player now has. Returns how they stand for the next round, or
+     * null when no round has just ended.
+     */
+    private suspend fun record(): Funding? {
+        val round = table.current?.takeIf { it.isSettled } ?: return null
+        if (recordedRound == table.roundNumber) return null
         recordedRound = table.roundNumber
 
-        val result = round.result ?: return
-        val balance = session.settle(
+        val result = round.result ?: return null
+        session.settle(
             FinishedRound(
                 game = Game.BLACKJACK,
                 tableId = tableId,
@@ -129,9 +153,11 @@ class BlackjackConnection(
             ),
         )
 
-        // Chips cannot be bought, so a player left unable to bet is staked again.
-        val toppedUp = session.topUpIfShort(MIN_BET)
-        table.fund(toppedUp ?: balance, refilled = toppedUp != null)
+        // Chips cannot be bought, so a player left unable to bet is staked by
+        // the house, if it has not done so too recently.
+        val funding = session.fund(MIN_BET)
+        table.fund(funding.balance, refilled = funding is Funding.Staked)
+        return funding
     }
 
     private suspend fun pushState() =

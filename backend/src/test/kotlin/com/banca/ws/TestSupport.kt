@@ -9,12 +9,29 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import java.time.Clock
+import java.time.Duration
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 import kotlin.test.assertEquals
+
+/** A clock a test can move, for rules that turn on the time of day. */
+class TestClock(var now: Instant = Instant.parse("2026-10-06T12:00:00Z")) : Clock() {
+    override fun instant(): Instant = now
+    override fun getZone(): ZoneId = ZoneOffset.UTC
+    override fun withZone(zone: ZoneId?): Clock = this
+
+    fun advance(by: Duration) {
+        now = now.plus(by)
+    }
+}
 
 /** Players for one test, with a guest already made and their token to hand. */
 class TestPlayers {
-    val store = InMemoryPlayerStore()
-    val players = Players(store)
+    val clock = TestClock()
+    val store = InMemoryPlayerStore(clock)
+    val players = Players(store, clock)
     private val guest = runBlocking { players.createGuest() }
     val player = guest.first
     val token = guest.second

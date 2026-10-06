@@ -41,7 +41,30 @@ export type Dashboard = {
   activity: { date: string; rounds: number; net: number }[]
   achievements: Achievement[]
   recent: { game: GameId; at: string; net: number; outcome: Outcome; summary: string }[]
+  rewards: Rewards
 }
+
+/** The chips a player can come by without winning them, and when. */
+export type Rewards = {
+  daily: {
+    available: boolean
+    /** What the next claim is worth, and which day of the week of rewards it is, from 1. */
+    amount: number
+    day: number
+    streak: number
+    /** When the next claim opens, or null when one is open now. */
+    nextAt: string | null
+    ladder: number[]
+  }
+  /** What the house stakes a player who is out of chips, and when it next will. Null means now. */
+  rescue: { amount: number; nextAt: string | null }
+}
+
+/** Sent by a table that will not deal because the player cannot cover the smallest bet. */
+export type Broke = { dailyReady: boolean; nextChipsAt: string }
+
+/** What any table may say about the player's chips, besides its own messages. */
+export type ChipNotice = { type: 'staked'; amount: number } | ({ type: 'broke' } & Broke)
 
 export type GameBreakdown = {
   game: GameId

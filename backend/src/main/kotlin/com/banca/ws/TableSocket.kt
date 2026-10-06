@@ -2,6 +2,7 @@ package com.banca.ws
 
 import com.banca.games.poker.Action
 import com.banca.players.FinishedRound
+import com.banca.players.Funding
 import com.banca.players.Game
 import com.banca.players.PlayerSession
 import com.banca.players.RoundOutcome
@@ -64,7 +65,7 @@ class PokerConnection(
     private var recordedHand = 0
 
     override suspend fun opened() {
-        deal()
+        if (!deal()) return
         pushState()
         playOpponentTurns()
     }
@@ -75,19 +76,31 @@ class PokerConnection(
                 table.act(HUMAN_SEAT, message.toAction())
                 actions.merge(message.action, 1, Int::plus)
             }
-            is ClientMessage.NextHand -> deal()
+            // With nothing to play with there is no new hand, and nothing new to show.
+            is ClientMessage.NextHand -> if (!deal()) return
         }
         pushState()
         playOpponentTurns()
     }
 
-    private suspend fun deal() {
+    /** Deals the next hand, or says why not and returns false. */
+    private suspend fun deal(): Boolean {
         check(table.isHandComplete) { "The current hand is still being played" }
 
-        // Someone who cannot post a blind is staked again before the cards come.
-        val balance = session.topUpIfShort(BIG_BLIND) ?: session.balance()
+        // Someone who cannot post a blind is staked by the house before the
+        // cards come, if the house will; otherwise there is no hand.
+        val funding = session.fund(BIG_BLIND)
+        when (funding) {
+            is Funding.Broke -> {
+                send(brokeNotice(funding))
+                return false
+            }
+            is Funding.Staked -> send(stakedNotice(funding))
+            is Funding.Ready -> Unit
+        }
         actions.clear()
-        table.startHand(mapOf(HUMAN_SEAT to minOf(balance, BUY_IN), OPPONENT_SEAT to BUY_IN))
+        table.startHand(mapOf(HUMAN_SEAT to minOf(funding.balance, BUY_IN), OPPONENT_SEAT to BUY_IN))
+        return true
     }
 
     private suspend fun pushState() {

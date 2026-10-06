@@ -13,6 +13,7 @@ data class Dashboard(
     val activity: List<DayActivity>,
     val achievements: List<Achievement>,
     val recent: List<RecentRound>,
+    val rewards: RewardStatus,
 )
 
 @Serializable

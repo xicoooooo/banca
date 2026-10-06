@@ -42,6 +42,17 @@ export function ago(at: string, now: Date = new Date()): string {
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 /** The day and month, in UTC, which is how the server counts days. */
+/** How long until something, in the two largest units that matter: "3h 12m", "8m", "under a minute". */
+export function until(at: string, now: Date = new Date()): string {
+  const minutes = Math.ceil((new Date(at).getTime() - now.getTime()) / 60_000)
+  if (minutes <= 0) return 'now'
+  if (minutes === 1) return 'under a minute'
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`
+}
+
 export function shortDate(at: string): string {
   const date = new Date(at)
   return `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()].slice(0, 3)}`

@@ -17,7 +17,7 @@ export async function request(path: string, init: RequestInit = {}, secondTry = 
     forgetPlayer(token)
     return request(path, init, true)
   }
-  if (response.status === 400) {
+  if (response.status === 400 || response.status === 409) {
     const problem = (await response.json().catch(() => null)) as { message?: string } | null
     throw new Refused(problem?.message ?? 'That was not accepted')
   }
@@ -27,6 +27,12 @@ export async function request(path: string, init: RequestInit = {}, secondTry = 
 
 export async function fetchDashboard(): Promise<Dashboard> {
   return (await request('/players/me/dashboard')).json() as Promise<Dashboard>
+}
+
+/** Claims today's reward and returns what it was worth. */
+export async function claimDailyReward(): Promise<number> {
+  const response = await request('/players/me/rewards/daily', { method: 'POST' })
+  return ((await response.json()) as { granted: number }).granted
 }
 
 export async function renamePlayer(name: string): Promise<void> {

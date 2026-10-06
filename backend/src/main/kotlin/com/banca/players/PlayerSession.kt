@@ -10,6 +10,6 @@ class PlayerSession(val player: Player, private val players: Players) {
 
     suspend fun settle(round: FinishedRound): Long = players.settle(player, round)
 
-    /** Brings a player who cannot cover [needed] back up, returning the new balance, or null if they could. */
-    suspend fun topUpIfShort(needed: Long): Long? = players.topUpIfShort(player, needed)
+    /** Sees that the player can cover [needed], staking them if the house will. */
+    suspend fun fund(needed: Long): Funding = players.fund(player, needed)
 }

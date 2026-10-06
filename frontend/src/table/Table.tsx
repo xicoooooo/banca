@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CasinoShell } from '../casino/CasinoShell'
 import { Header, type Status } from '../casino/Header'
+import { OutOfChips, StakedNote } from '../casino/ChipNotices'
 import { Loading } from '../casino/Loading'
 import { prefersReducedMotion } from '../casino/motion'
 import { ActionBar } from './ActionBar'
@@ -26,7 +27,7 @@ function statusOf(view: TableView): Status {
 }
 
 export function Table({ onLeave }: { onLeave?: () => void }) {
-  const { view, reasoning, connection, error, refusals, send } = useTable()
+  const { view, reasoning, connection, error, refusals, send, broke, staked } = useTable()
   const { actions, showdown, potPulse } = usePresentation(view)
   const [showReasoning, setShowReasoning] = useState(false)
   // The hand being cleared away, if Next hand has just been pressed.
@@ -38,6 +39,11 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
         <Header detail="Texas Hold'em" onLeave={onLeave} />
         {connection === 'closed' ? (
           <Loading failed message="Could not reach the table. Try again in a minute." />
+        ) : broke ? (
+          // Nothing has been dealt, because there is nothing to post a blind with.
+          <div className="m-auto w-full max-w-md">
+            <OutOfChips broke={broke} onRetry={() => send({ type: 'next_hand' })} onLeave={onLeave} />
+          </div>
         ) : (
           <Loading message="Preparing your table" />
         )}
@@ -99,7 +105,11 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
           </p>
         )}
 
-        {view.result ? (
+        <StakedNote amount={staked} />
+
+        {broke ? (
+          <OutOfChips broke={broke} onRetry={() => send({ type: 'next_hand' })} onLeave={onLeave} />
+        ) : view.result ? (
           <HandResult
             view={view}
             opponentName={opponent.name}

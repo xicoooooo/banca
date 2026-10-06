@@ -4,6 +4,7 @@ import { Card, CardSlot } from '../casino/Card'
 import { CasinoShell } from '../casino/CasinoShell'
 import { ChipStack } from '../casino/Chip'
 import { Header, type Status } from '../casino/Header'
+import { OutOfChips, StakedNote } from '../casino/ChipNotices'
 import { Loading } from '../casino/Loading'
 import { prefersReducedMotion } from '../casino/motion'
 import { Plate } from '../casino/Plate'
@@ -185,7 +186,7 @@ function Result({ view }: { view: BlackjackView }) {
     result.net > 0 ? (natural ? 'Blackjack' : 'You win') : result.net === 0 ? 'Push' : allBust ? 'Bust' : 'Dealer wins'
 
   const note = result.refilled
-    ? 'Out of chips, so the house has staked you again'
+    ? 'Out of chips, so the house has staked you'
     : view.hands.length > 1
       ? view.hands.map((hand) => OUTCOME_LABEL[hand.outcome!]).join(' · ')
       : null
@@ -212,7 +213,7 @@ function Result({ view }: { view: BlackjackView }) {
  * is only ever drawn here.
  */
 export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
-  const { view, reveal, connection, error, refusals, send } = useBlackjack()
+  const { view, reveal, connection, error, refusals, send, broke, staked, retry } = useBlackjack()
   const resultShown = useResultShown(view, reveal)
 
   if (!view) {
@@ -304,8 +305,13 @@ export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
           </p>
         )}
 
+        {!dealing && <StakedNote amount={staked} />}
+
         {dealing ? (
           <p className="label pb-8 text-center">The dealer plays</p>
+        ) : broke ? (
+          // Trying again puts the bet controls back; the next bet asks the house afresh.
+          <OutOfChips broke={broke} onRetry={retry} onLeave={onLeave} />
         ) : view.legal.bet ? (
           <>
             <BetControls

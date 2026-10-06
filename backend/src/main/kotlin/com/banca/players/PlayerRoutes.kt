@@ -26,6 +26,9 @@ data class Rename(val name: String)
 @Serializable
 data class Problem(val message: String)
 
+@Serializable
+data class DailyClaim(val granted: Long, val balance: Long, val rewards: RewardStatus)
+
 /** Where the browser sends a player to sign in, or nulls when signing in is not set up. */
 @Serializable
 data class SignInSettings(val url: String?, val publicKey: String?)
@@ -76,6 +79,17 @@ fun Application.configurePlayerRoutes(players: Players, signIn: SignInConfig? = 
         get("/players/me/dashboard") {
             val player = call.player(players) ?: return@get
             call.respond(players.dashboard(player))
+        }
+
+        // Today's reward, once a day. What is on offer is part of the dashboard.
+        post("/players/me/rewards/daily") {
+            val player = call.player(players) ?: return@post
+            val granted = players.claimDaily(player)
+            if (granted == null) {
+                call.respond(HttpStatusCode.Conflict, Problem("Today's reward has already been claimed"))
+                return@post
+            }
+            call.respond(DailyClaim(granted, players.balance(player), players.rewards(player)))
         }
 
         get("/sign-in") {

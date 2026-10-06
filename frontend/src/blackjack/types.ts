@@ -1,5 +1,7 @@
 // Mirrors the backend's BlackjackView. The wire format is documented in docs/protocol.md.
 
+import type { ChipNotice } from '../player/types'
+
 export type Outcome = 'blackjack' | 'win' | 'push' | 'lose' | 'bust'
 
 export type BlackjackHandView = {
@@ -29,6 +31,6 @@ export type BlackjackView = {
 
 export type BlackjackAction = 'hit' | 'stand' | 'double' | 'split' | 'insure' | 'decline_insurance'
 
-export type BlackjackServerMessage = { type: 'state'; view: BlackjackView } | { type: 'error'; message: string }
+export type BlackjackServerMessage = ChipNotice | { type: 'state'; view: BlackjackView } | { type: 'error'; message: string }
 
 export type BlackjackClientMessage = { type: 'bet'; amount: number } | { type: 'act'; action: BlackjackAction }

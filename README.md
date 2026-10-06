@@ -8,7 +8,7 @@ A multi-game social casino played with virtual chips: Texas Hold'em, blackjack a
 
 > **Play money only.** Chips are free, cannot be bought, cannot be cashed out, and have no value. Banca is not a gambling application and never handles real money.
 
-**Status:** in development, and playable. Heads-up Hold'em runs against an agent that decides by calling poker tools over MCP, with its reasoning shown step by step and revealed in full after each hand. Blackjack is playable against the house. Chips, history and statistics belong to the player and follow them from table to table, with a profile page built from the rounds they have really played. The blackjack coach and roulette come next.
+**Status:** in development, and playable. Heads-up Hold'em runs against an agent that decides by calling poker tools over MCP, with its reasoning shown step by step and revealed in full after each hand. Blackjack is playable against the house. Chips, history and statistics belong to the player and follow them from table to table, with a profile page built from the rounds they have really played. Chips cannot be bought: a daily reward that grows with a streak, and a small stake from the house for a player who has run out, are the only ways to come by them without winning. The blackjack coach and roulette come next.
 
 ## Why it exists
 

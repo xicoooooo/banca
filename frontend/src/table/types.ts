@@ -1,5 +1,7 @@
 // Mirrors the backend's TableView. The wire format is documented in docs/protocol.md.
 
+import type { ChipNotice } from '../player/types'
+
 export type PlayerView = {
   seat: number
   name: string
@@ -49,6 +51,7 @@ export type TraceEvent = {
 }
 
 export type ServerMessage =
+  | ChipNotice
   | { type: 'state'; view: TableView }
   | { type: 'trace'; handNumber: number; event: TraceEvent }
   | { type: 'reveal'; handNumber: number; events: TraceEvent[] }

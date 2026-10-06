@@ -9,6 +9,8 @@ import kotlinx.serialization.json.JsonObject
 import java.net.URI
 import java.sql.Connection
 import java.sql.ResultSet
+import java.sql.Timestamp
+import java.time.Instant
 import java.util.UUID
 import javax.sql.DataSource
 
@@ -130,6 +132,40 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
     override suspend fun grant(id: UUID, amount: Long, reason: LedgerReason): Long = transaction { connection ->
         connection.addEntry(id, amount, reason, reference = null)
         connection.balanceOf(id)
+    }
+
+    override suspend fun grantUnlessSince(id: UUID, amount: Long, reason: LedgerReason, since: Instant): Long? =
+        transaction { connection ->
+            // Holding the player's row makes two claims arriving together take turns.
+            connection.prepareStatement("select 1 from profiles where id = ? for update").use { statement ->
+                statement.setObject(1, id)
+                statement.executeQuery().use { rows -> check(rows.next()) { "No player $id" } }
+            }
+            val already = connection.prepareStatement(
+                "select 1 from wallet_entries where profile_id = ? and reason = ?::wallet_reason and created_at >= ? limit 1",
+            ).use { statement ->
+                statement.setObject(1, id)
+                statement.setString(2, reason.name.lowercase())
+                statement.setTimestamp(3, Timestamp.from(since))
+                statement.executeQuery().use { rows -> rows.next() }
+            }
+            if (already) return@transaction null
+
+            connection.addEntry(id, amount, reason, reference = null)
+            connection.balanceOf(id)
+        }
+
+    override suspend fun grantsOf(id: UUID, reason: LedgerReason, limit: Int): List<Instant> = query { connection ->
+        connection.prepareStatement(
+            "select created_at from wallet_entries where profile_id = ? and reason = ?::wallet_reason order by id desc limit ?",
+        ).use { statement ->
+            statement.setObject(1, id)
+            statement.setString(2, reason.name.lowercase())
+            statement.setInt(3, limit)
+            statement.executeQuery().use { rows ->
+                buildList { while (rows.next()) add(rows.getTimestamp(1).toInstant()) }
+            }
+        }
     }
 
     override suspend fun rounds(id: UUID, limit: Int): List<RoundRecord> = query { connection ->

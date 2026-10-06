@@ -3,6 +3,7 @@ package com.banca.players
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.Clock
+import java.time.Instant
 import java.util.Base64
 import kotlin.random.Random
 
@@ -91,15 +92,45 @@ class Players(private val store: PlayerStore, private val clock: Clock = Clock.s
     /** Writes a finished round down and returns the balance after it. */
     suspend fun settle(player: Player, round: FinishedRound): Long = store.recordRound(player.id, round)
 
+    /** What the player can claim, and when. */
+    suspend fun rewards(player: Player): RewardStatus = Rewards.status(
+        dailyClaims = store.grantsOf(player.id, LedgerReason.DAILY_REWARD, DAILY_CLAIMS_READ),
+        lastRescue = store.grantsOf(player.id, LedgerReason.BUST_TOP_UP, 1).firstOrNull(),
+        now = clock.instant(),
+    )
+
+    /** Pays today's reward and returns what it was, or null if today's has been claimed. */
+    suspend fun claimDaily(player: Player): Long? {
+        val now = clock.instant()
+        val reward = rewards(player).daily
+        if (!reward.available) return null
+        val today = Rewards.startOfDay(Rewards.dayOf(now))
+        return store.grantUnlessSince(player.id, reward.amount, LedgerReason.DAILY_REWARD, since = today)?.let { reward.amount }
+    }
+
     /**
-     * Chips cannot be bought, so nobody may be left unable to play. A player
-     * with less than [needed] is brought back up to the opening amount.
-     * Returns the new balance, or null when no top-up was due.
+     * Sees that a player can cover [needed] before a round. One who cannot is
+     * staked by the house, a little and not often; one the house has staked
+     * too recently has to wait, or claim their daily reward.
      */
-    suspend fun topUpIfShort(player: Player, needed: Long): Long? {
+    suspend fun fund(player: Player, needed: Long): Funding {
         val balance = store.balance(player.id)
-        if (balance >= needed) return null
-        return store.grant(player.id, OPENING_CHIPS - balance, LedgerReason.BUST_TOP_UP)
+        if (balance >= needed) return Funding.Ready(balance)
+
+        val now = clock.instant()
+        // A stake exactly the full wait ago no longer counts, which is when the
+        // player was told the next one would come.
+        val recently = now.minus(Rewards.RESCUE_EVERY).plusMillis(1)
+        val staked = store.grantUnlessSince(player.id, Rewards.RESCUE, LedgerReason.BUST_TOP_UP, since = recently)
+        if (staked != null) return Funding.Staked(staked, Rewards.RESCUE)
+
+        val status = rewards(player)
+        val waits = listOfNotNull(status.daily.nextAt, status.rescue.nextAt).map(Instant::parse)
+        return Funding.Broke(
+            balance = balance,
+            dailyReady = status.daily.available,
+            nextChipsAt = if (status.daily.available) now else waits.minOrNull() ?: now,
+        )
     }
 
     suspend fun dashboard(player: Player): Dashboard = DashboardBuilder.build(
@@ -108,6 +139,7 @@ class Players(private val store: PlayerStore, private val clock: Clock = Clock.s
         rounds = store.rounds(player.id, HISTORY_LIMIT),
         ledger = store.ledger(player.id, HISTORY_LIMIT),
         now = clock.instant(),
+        rewards = rewards(player),
     )
 
     private fun hash(token: String): String =
@@ -118,6 +150,9 @@ class Players(private val store: PlayerStore, private val clock: Clock = Clock.s
 
         /** How far back the dashboard reads. Beyond this, totals describe recent play. */
         private const val HISTORY_LIMIT = 5_000
+
+        /** Enough daily claims to count a streak of a year. */
+        private const val DAILY_CLAIMS_READ = 370
 
         private val NAME = Regex("^[\\p{L}\\p{N} ._'-]{2,20}$")
         private val GUEST_NAME = Regex("^Guest \\d{4}$")

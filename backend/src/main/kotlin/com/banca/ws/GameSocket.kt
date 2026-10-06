@@ -1,5 +1,6 @@
 package com.banca.ws
 
+import com.banca.players.Funding
 import com.banca.players.Identity
 import com.banca.players.PlayerSession
 import com.banca.players.Players
@@ -46,6 +47,20 @@ private data class Welcome(val type: String = "welcome", val player: Identity)
 
 @Serializable
 private data class Refusal(val type: String = "error", val message: String, val code: String? = null)
+
+@Serializable
+private data class StakedNotice(val type: String = "staked", val amount: Long)
+
+@Serializable
+private data class BrokeNotice(val type: String = "broke", val dailyReady: Boolean, val nextChipsAt: String)
+
+/** Tells the player the house has staked them, since chips appearing unexplained would look like a fault. */
+fun stakedNotice(funding: Funding.Staked): String =
+    wireJson.encodeToString(StakedNotice.serializer(), StakedNotice(amount = funding.amount))
+
+/** Tells the player why nothing is being dealt, and when that changes. */
+fun brokeNotice(funding: Funding.Broke): String =
+    wireJson.encodeToString(BrokeNotice.serializer(), BrokeNotice(dailyReady = funding.dailyReady, nextChipsAt = funding.nextChipsAt.toString()))
 
 private fun refusal(message: String, code: String? = null): String =
     wireJson.encodeToString(Refusal.serializer(), Refusal(message = message, code = code))

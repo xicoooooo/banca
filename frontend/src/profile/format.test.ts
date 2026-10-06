@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ago, areaPath, divergingBars, levelProgress, linePath, percent, plot, signed, toneOf } from './format'
+import { ago, areaPath, until, divergingBars, levelProgress, linePath, percent, plot, signed, toneOf } from './format'
 
 describe('writing figures', () => {
   it('gives results a sign, and nothing a plain zero', () => {
@@ -25,6 +25,15 @@ describe('writing figures', () => {
     expect(ago('2026-10-06T07:00:00Z', now)).toBe('5 h ago')
     expect(ago('2026-10-03T12:00:00Z', now)).toBe('3 d ago')
     expect(ago('2026-09-20T12:00:00Z', now)).toBe('20 Sep')
+  })
+
+  it('says how long until something in hours and minutes', () => {
+    const now = new Date('2026-10-06T12:00:00Z')
+    expect(until('2026-10-06T15:12:00Z', now)).toBe('3h 12m')
+    expect(until('2026-10-06T14:00:00Z', now)).toBe('2h')
+    expect(until('2026-10-06T12:08:10Z', now)).toBe('9m')
+    expect(until('2026-10-06T12:00:20Z', now)).toBe('under a minute')
+    expect(until('2026-10-06T11:00:00Z', now)).toBe('now')
   })
 
   it('measures progress through a level and stays within it', () => {

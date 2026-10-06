@@ -2,6 +2,7 @@ import { CasinoShell } from '../casino/CasinoShell'
 import { Header } from '../casino/Header'
 import { useDashboard } from '../player/useDashboard'
 import { chips } from '../profile/format'
+import { DailyReward } from './DailyReward'
 
 export type Game = 'poker' | 'blackjack'
 
@@ -22,7 +23,7 @@ const GAMES: { id: Game; name: string; line: string; detail: string }[] = [
 
 /** Where a visit starts: who is playing, what they have, and the games on offer. */
 export function Lobby({ onChoose, onProfile }: { onChoose: (game: Game) => void; onProfile: () => void }) {
-  const { dashboard } = useDashboard()
+  const { dashboard, refresh } = useDashboard()
 
   return (
     <CasinoShell>
@@ -54,6 +55,10 @@ export function Lobby({ onChoose, onProfile }: { onChoose: (game: Game) => void;
               <path d="M9 5l7 7-7 7" />
             </svg>
           </button>
+        )}
+
+        {dashboard && (
+          <DailyReward rewards={dashboard.rewards} balance={dashboard.bankroll.balance} smallestBet={10} onClaimed={refresh} />
         )}
 
         {GAMES.map((game, index) => (

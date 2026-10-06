@@ -36,7 +36,14 @@ object DashboardBuilder {
      * @param rounds newest first
      * @param ledger oldest first, ending at the present
      */
-    fun build(player: Player, balance: Long, rounds: List<RoundRecord>, ledger: List<LedgerEntry>, now: Instant): Dashboard {
+    fun build(
+        player: Player,
+        balance: Long,
+        rounds: List<RoundRecord>,
+        ledger: List<LedgerEntry>,
+        now: Instant,
+        rewards: RewardStatus = Rewards.status(emptyList(), null, now),
+    ): Dashboard {
         val xp = rounds.sumOf(::experienceFor)
         val level = Levels.levelAt(xp)
 
@@ -66,6 +73,7 @@ object DashboardBuilder {
                     summary = Summaries.of(round),
                 )
             },
+            rewards = rewards,
         )
     }
 

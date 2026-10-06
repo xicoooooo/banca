@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useChipNotices } from '../casino/useChipNotices'
 import { chipsFor } from '../casino/chips'
 import { flyChips } from '../casino/flights'
 import { sound } from '../casino/sound'
@@ -45,9 +46,14 @@ export function useBlackjack() {
   const [refusals, setRefusals] = useState(0)
   const [reveal, setReveal] = useState<Reveal>({ roundNumber: 0, delay: 0, instant: false })
   const previous = useRef<BlackjackView | null>(null)
+  const chips = useChipNotices()
 
   const { connection, send } = useSocket<BlackjackServerMessage, BlackjackClientMessage>('/ws/blackjack', (message) => {
-    if (message.type === 'state') {
+    if (message.type === 'staked' || message.type === 'broke') {
+      chips.receive(message)
+    } else if (message.type === 'state') {
+      // The table says first where things stand, and only then that it cannot deal.
+      chips.dealt()
       setView(message.view)
       setError(null)
     } else {
@@ -115,5 +121,5 @@ export function useBlackjack() {
     }
   }, [view])
 
-  return { view, reveal, connection, error, refusals, send }
+  return { view, reveal, connection, error, refusals, send, broke: chips.broke, staked: chips.staked, retry: chips.dealt }
 }

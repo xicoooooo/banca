@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useChipNotices } from '../casino/useChipNotices'
 import { useSocket } from '../casino/useSocket'
 import type { ClientMessage, ServerMessage, TableView, TraceEvent } from './types'
 
@@ -19,10 +20,17 @@ export function useTable() {
   const [error, setError] = useState<string | null>(null)
   // Counts refusals, so the same error twice in a row is still seen as news.
   const [refusals, setRefusals] = useState(0)
+  const chips = useChipNotices()
 
   const { connection, send } = useSocket<ServerMessage, ClientMessage>('/ws/table', (message) => {
     switch (message.type) {
+      case 'staked':
+      case 'broke':
+        chips.receive(message)
+        break
       case 'state':
+        // A table that is dealing is a table the player can afford.
+        chips.dealt()
         setView(message.view)
         setError(null)
         // A new hand starts with a clean slate.
@@ -49,5 +57,5 @@ export function useTable() {
     }
   })
 
-  return { view, reasoning, connection, error, refusals, send }
+  return { view, reasoning, connection, error, refusals, send, broke: chips.broke, staked: chips.staked }
 }

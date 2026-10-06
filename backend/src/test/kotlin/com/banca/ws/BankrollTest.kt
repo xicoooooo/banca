@@ -156,22 +156,112 @@ class BankrollTest {
         assertEquals(1_500 + hand.net, guest.players.balance(guest.player))
     }
 
+    /** Leaves the guest with [chips], by way of one large loss. */
+    private fun TestPlayers.leaveWith(chips: Long) = runBlocking {
+        val balance = players.balance(player)
+        players.settle(player, FinishedRound(Game.BLACKJACK, "t", balance - chips, chips - balance, RoundOutcome.LOSS, JsonObject(emptyMap())))
+    }
+
     @Test
-    fun `a player who cannot cover the smallest bet is staked again`() = testApplication {
+    fun `a player who cannot cover the smallest bet is staked by the house, and told`() = testApplication {
         val guest = TestPlayers()
         serve(guest)
-        runBlocking {
-            guest.players.settle(guest.player, FinishedRound(Game.BLACKJACK, "t", 1_995, -1_995, RoundOutcome.LOSS, JsonObject(emptyMap())))
-        }
+        guest.leaveWith(5)
 
         sockets().webSocket("/ws/blackjack") {
             sayHello(guest.token)
-            assertEquals(2_000, view().getValue("stack").jsonPrimitive.long)
+            assertEquals(505, view().getValue("stack").jsonPrimitive.long)
+
+            val notice = receiveJson()
+            assertEquals("staked", notice.getValue("type").jsonPrimitive.content)
+            assertEquals(500, notice.getValue("amount").jsonPrimitive.long)
         }
 
         val ledger = guest.store.ledger(guest.player.id, 10)
         assertEquals(LedgerReason.BUST_TOP_UP, ledger.last().reason)
-        assertEquals(1_995, ledger.last().amount, "brought back up to the opening amount, and written down")
+        assertEquals(500, ledger.last().amount, "a modest stake, written down")
+    }
+
+    @Test
+    fun `the house does not stake the same player twice in a row, and blackjack is not dealt`() = testApplication {
+        val guest = TestPlayers()
+        serve(guest)
+        runBlocking { guest.players.claimDaily(guest.player) }
+        guest.leaveWith(5)
+        runBlocking { guest.players.fund(guest.player, 10) }
+        guest.leaveWith(5)
+
+        sockets().webSocket("/ws/blackjack") {
+            sayHello(guest.token)
+            assertEquals(5, view().getValue("stack").jsonPrimitive.long, "what they have, and no more")
+
+            val notice = receiveJson()
+            assertEquals("broke", notice.getValue("type").jsonPrimitive.content)
+            assertEquals(false, notice.getValue("dailyReady").jsonPrimitive.boolean)
+            assertEquals("2026-10-06T16:00:00Z", notice.getValue("nextChipsAt").jsonPrimitive.content, "four hours after the last stake")
+
+            say("""{"type":"bet","amount":10}""")
+            assertEquals("betting", view().getValue("phase").jsonPrimitive.content, "the bet is not taken")
+            assertEquals("broke", receiveJson().getValue("type").jsonPrimitive.content)
+        }
+        assertEquals(5, guest.players.balance(guest.player))
+    }
+
+    @Test
+    fun `a broke player can play again once the house will stake them`() = testApplication {
+        val guest = TestPlayers()
+        serve(guest)
+        runBlocking { guest.players.fund(guest.player.also { guest.leaveWith(5) }, 10) }
+        guest.leaveWith(5)
+
+        sockets().webSocket("/ws/blackjack") {
+            sayHello(guest.token)
+            view()
+            assertEquals("broke", receiveJson().getValue("type").jsonPrimitive.content)
+
+            guest.clock.advance(java.time.Duration.ofHours(4))
+            say("""{"type":"bet","amount":10}""")
+
+            assertEquals(505, view().getValue("stack").jsonPrimitive.long)
+            assertEquals("staked", receiveJson().getValue("type").jsonPrimitive.content)
+            assertEquals(1, view().getValue("roundNumber").jsonPrimitive.int, "and the bet is taken")
+        }
+    }
+
+    @Test
+    fun `poker deals nothing to a broke player and says why`() = testApplication {
+        val guest = TestPlayers()
+        serve(guest)
+        runBlocking { guest.players.fund(guest.player.also { guest.leaveWith(5) }, 20) }
+        guest.leaveWith(15)
+
+        sockets().webSocket("/ws/table") {
+            sayHello(guest.token)
+
+            val notice = receiveJson()
+            assertEquals("broke", notice.getValue("type").jsonPrimitive.content)
+            assertTrue(notice.getValue("dailyReady").jsonPrimitive.boolean, "today's reward is still there for the taking")
+
+            // Claiming it is enough to be dealt in.
+            runBlocking { guest.players.claimDaily(guest.player) }
+            say("""{"type":"next_hand"}""")
+            assertEquals(1, receiveStateView().getValue("handNumber").jsonPrimitive.int)
+        }
+    }
+
+    @Test
+    fun `poker tells a player the house has staked them before dealing`() = testApplication {
+        val guest = TestPlayers()
+        serve(guest)
+        guest.leaveWith(15)
+
+        sockets().webSocket("/ws/table") {
+            sayHello(guest.token)
+
+            assertEquals("staked", receiveJson().getValue("type").jsonPrimitive.content)
+            val me = receiveStateView().getValue("players").jsonArray[0].jsonObject
+            assertEquals(515, me.getValue("stack").jsonPrimitive.long + me.getValue("committed").jsonPrimitive.long)
+        }
     }
 
     /** Skips the opponent's trace messages to the next state. */

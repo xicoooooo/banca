@@ -1882,3 +1882,47 @@ button {
   opacity: 0.7;
   cursor: default;
 }
+
+/* The daily reward in the lobby: a week of chips, one square a day. */
+.reward {
+  padding: 0.9rem 1rem 1rem;
+  border: 1px solid var(--hairline);
+  border-radius: 20px;
+  background: var(--glass);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.28);
+  backdrop-filter: blur(14px) saturate(125%);
+  -webkit-backdrop-filter: blur(14px) saturate(125%);
+}
+
+.reward__week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reward__day {
+  display: grid;
+  place-items: center;
+  height: 2rem;
+  border: 1px solid var(--hairline);
+  border-radius: 9px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgb(245 241 232 / 0.45);
+  background: rgb(0 0 0 / 0.2);
+}
+
+.reward__day[data-state='claimed'] {
+  border-color: rgb(241 199 91 / 0.3);
+  color: var(--color-gold);
+  background: rgb(241 199 91 / 0.12);
+}
+
+.reward__day[data-state='today'] {
+  border-color: var(--color-gold-bright);
+  color: var(--color-gold-bright);
+  box-shadow: 0 0 14px rgb(241 199 91 / 0.25);
+}

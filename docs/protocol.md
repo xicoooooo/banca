@@ -17,7 +17,29 @@ Every player starts as a guest. The server makes one on request and returns a se
 
 All but the first need `Authorization: Bearer <token>`, and answer `401` to a token the server does not know.
 
-A new player is granted 2,000 chips, once. After that the balance changes only as rounds are won and lost, except that a player left unable to make the smallest bet is brought back up to 2,000. Every change is a line in a ledger and the balance is their sum.
+A new player is granted 2,000 chips, once. After that the balance changes as rounds are won and lost, and by the two [rewards](#rewards) below. Every change is a line in a ledger and the balance is their sum.
+
+### Rewards
+
+Chips cannot be bought, so these are the only ways to come by chips without winning them. Both are worked out from the ledger; nothing else is stored.
+
+- **The daily reward** is claimed once a day, with days counted in UTC. Each day claimed in a row is worth more, through a week of 200, 300, 400, 500, 750, 1,000 and 2,000, which then starts over. Missing a day starts it over too.
+- **The house's stake** is 500 chips, given when a player sits down to a round they cannot cover, and at most once every four hours.
+
+| Request | Answer |
+|---|---|
+| `POST /players/me/rewards/daily` | `{ "granted": 200, "balance": 2200, "rewards": { ... } }`. `409` if today's has been claimed |
+
+What is on offer is the `rewards` part of the dashboard: for `daily`, whether it is `available`, its `amount`, the `day` of the week it is, the `streak`, and `nextAt`; for `rescue`, its `amount` and `nextAt`, null when the house would stake the player now.
+
+A table tells the player about their chips with two messages of its own, the same in every game:
+
+```json
+{ "type": "staked", "amount": 500 }
+{ "type": "broke", "dailyReady": false, "nextChipsAt": "2026-10-06T16:00:00Z" }
+```
+
+`staked` says the house has just staked them, so chips do not appear unexplained. `broke` says nothing will be dealt: they cannot cover the smallest bet and the house will not stake them yet. `dailyReady` is true when claiming the daily reward would get them playing again; otherwise `nextChipsAt` is when the next chips of either kind arrive. Asking again (`next_hand` in poker, a `bet` in blackjack) is answered with a deal once they can cover it.
 
 ### Signing in
 
@@ -237,7 +259,7 @@ Sent after every change, and always complete.
 | `insuranceCost` | Half the bet, while insurance is on offer |
 | `result` | Once settled: `net` (what the round did to your chips), `insuranceReturned`, and `refilled` |
 
-`soft` means an ace is being counted as eleven. `result.refilled` is true when the round left you unable to make the smallest bet and the house staked you again.
+`soft` means an ace is being counted as eleven. `result.refilled` is true when the round left you unable to make the smallest bet and the house staked you.
 
 A dealer showing an ace offers insurance before anything else: the phase is `insurance` and only `insure` or `decline_insurance` is accepted. A natural on either side settles the round at once, so a `state` straight after a bet can already be `settled`.
 
