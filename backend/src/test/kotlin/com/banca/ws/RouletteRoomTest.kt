@@ -237,7 +237,37 @@ class RouletteRoomTest {
     }
 
     @Test
-    fun `players can say the room's set phrases to each other, and nothing else`() = testApplication {
+    fun `players can type to each other, and what they type is tidied first`() = testApplication {
+        val host = TestPlayers()
+        serve(host)
+
+        sockets().webSocket("/ws/roulette/rooms/ivory") {
+            sayHello(host.token)
+            nextOf("chat_log")
+
+            suspend fun typed(text: String): String {
+                // The room asks for a moment between lines.
+                delay(1_600)
+                say("""{"type":"chat","text":${Json.encodeToString(kotlinx.serialization.serializer<String>(), text)}}""")
+                return nextOf("chat").getValue("line").jsonObject.getValue("text").jsonPrimitive.content
+            }
+
+            assertEquals("Anyone else on black?", typed("  Anyone   else\non black?  "))
+            assertEquals("free chips at [link] go now", typed("free chips at http://scam.example/x?y=1 go now"))
+            assertEquals("try [link]", typed("try chips-for-free.com/now"))
+            assertEquals("well f*** that spin", typed("well FUCK that spin").lowercase())
+            assertEquals(140, typed("x".repeat(500)).length)
+
+            delay(1_600)
+            say("""{"type":"chat","text":"   "}""")
+            assertEquals("error", nextOf("error").type)
+            say("""{"type":"chat"}""")
+            assertEquals("error", nextOf("error").type)
+        }
+    }
+
+    @Test
+    fun `players can say the room's set phrases to each other`() = testApplication {
         val host = TestPlayers()
         val (_, otherToken) = anotherPlayerOf(host)
         serve(host)
@@ -255,7 +285,7 @@ class RouletteRoomTest {
             say("""{"type":"chat","say":"clap"}""")
             assertTrue("moment" in nextOf("error").getValue("message").jsonPrimitive.content, "not too fast")
 
-            say("""{"type":"chat","say":"anything I like"}""")
+            say("""{"type":"chat","say":"not_a_phrase"}""")
             assertEquals("error", nextOf("error").type)
 
             // Someone walking in later is shown what was said.

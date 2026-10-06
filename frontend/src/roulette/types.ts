@@ -66,7 +66,7 @@ export type RoomPlayer = { name: string; staked: number; net: number | null; you
 /** The chips on one bet, everyone's together, and how many players put them there. */
 export type CrowdSpot = { kind: Wager['kind']; number: number | null; amount: number; players: number }
 
-/** Something said in a room. Every line is one of the room's set phrases. */
+/** Something said in a room: a set phrase, or a message a player typed, as tidied by the server. */
 export type ChatLine = { from: string; text: string; emote: boolean }
 
 export type Phrase = { id: string; text: string; emote: boolean }
@@ -101,6 +101,11 @@ export type RoomServerMessage =
   | { type: 'read'; read: LayoutRead }
   | { type: 'error'; message: string }
 
-export type RoomClientMessage = { type: 'bets'; bets: Wager[] } | { type: 'chat'; say: string } | { type: 'analyse'; bets: Wager[] }
+export type RoomClientMessage =
+  | { type: 'bets'; bets: Wager[] }
+  // One of the room's set phrases by its id, or a message the player typed.
+  | { type: 'chat'; say: string }
+  | { type: 'chat'; text: string }
+  | { type: 'analyse'; bets: Wager[] }
 
 export type RouletteClientMessage = { type: 'spin'; bets: Wager[] } | { type: 'analyse'; bets: Wager[] }

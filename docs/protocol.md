@@ -455,7 +455,13 @@ Each player's chips are still their own. The room holds a player's bets until th
 
 `bets` is the player's whole layout for the round, replacing whatever they had down; an empty list takes it all back. It is sent every time the layout changes, so the room always holds what the player sees, and is refused once bets have closed. There is no message to spin: the room does that.
 
-`chat` says one of the room's set phrases, named by its id. Players choose from a list and cannot type, so a room of strangers needs nobody to moderate it. One line every second and a half at most.
+`chat` says something to the room: either one of its set phrases, named by its id in `say`, or a message the player typed, in `text`:
+
+```json
+{ "type": "chat", "text": "Anyone else on black?" }
+```
+
+A typed message is tidied by the server before anyone sees it: made one line, cut to 140 characters, links replaced with `[link]`, and a short list of the most offensive words starred out. One line every second and a half at most. Nobody moderates a room, so the client lets each player mute anyone they would rather not hear from; muting is the listener's business and the server is not told.
 
 `analyse` is as at the private table.
 
@@ -503,7 +509,7 @@ Sent to everyone in the room whenever the phase changes or anyone's bets do, eac
 { "type": "chat", "line": { "from": "Ana", "text": "👏", "emote": true } }
 ```
 
-`chat_log` is sent on walking in: what has been said lately, and everything that can be said. `chat` is a line as it is spoken.
+`chat_log` is sent on walking in: what has been said lately, and the phrases that can be said with one press. `chat` is a line as it is spoken, already tidied if it was typed.
 
 ### `trace`, `read` and `error`
 

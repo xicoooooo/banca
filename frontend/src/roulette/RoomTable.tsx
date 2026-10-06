@@ -37,6 +37,14 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
   const [showRead, setShowRead] = useState(false)
   const [showRoom, setShowRoom] = useState(false)
   const [heard, setHeard] = useState(0)
+  // Who this player would rather not hear from. Kept on this device only, for this visit.
+  const [muted, setMuted] = useState<Set<string>>(new Set())
+  const mute = (name: string) =>
+    setMuted((current) => {
+      const next = new Set(current)
+      if (!next.delete(name)) next.add(name)
+      return next
+    })
 
   // A new round clears the felt, and the layout just played is kept to be put down again.
   const round = view?.roundNumber ?? 0
@@ -56,7 +64,7 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
   }
 
   // The newest thing said is shown for a moment where the hint usually is.
-  const latest = chat.at(-1)
+  const latest = chat.findLast((line) => !muted.has(line.from))
   const [quietAfter, setQuietAfter] = useState(0)
   const spoken = chat.length > quietAfter
   useEffect(() => {
@@ -217,7 +225,7 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
               </div>
             </div>
 
-            {spoken && latest && !showRoom ? (
+            {spoken && latest && latest === chat.at(-1) && !showRoom ? (
               <p className="chat-toast rise-in" key={chat.length}>
                 <span className="label tracking-[0.08em]!">{latest.from}</span> {latest.text}
               </p>
@@ -271,6 +279,9 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
           chat={chat}
           phrases={phrases}
           onSay={(say) => send({ type: 'chat', say })}
+          onType={(text) => send({ type: 'chat', text })}
+          muted={muted}
+          onMute={mute}
           onClose={() => {
             setHeard(chat.length)
             setShowRoom(false)

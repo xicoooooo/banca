@@ -2453,6 +2453,28 @@ button {
   background: rgb(0 0 0 / 0.2);
 }
 
+.room-player[data-muted='true'] > :not(.room-player__mute) {
+  opacity: 0.45;
+}
+
+.room-player__mute {
+  margin-right: -0.3rem;
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  background: none;
+}
+
+.room-player__mute[aria-pressed='true'] {
+  border-color: rgb(240 153 140 / 0.5);
+  color: var(--loss);
+}
+
 .room-player[data-you='true'] {
   border-color: rgb(241 199 91 / 0.4);
 }

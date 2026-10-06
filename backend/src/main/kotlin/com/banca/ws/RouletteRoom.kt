@@ -50,7 +50,7 @@ data class RoomPlayerView(val name: String, val staked: Long, val net: Long?, va
 @Serializable
 data class CrowdSpot(val kind: String, val number: Int?, val other: Int?, val amount: Long, val players: Int)
 
-/** Something said in the room. Every line is one of the room's set phrases; nobody types. */
+/** Something said in the room: one of its set phrases, or a message a player typed. */
 @Serializable
 data class ChatLine(val from: String, val text: String, val emote: Boolean)
 
@@ -90,10 +90,10 @@ sealed interface RoomClientMessage {
     @SerialName("bets")
     data class Bets(val bets: List<WagerMessage>) : RoomClientMessage
 
-    /** Says one of the room's set phrases, named by its id. */
+    /** Says something to the room: one of its set phrases, named by its id in [say], or a typed message in [text]. */
     @Serializable
     @SerialName("chat")
-    data class Chat(val say: String) : RoomClientMessage
+    data class Chat(val say: String? = null, val text: String? = null) : RoomClientMessage
 
     @Serializable
     @SerialName("analyse")
@@ -129,9 +129,8 @@ sealed interface RoomServerMessage {
 data class Phrase(val id: String, val text: String, val emote: Boolean = false)
 
 /**
- * What players may say to each other. A fixed list, chosen from rather than
- * typed, so that a room of strangers needs nobody to moderate it: there is
- * nothing unkind in here to say.
+ * Things to say with one press, for a player who would rather not type or
+ * cannot easily, on a phone with a table to watch.
  */
 object RoomPhrases {
     val ALL = listOf(
@@ -272,14 +271,25 @@ class RouletteRoom(
         broadcast()
     }
 
-    /** Says a set phrase to the room. Not too often, so one player cannot fill the screen. */
-    suspend fun say(playerId: UUID, phraseId: String) = lock.withLock {
+    /**
+     * Says something to the room: a set phrase by its id, or a typed message,
+     * which is tidied before anyone sees it. Not too often, so one player
+     * cannot fill the screen.
+     */
+    suspend fun say(playerId: UUID, phraseId: String?, typed: String?) = lock.withLock {
         val member = members[playerId] ?: error("You are not in this room")
-        val phrase = RoomPhrases.find(phraseId) ?: throw IllegalArgumentException("That is not something that can be said here")
+
+        val line = if (phraseId != null) {
+            val phrase = RoomPhrases.find(phraseId) ?: throw IllegalArgumentException("That is not one of the room's phrases")
+            ChatLine(from = member.name, text = phrase.text, emote = phrase.emote)
+        } else {
+            val text = typed?.let(ChatText::clean) ?: throw IllegalArgumentException("There is nothing there to say")
+            ChatLine(from = member.name, text = text, emote = false)
+        }
+
         check(now() - member.lastSpoke >= CHAT_EVERY_MS) { "Give it a moment before saying more" }
         member.lastSpoke = now()
 
-        val line = ChatLine(from = member.name, text = phrase.text, emote = phrase.emote)
         chat.addLast(line)
         while (chat.size > CHAT_KEPT) chat.removeFirst()
         val message = encode(RoomServerMessage.Said(line))
@@ -446,7 +456,7 @@ class RoomSeat(
     override suspend fun received(text: String) {
         when (val message = wireJson.decodeFromString<RoomClientMessage>(text)) {
             is RoomClientMessage.Bets -> room.setBets(session.player.id, message.bets)
-            is RoomClientMessage.Chat -> room.say(session.player.id, message.say)
+            is RoomClientMessage.Chat -> room.say(session.player.id, message.say, message.text)
             is RoomClientMessage.Analyse -> analyse(message.bets)
         }
     }

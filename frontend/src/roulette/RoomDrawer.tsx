@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { sound } from '../casino/sound'
 import type { ChatLine, Phrase, RoomPlayer } from './types'
 
@@ -8,19 +8,38 @@ type RoomDrawerProps = {
   chat: ChatLine[]
   phrases: Phrase[]
   onSay: (phraseId: string) => void
+  /** Sends a message the player has typed. */
+  onType: (text: string) => void
+  /** The names of players this player has chosen not to hear from, and how to change that. */
+  muted: Set<string>
+  onMute: (name: string) => void
   onClose: () => void
 }
+
+/** The most a message may be. The server holds to the same limit. */
+const MAX_LENGTH = 140
 
 function signed(amount: number): string {
   return amount === 0 ? 'Even' : `${amount > 0 ? '+' : '−'}${Math.abs(amount).toLocaleString('en-US')}`
 }
 
 /**
- * Who is in the room and what has been said in it. Players talk by choosing
- * from the room's phrases rather than typing, which keeps a room of strangers
- * friendly without anyone having to watch over it.
+ * Who is in the room and what has been said in it. Players can type, or say
+ * one of the room's phrases with a single press. Nobody watches over a room,
+ * so each player can mute anyone they would rather not hear from.
  */
-export function RoomDrawer({ name, players, chat, phrases, onSay, onClose }: RoomDrawerProps) {
+export function RoomDrawer({ name, players, chat, phrases, onSay, onType, muted, onMute, onClose }: RoomDrawerProps) {
+  const [draft, setDraft] = useState('')
+
+  const sendDraft = (event: FormEvent) => {
+    event.preventDefault()
+    const text = draft.trim()
+    if (!text) return
+    onType(text)
+    setDraft('')
+  }
+
+  const heard = chat.filter((line) => !muted.has(line.from))
   const closeButton = useRef<HTMLButtonElement>(null)
   const end = useRef<HTMLDivElement>(null)
 
@@ -40,7 +59,7 @@ export function RoomDrawer({ name, players, chat, phrases, onSay, onClose }: Roo
   // The newest line is the one to see.
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'end' })
-  }, [chat.length])
+  }, [heard.length])
 
   const words = phrases.filter((phrase) => !phrase.emote)
   const emotes = phrases.filter((phrase) => phrase.emote)
@@ -68,7 +87,7 @@ export function RoomDrawer({ name, players, chat, phrases, onSay, onClose }: Roo
         <div className="flex min-h-0 flex-1 flex-col px-5" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
           <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0 pb-3">
             {players.map((player, index) => (
-              <li key={`${player.name}-${index}`} className="room-player" data-you={player.you}>
+              <li key={`${player.name}-${index}`} className="room-player" data-you={player.you} data-muted={muted.has(player.name)}>
                 <span className="truncate">{player.you ? 'You' : player.name}</span>
                 {player.net !== null ? (
                   <span className="figure font-semibold" data-tone={player.net > 0 ? 'gain' : player.net < 0 ? 'loss' : 'even'}>
@@ -77,13 +96,24 @@ export function RoomDrawer({ name, players, chat, phrases, onSay, onClose }: Roo
                 ) : (
                   player.staked > 0 && <span className="figure text-gold-bright">{player.staked.toLocaleString('en-US')}</span>
                 )}
+                {!player.you && (
+                  <button
+                    type="button"
+                    className="room-player__mute"
+                    onClick={() => onMute(player.name)}
+                    aria-pressed={muted.has(player.name)}
+                    aria-label={muted.has(player.name) ? `Hear from ${player.name} again` : `Mute ${player.name}`}
+                  >
+                    {muted.has(player.name) ? 'Muted' : 'Mute'}
+                  </button>
+                )}
               </li>
             ))}
           </ul>
 
           <div className="chat-log" aria-live="polite" aria-label="What has been said">
-            {chat.length === 0 && <p className="py-6 text-center text-sm text-muted">Nobody has said anything yet. Say hello.</p>}
-            {chat.map((line, index) => (
+            {heard.length === 0 && <p className="py-6 text-center text-sm text-muted">Nobody has said anything yet. Say hello.</p>}
+            {heard.map((line, index) => (
               <p key={index} className="chat-line">
                 <span className="label tracking-[0.08em]!">{line.from}</span>
                 <span className={line.emote ? 'text-2xl leading-none' : 'text-sm text-ivory'}>{line.text}</span>
@@ -92,7 +122,23 @@ export function RoomDrawer({ name, players, chat, phrases, onSay, onClose }: Roo
             <div ref={end} />
           </div>
 
-          <div className="flex flex-wrap gap-1.5 pt-3" role="group" aria-label="Say something">
+          <form onSubmit={sendDraft} className="flex gap-2 pt-3">
+            <input
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              maxLength={MAX_LENGTH}
+              placeholder="Say something to the room"
+              aria-label="Your message"
+              enterKeyHint="send"
+              autoComplete="off"
+              className="name-field min-w-0 flex-1 text-sm!"
+            />
+            <button type="submit" className="btn btn--call px-4! text-sm" disabled={draft.trim() === ''}>
+              Send
+            </button>
+          </form>
+
+          <div className="flex flex-wrap gap-1.5 pt-2.5" role="group" aria-label="Or say it with one press">
             {words.map((phrase) => (
               <button key={phrase.id} type="button" className="phrase" onClick={() => say(phrase.id)}>
                 {phrase.text}
