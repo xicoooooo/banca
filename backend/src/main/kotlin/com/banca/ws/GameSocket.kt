@@ -5,6 +5,7 @@ import com.banca.players.Identity
 import com.banca.players.PlayerSession
 import com.banca.players.Players
 import io.ktor.server.routing.Route
+import io.ktor.server.websocket.DefaultWebSocketServerSession
 import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
@@ -33,6 +34,9 @@ interface GameConnection {
      * the game carries on unchanged.
      */
     suspend fun received(text: String)
+
+    /** Called once when the player has gone, to stop anything still running for them. */
+    fun closed() {}
 }
 
 /** Sends one text message to the player. */
@@ -62,7 +66,7 @@ fun stakedNotice(funding: Funding.Staked): String =
 fun brokeNotice(funding: Funding.Broke): String =
     wireJson.encodeToString(BrokeNotice.serializer(), BrokeNotice(dailyReady = funding.dailyReady, nextChipsAt = funding.nextChipsAt.toString()))
 
-private fun refusal(message: String, code: String? = null): String =
+internal fun refusal(message: String, code: String? = null): String =
     wireJson.encodeToString(Refusal.serializer(), Refusal(message = message, code = code))
 
 /** Serves a game at [path], giving every connection a table of its own. */
@@ -86,20 +90,29 @@ fun Route.gameSocket(path: String, players: Players, connect: (Send, PlayerSessi
         send(wireJson.encodeToString(Welcome.serializer(), Welcome(player = Identity(player.name, session.balance(), signedIn = player.accountId != null))))
 
         val connection = connect(send, session)
-        connection.opened()
+        try {
+            serve(connection, send)
+        } finally {
+            connection.closed()
+        }
+    }
+}
 
-        for (frame in incoming) {
-            if (frame !is Frame.Text) continue
+/** Hands the connection its messages in order, until the player leaves. */
+private suspend fun DefaultWebSocketServerSession.serve(connection: GameConnection, send: Send) {
+    connection.opened()
 
-            try {
-                connection.received(frame.readText())
-            } catch (problem: SerializationException) {
-                send(refusal("That message could not be read"))
-            } catch (problem: IllegalArgumentException) {
-                send(refusal(problem.message ?: "That is not allowed"))
-            } catch (problem: IllegalStateException) {
-                send(refusal(problem.message ?: "That is not possible right now"))
-            }
+    for (frame in incoming) {
+        if (frame !is Frame.Text) continue
+
+        try {
+            connection.received(frame.readText())
+        } catch (problem: SerializationException) {
+            send(refusal("That message could not be read"))
+        } catch (problem: IllegalArgumentException) {
+            send(refusal(problem.message ?: "That is not allowed"))
+        } catch (problem: IllegalStateException) {
+            send(refusal(problem.message ?: "That is not possible right now"))
         }
     }
 }

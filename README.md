@@ -8,7 +8,7 @@ A multi-game social casino played with virtual chips: Texas Hold'em, blackjack a
 
 > **Play money only.** Chips are free, cannot be bought, cannot be cashed out, and have no value. Banca is not a gambling application and never handles real money.
 
-**Status:** in development, and playable. Heads-up Hold'em runs against an agent that decides by calling poker tools over MCP, with its reasoning shown step by step and revealed in full after each hand. Blackjack is playable against the house. Chips, history and statistics belong to the player and follow them from table to table, with a profile page built from the rounds they have really played. Chips cannot be bought: a daily reward that grows with a streak, and a small stake from the house for a player who has run out, are the only ways to come by them without winning. The blackjack coach and roulette come next.
+**Status:** in development, and playable. Heads-up Hold'em runs against an agent that decides by calling poker tools over MCP, with its reasoning shown step by step and revealed in full after each hand. Blackjack is playable against the house. Chips, history and statistics belong to the player and follow them from table to table, with a profile page built from the rounds they have really played. Chips cannot be bought: a daily reward that grows with a streak, and a small stake from the house for a player who has run out, are the only ways to come by them without winning. At the blackjack table Banca is a coach: ask, and it looks at your hand through its tools, tells you what it would do and why, and shows the figures behind it. Roulette comes next.
 
 ## Why it exists
 
@@ -17,10 +17,10 @@ Three games with three different shapes, which is what makes the architecture wo
 | Game | Shape | The agent's role |
 |---|---|---|
 | Texas Hold'em | Turn-based, players against each other, hidden cards | Opponent |
-| Blackjack | Turn-based, players against a fixed-rule dealer | Dealer, or coach |
+| Blackjack | Turn-based, players against a fixed-rule dealer | Coach |
 | Roulette | Simultaneous betting, one spin resolves everything | Croupier, or coach |
 
-The agent is not a chatbot bolted to a game. It receives only what a player in its seat can see, calls tools to work out equity, pot odds and legal actions, and submits an action the server validates like any other. It runs against any tool-calling model: Ollama locally, or a free hosted tier.
+The agent is not a chatbot bolted to a game. It receives only what a player in its seat can see, calls tools to work out equity, pot odds and legal actions, and submits an action the server validates like any other. As a coach it is held to the same standard: what each blackjack play is worth is computed from the rules, not looked up, and its advice is only passed on if those figures agree. It runs against any tool-calling model: Ollama locally, or a free hosted tier.
 
 ## Architecture
 

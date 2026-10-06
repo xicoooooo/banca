@@ -1,6 +1,7 @@
 package com.banca
 
 import com.banca.agents.AgentDriver
+import com.banca.agents.BlackjackCoach
 import com.banca.agents.FallbackProvider
 import com.banca.agents.ModelProvider
 import com.banca.agents.OllamaProvider
@@ -32,7 +33,7 @@ fun main() {
     val signIn = signInFromEnvironment()
 
     embeddedServer(Netty, port = port, host = "0.0.0.0") {
-        module(tableSocket = startup.tableSocket, players = players, signIn = signIn)
+        module(tableSocket = startup.tableSocket, blackjack = startup.blackjack, players = players, signIn = signIn)
         // Only once the server is answering, so rehearsing never delays the
         // health check that tells the host the deploy worked.
         startup.modelToWarmUp?.let { model ->
@@ -72,12 +73,17 @@ private fun signInFromEnvironment(): SignInConfig? {
     return SignInConfig(url, key, SupabaseAccounts(url, key))
 }
 
-private class Startup(val tableSocket: TableSocketConfig, val modelToWarmUp: ModelProvider? = null)
+private class Startup(
+    val tableSocket: TableSocketConfig,
+    val blackjack: BlackjackSocketConfig = BlackjackSocketConfig(),
+    val modelToWarmUp: ModelProvider? = null,
+)
 
 /**
- * MODEL_PROVIDER picks who plays the opponent's seat: "ollama" (the default)
- * for a local model, "groq" for the hosted free tier, or "passive" for the
- * check-and-call stand-in.
+ * MODEL_PROVIDER picks who plays the poker opponent's seat and coaches at the
+ * blackjack table: "ollama" (the default) for a local model, "groq" for the
+ * hosted free tier, or "passive" for no model at all, which leaves a
+ * check-and-call opponent and a coach that answers from the arithmetic alone.
  */
 private fun startupFromEnvironment(): Startup =
     when (val provider = Config["MODEL_PROVIDER"]?.lowercase() ?: "ollama") {
@@ -87,7 +93,10 @@ private fun startupFromEnvironment(): Startup =
                 model = Config["OLLAMA_MODEL"] ?: "qwen2.5:7b",
             )
             // The model takes long enough that no artificial pause is needed.
-            Startup(TableSocketConfig(opponentDelay = Duration.ZERO, opponent = { AgentDriver(model) }))
+            Startup(
+                tableSocket = TableSocketConfig(opponentDelay = Duration.ZERO, opponent = { AgentDriver(model) }),
+                blackjack = BlackjackSocketConfig(advisor = BlackjackCoach(model)),
+            )
         }
         "groq" -> {
             val key = Config["GROQ_API_KEY"]
@@ -99,6 +108,7 @@ private fun startupFromEnvironment(): Startup =
             val model = FallbackProvider(names.map { it to OpenAiCompatibleProvider.groq(apiKey = key, model = it) })
             Startup(
                 tableSocket = TableSocketConfig(opponentDelay = Duration.ZERO, opponent = { AgentDriver(model) }),
+                blackjack = BlackjackSocketConfig(advisor = BlackjackCoach(model)),
                 modelToWarmUp = model,
             )
         }

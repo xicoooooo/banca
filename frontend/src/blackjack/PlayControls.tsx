@@ -3,7 +3,14 @@ import { sound } from '../casino/sound'
 import type { BlackjackAction, BlackjackView } from './types'
 
 /** What can be done with the hand in play, or the answer to an offer of insurance. */
-export function PlayControls({ view, onAct }: { view: BlackjackView; onAct: (action: BlackjackAction) => void }) {
+type PlayControlsProps = {
+  view: BlackjackView
+  onAct: (action: BlackjackAction) => void
+  /** The play the coach has advised, if it has been asked. It is marked, never pressed for the player. */
+  advised?: BlackjackAction
+}
+
+export function PlayControls({ view, onAct, advised }: PlayControlsProps) {
   // Which button was pressed, until the table answers. The controls are
   // rebuilt for each new decision, so this never needs clearing by hand.
   const [pending, setPending] = useState<BlackjackAction | null>(null)
@@ -21,9 +28,11 @@ export function PlayControls({ view, onAct }: { view: BlackjackView; onAct: (act
       onClick={() => act(action)}
       disabled={pending !== null}
       data-pending={pending === action}
+      data-advised={advised === action}
       className={`btn ${style} flex-1`}
     >
       {label}
+      {advised === action && <span className="sr-only"> (Banca's advice)</span>}
     </button>
   )
 

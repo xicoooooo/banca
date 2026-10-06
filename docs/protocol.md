@@ -263,6 +263,27 @@ Sent after every change, and always complete.
 
 A dealer showing an ace offers insurance before anything else: the phase is `insurance` and only `insure` or `decline_insurance` is accepted. A natural on either side settles the round at once, so a `state` straight after a bet can already be `settled`.
 
+### `trace` and `advice`
+
+Sent only after the player asks the coach with `advise`.
+
+```json
+{ "type": "trace", "roundNumber": 3, "event": { "kind": "tool", "label": "Worked out what each play is worth", "detail": "get_action_values → {...}" } }
+{
+  "type": "advice",
+  "roundNumber": 3,
+  "hand": 0,
+  "advice": {
+    "action": "hit",
+    "reason": "The dealer busts only 23% of the time from a jack, so standing on 15 loses more than hitting does.",
+    "values": [{ "action": "hit", "value": -0.504 }, { "action": "stand", "value": -0.54 }],
+    "source": "banca"
+  }
+}
+```
+
+Each `trace` is a step the coach took, sent as it happens and with its detail. Unlike the poker opponent's, nothing is held back: the coach is given only the player's own view of the table, so it has nothing to give away. `values` is what every play open to the player is expected to return per chip bet, the best first, and the advised `action` is always the first of them. `source` is `banca` when the model put the reason into words and `book` when it could not and the reason was made from the figures.
+
 ### `error`
 
 As for poker: the last message could not be applied, the table is unchanged, and the connection stays open.
@@ -270,6 +291,7 @@ As for poker: the last message could not be applied, the table is unchanged, and
 ## Client to server
 
 ```json
+{ "type": "advise" }
 { "type": "bet", "amount": 100 }
 { "type": "act", "action": "hit" }
 { "type": "act", "action": "stand" }
@@ -279,8 +301,12 @@ As for poker: the last message could not be applied, the table is unchanged, and
 { "type": "act", "action": "decline_insurance" }
 ```
 
+`advise` asks the coach about the decision in front of the player, and is refused when there is none. The answer arrives in its own time; the player may act without waiting, and advice for a decision already made is never sent. Asking again about the same decision repeats the same advice.
+
 `bet` starts a round and is accepted only when `legal.bet` is true. Doubling and splitting each put a second stake of the same size on the table. Split aces receive one card each and are then finished.
 
 ## Rules the server enforces
+
+The coach's advice is never taken on trust. What each play is worth is worked out on the server from the rules, and advice from the model is accepted only if it is a play open to the player and as good as any other. A model that fails, stalls or will not settle is replaced by the figures.
 
 A natural pays three to two. Insurance pays two to one. Twenty-one made after a split is an ordinary twenty-one. Any two cards worth the same may be split, up to four hands, and a split hand may be doubled. The dealer does not draw when every hand has bust.

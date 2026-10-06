@@ -4,19 +4,9 @@ import com.banca.games.poker.Action
 import com.banca.sessions.SeatDriver
 import com.banca.sessions.TableView
 import com.banca.sessions.TraceEvent
-import io.modelcontextprotocol.kotlin.sdk.client.Client
-import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
-import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
-import io.modelcontextprotocol.kotlin.sdk.types.Implementation
-import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -46,13 +36,24 @@ class AgentDriver(
 ) : SeatDriver {
 
     private val log = LoggerFactory.getLogger(AgentDriver::class.java)
+    private val conversation = ToolConversation(model, config.maxModelCalls)
 
     override suspend fun decide(view: TableView, trace: suspend (TraceEvent) -> Unit): Action {
         val tools = PokerTools(view, config.random)
         val timing = Timing()
+        val task = ToolTask(
+            server = tools.server(),
+            systemPrompt = SYSTEM_PROMPT,
+            opening = "It is your turn. Use the tools, then submit your action.",
+            finishingTool = PokerTools.SUBMIT_ACTION,
+            reminder = "Call submit_action now to commit your decision.",
+            isFinished = { tools.decision != null },
+            labelFor = ::labelFor,
+            readWrittenFinish = ::positionalSubmission,
+        )
 
         val problem = try {
-            withTimeout(config.timeout) { converse(tools, trace, timing) }
+            withTimeout(config.timeout) { conversation.run(task, trace, timing) }
             if (tools.decision == null) "it did not reach a decision" else null
         } catch (timeout: TimeoutCancellationException) {
             "it ran out of time"
@@ -63,10 +64,7 @@ class AgentDriver(
             "the model could not be reached"
         }
 
-        log.info(
-            "Agent turn took {} ms: {} ms connecting tools, {} ms in {} model calls, {} ms in {} tool calls",
-            timing.sinceStart(), timing.setup, timing.model, timing.modelCalls, timing.tools, timing.toolCalls,
-        )
+        log.info("Agent turn took {}", timing)
 
         tools.decision?.let { decided ->
             trace(TraceEvent(TraceEvent.DECISION, "Decided to ${PokerTools.describe(decided)}"))
@@ -84,115 +82,6 @@ class AgentDriver(
         return safe
     }
 
-    /** Where a turn's time went, for the log. Hosting on little CPU makes this worth watching. */
-    private class Timing {
-        private val start = System.nanoTime()
-        var setup = 0L
-        var model = 0L
-        var modelCalls = 0
-        var tools = 0L
-        var toolCalls = 0
-
-        fun sinceStart(): Long = (System.nanoTime() - start) / 1_000_000
-
-        inline fun <T> timed(record: (Long) -> Unit, block: () -> T): T {
-            val began = System.nanoTime()
-            try {
-                return block()
-            } finally {
-                record((System.nanoTime() - began) / 1_000_000)
-            }
-        }
-    }
-
-    private suspend fun converse(tools: PokerTools, trace: suspend (TraceEvent) -> Unit, timing: Timing) {
-        // The link's message pumps live on their own job so they can be stopped
-        // however the conversation ends.
-        val link = CoroutineScope(currentCoroutineContext() + Job())
-        val server = tools.server()
-        val client = Client(Implementation(name = "banca-agent", version = "0.1.0"))
-
-        try {
-            val listed = timing.timed({ timing.setup = it }) {
-                val (serverEnd, clientEnd) = LinkedTransport.pair(link)
-                server.createSession(serverEnd)
-                client.connect(clientEnd)
-                client.listTools().tools
-            }
-
-            val specs = listed.map { tool ->
-                ToolSpec(
-                    name = tool.name,
-                    description = tool.description.orEmpty(),
-                    parameters = buildJsonObject {
-                        put("type", "object")
-                        put("properties", tool.inputSchema.properties ?: buildJsonObject { })
-                    },
-                )
-            }
-
-            val messages = mutableListOf<ChatMessage>(
-                ChatMessage.System(SYSTEM_PROMPT),
-                ChatMessage.User("It is your turn. Use the tools, then submit your action."),
-            )
-
-            repeat(config.maxModelCalls) {
-                val answer = timing.timed({ timing.model += it; timing.modelCalls++ }) { model.chat(messages, specs) }
-                // Small models sometimes write a tool call out as text instead
-                // of making it. Reading it back costs nothing and saves the turn.
-                val written = if (answer.toolCalls.isEmpty()) writtenToolCalls(answer.text, specs) else emptyList()
-                val reply = if (written.isEmpty()) answer else ModelReply(text = "", toolCalls = written)
-                messages += ChatMessage.Assistant(reply.text, reply.toolCalls)
-
-                if (reply.text.isNotBlank()) {
-                    trace(TraceEvent(TraceEvent.THOUGHT, "Thought it over", reply.text))
-                }
-                if (reply.toolCalls.isEmpty()) {
-                    messages += ChatMessage.User("Call submit_action now to commit your decision.")
-                }
-
-                for (call in reply.toolCalls) {
-                    val result = timing.timed({ timing.tools += it; timing.toolCalls++ }) {
-                        client.callTool(
-                            CallToolRequest(CallToolRequestParams(name = call.name, arguments = call.arguments)),
-                        )
-                    }
-                    val text = result.content.filterIsInstance<TextContent>().joinToString("\n") { it.text }
-                    messages += ChatMessage.ToolResult(call.name, text)
-
-                    if (call.name != PokerTools.SUBMIT_ACTION) {
-                        trace(TraceEvent(TraceEvent.TOOL, labelFor(call.name), "${call.name} → $text"))
-                    }
-                    if (tools.decision != null) return
-                }
-            }
-        } finally {
-            link.cancel()
-        }
-    }
-
-    /**
-     * Finds tool calls spelled out in prose, such as
-     * `submit_action {"action": "call"}`: a known tool name followed by its
-     * arguments as a JSON object, or by nothing for a tool that takes none.
-     */
-    private fun writtenToolCalls(text: String, specs: List<ToolSpec>): List<ToolCall> =
-        specs.mapNotNull { spec ->
-            val at = text.indexOf(spec.name)
-            if (at < 0) return@mapNotNull null
-
-            val after = text.substring(at + spec.name.length).trimStart(' ', ':', '(', '`', '\n')
-            val arguments = when {
-                after.startsWith("{") -> firstJsonObject(after)
-                spec.name == PokerTools.SUBMIT_ACTION -> positionalSubmission(after)
-                else -> null
-            }
-            // submit_action is meaningless without arguments; the others take none.
-            if (arguments == null && spec.name == PokerTools.SUBMIT_ACTION) return@mapNotNull null
-
-            at to ToolCall(spec.name, arguments ?: JsonObject(emptyMap()))
-        }.sortedBy { (position, _) -> position }.map { (_, call) -> call }
-
     /** Reads the function-call spelling, `submit_action("raise", 300)`. */
     private fun positionalSubmission(afterName: String): JsonObject? {
         val call = afterName.lineSequence().first().substringBefore(')')
@@ -203,19 +92,6 @@ class AgentDriver(
             put("action", action.value.lowercase())
             if (amount != null) put("amount", amount)
         }
-    }
-
-    private fun firstJsonObject(text: String): JsonObject? {
-        var depth = 0
-        for ((index, char) in text.withIndex()) {
-            when (char) {
-                '{' -> depth++
-                '}' -> if (--depth == 0) {
-                    return runCatching { Json.parseToJsonElement(text.substring(0, index + 1)) as? JsonObject }.getOrNull()
-                }
-            }
-        }
-        return null
     }
 
     private fun labelFor(tool: String): String = when (tool) {

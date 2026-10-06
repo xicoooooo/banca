@@ -196,6 +196,16 @@ object DashboardBuilder {
         add(tendency("Doubles down", rounds.count { it.detail.count("doubled") > 0 }, rounds.size, "rounds"))
         add(tendency("Dealt a natural", rounds.count { it.detail.flag("natural") }, rounds.size, "rounds"))
 
+        // How often the player's own decisions were the best play, by the arithmetic.
+        val decisions = rounds.sumOf { it.detail.count("decisions") }
+        if (decisions >= ENOUGH_ROUNDS) {
+            add(tendency("Plays by the book", rounds.sumOf { it.detail.count("byTheBook") }, decisions, "decisions"))
+        }
+        val advised = rounds.sumOf { it.detail.count("advised") }
+        if (advised >= ENOUGH_CASES) {
+            add(tendency("Takes Banca's advice", rounds.sumOf { it.detail.count("followedAdvice") }, advised, "times asked"))
+        }
+
         val offered = rounds.filter { it.detail.flag("insuranceOffered") }
         if (offered.size >= ENOUGH_CASES) {
             add(tendency("Takes insurance", offered.count { it.detail.flag("insured") }, offered.size, "offers"))

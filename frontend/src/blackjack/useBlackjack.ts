@@ -5,7 +5,7 @@ import { flyChips } from '../casino/flights'
 import { sound } from '../casino/sound'
 import { useSocket } from '../casino/useSocket'
 import { deriveBlackjackEvents } from './events'
-import type { BlackjackClientMessage, BlackjackServerMessage, BlackjackView } from './types'
+import type { Advice, BlackjackClientMessage, BlackjackServerMessage, BlackjackView, CoachStep } from './types'
 
 /**
  * When things happen, in milliseconds, so cards, chips, sounds and labels all
@@ -31,6 +31,17 @@ export function resultDelay(dealerDrew: number, instant: boolean): number {
   return (dealerDrew > 0 ? TIMING.DRAW_START + (dealerDrew - 1) * TIMING.DRAW_STAGGER : TIMING.HOLE_FLIP) + 750
 }
 
+/** The coach's part in the decision in front of the player: not asked, working, or answered. */
+export type Coaching = { status: 'idle' | 'thinking' | 'ready'; steps: CoachStep[]; advice: Advice | null }
+
+const NO_COACHING: Coaching = { status: 'idle', steps: [], advice: null }
+
+/** What the player is being asked to decide, as something that changes whenever the decision does. */
+function decisionIn(view: BlackjackView): string {
+  const hand = view.hands[view.activeHand ?? 0]
+  return `${view.roundNumber}:${view.phase}:${view.activeHand}:${hand?.cards.join('') ?? ''}`
+}
+
 export type Reveal = {
   roundNumber: number
   /** Milliseconds from settling until the outcome may be shown. */
@@ -47,10 +58,15 @@ export function useBlackjack() {
   const [reveal, setReveal] = useState<Reveal>({ roundNumber: 0, delay: 0, instant: false })
   const previous = useRef<BlackjackView | null>(null)
   const chips = useChipNotices()
+  const [coach, setCoach] = useState<Coaching>(NO_COACHING)
 
   const { connection, send } = useSocket<BlackjackServerMessage, BlackjackClientMessage>('/ws/blackjack', (message) => {
     if (message.type === 'staked' || message.type === 'broke') {
       chips.receive(message)
+    } else if (message.type === 'trace') {
+      setCoach((current) => (current.status === 'thinking' ? { ...current, steps: [...current.steps, message.event] } : current))
+    } else if (message.type === 'advice') {
+      setCoach((current) => (current.status === 'idle' ? current : { ...current, status: 'ready', advice: message.advice }))
     } else if (message.type === 'state') {
       // The table says first where things stand, and only then that it cannot deal.
       chips.dealt()
@@ -59,8 +75,24 @@ export function useBlackjack() {
     } else {
       setError(message.message)
       setRefusals((count) => count + 1)
+      // A coach that could not answer is no longer thinking.
+      setCoach((current) => (current.status === 'thinking' ? NO_COACHING : current))
     }
   })
+
+  // Advice is for one decision. Once the cards or the question change, it is put away.
+  const decision = view ? decisionIn(view) : null
+  const [coachedDecision, setCoachedDecision] = useState(decision)
+  if (coachedDecision !== decision) {
+    setCoachedDecision(decision)
+    setCoach(NO_COACHING)
+  }
+
+  const askCoach = () => {
+    if (coach.status !== 'idle') return
+    setCoach({ status: 'thinking', steps: [], advice: null })
+    send({ type: 'advise' })
+  }
 
   useEffect(() => {
     if (!view || previous.current === view) return
@@ -121,5 +153,5 @@ export function useBlackjack() {
     }
   }, [view])
 
-  return { view, reveal, connection, error, refusals, send, broke: chips.broke, staked: chips.staked, retry: chips.dealt }
+  return { view, reveal, connection, error, refusals, send, broke: chips.broke, staked: chips.staked, retry: chips.dealt, coach, askCoach }
 }

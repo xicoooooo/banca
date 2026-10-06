@@ -31,6 +31,23 @@ export type BlackjackView = {
 
 export type BlackjackAction = 'hit' | 'stand' | 'double' | 'split' | 'insure' | 'decline_insurance'
 
-export type BlackjackServerMessage = ChipNotice | { type: 'state'; view: BlackjackView } | { type: 'error'; message: string }
+/** One step the coach took. Unlike the poker opponent's, nothing in it is hidden: the coach sees only what the player sees. */
+export type CoachStep = { kind: 'tool' | 'thought' | 'decision' | 'fallback'; label: string; detail: string | null }
 
-export type BlackjackClientMessage = { type: 'bet'; amount: number } | { type: 'act'; action: BlackjackAction }
+/** What the coach advises, with what every open play is worth per chip bet, the best first. */
+export type Advice = {
+  action: BlackjackAction
+  reason: string
+  values: { action: BlackjackAction; value: number }[]
+  /** "banca" when the model put it into words, "book" when the arithmetic spoke for itself. */
+  source: 'banca' | 'book'
+}
+
+export type BlackjackServerMessage =
+  | ChipNotice
+  | { type: 'state'; view: BlackjackView }
+  | { type: 'trace'; roundNumber: number; event: CoachStep }
+  | { type: 'advice'; roundNumber: number; hand: number | null; advice: Advice }
+  | { type: 'error'; message: string }
+
+export type BlackjackClientMessage = { type: 'bet'; amount: number } | { type: 'act'; action: BlackjackAction } | { type: 'advise' }

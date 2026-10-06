@@ -6,6 +6,7 @@ import { ChipStack } from '../casino/Chip'
 import { Header, type Status } from '../casino/Header'
 import { OutOfChips, StakedNote } from '../casino/ChipNotices'
 import { Loading } from '../casino/Loading'
+import { CoachPanel, CoachPill, CoachReason } from './Coach'
 import { prefersReducedMotion } from '../casino/motion'
 import { Plate } from '../casino/Plate'
 import { useCountBefore } from '../casino/useCountBefore'
@@ -213,7 +214,8 @@ function Result({ view }: { view: BlackjackView }) {
  * is only ever drawn here.
  */
 export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
-  const { view, reveal, connection, error, refusals, send, broke, staked, retry } = useBlackjack()
+  const { view, reveal, connection, error, refusals, send, broke, staked, retry, coach, askCoach } = useBlackjack()
+  const [showCoach, setShowCoach] = useState(false)
   const resultShown = useResultShown(view, reveal)
 
   if (!view) {
@@ -231,6 +233,8 @@ export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
 
   const settled = view.phase === 'settled'
   const dealing = settled && !resultShown
+  // The coach is there to be asked whenever the player has something to decide.
+  const deciding = view.phase === 'player' || view.phase === 'insurance'
   // Cards shrink as hands multiply, so four split hands still fit a phone.
   const size = view.hands.length <= 1 ? 'var(--card-hero)' : view.hands.length === 2 ? 'var(--card-board)' : 'var(--card-opponent)'
 
@@ -252,6 +256,8 @@ export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
           <div className="grid h-14 place-items-center">
             {resultShown ? (
               <Result view={view} />
+            ) : deciding ? (
+              <CoachPill coach={coach} onAsk={askCoach} onOpen={() => setShowCoach(true)} />
             ) : (
               <p className="label text-center leading-loose text-gold/45!">
                 Blackjack pays 3 to 2
@@ -306,6 +312,7 @@ export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
         )}
 
         {!dealing && <StakedNote amount={staked} />}
+        {deciding && coach.advice && <CoachReason advice={coach.advice} />}
 
         {dealing ? (
           <p className="label pb-8 text-center">The dealer plays</p>
@@ -329,9 +336,14 @@ export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
             key={`${view.roundNumber}-${view.phase}-${view.activeHand}-${view.hands.map((h) => h.cards.length).join('.')}-${refusals}`}
             view={view}
             onAct={(action) => send({ type: 'act', action })}
+            advised={coach.advice?.action}
           />
         )}
       </footer>
+
+      {showCoach && deciding && coach.status !== 'idle' && (
+        <CoachPanel coach={coach} roundNumber={view.roundNumber} onClose={() => setShowCoach(false)} />
+      )}
     </CasinoShell>
   )
 }
