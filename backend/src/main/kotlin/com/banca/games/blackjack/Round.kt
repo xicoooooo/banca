@@ -24,6 +24,12 @@ enum class Phase {
     /** The dealer shows an ace and the player is asked about insurance. */
     INSURANCE,
     PLAYER,
+
+    /**
+     * At a table shared with other players: this player has finished, and the
+     * dealer has yet to play, because someone else is still deciding.
+     */
+    WAITING,
     SETTLED,
 }
 
@@ -75,6 +81,12 @@ data class Round(
     val stack: Long,
     val insurance: Long,
     val result: RoundResult?,
+    /**
+     * True at a table where several players face one dealer. The dealer's hand
+     * is then played once for all of them, by the table, and not by this
+     * round when its own player has finished.
+     */
+    val sharedDealer: Boolean = false,
 ) {
     val isSettled: Boolean get() = phase == Phase.SETTLED
 
@@ -158,7 +170,24 @@ data class Round(
     /** Moves to the next hand with a decision left, or plays the dealer when there is none. */
     private fun advance(): Round {
         val next = hands.indices.firstOrNull { it >= active && !hands[it].isFinished }
-        return if (next != null) copy(active = next) else playDealer().settle()
+        return when {
+            next != null -> copy(active = next)
+            sharedDealer -> copy(phase = Phase.WAITING)
+            else -> playDealer().settle()
+        }
+    }
+
+    /** Whether the dealer has anything of this player's left to beat. */
+    val hasLiveHand: Boolean get() = phase == Phase.WAITING && hands.any { !it.isBust }
+
+    /**
+     * Settles a round that was waiting on the dealer, against the hand the
+     * dealer finished with. The table calls this for every player once the
+     * dealer has played.
+     */
+    fun settledAgainst(dealerFinal: List<Card>): Round {
+        check(phase == Phase.WAITING) { "This round is not waiting on the dealer" }
+        return copy(dealer = dealerFinal).settle()
     }
 
     /** The dealer looks at the hole card. A natural on either side ends the round here. */
@@ -169,18 +198,9 @@ data class Round(
         // With every hand bust there is nothing left to beat, so the dealer does not draw.
         if (hands.all { it.isBust }) return this
 
-        var cards = dealer
-        var rest = shoe
-        while (dealerDraws(valueOf(cards))) {
-            check(rest.isNotEmpty()) { "The shoe has run out" }
-            cards = cards + rest.first()
-            rest = rest.drop(1)
-        }
+        val (cards, rest) = drawDealer(dealer, shoe, rules)
         return copy(dealer = cards, shoe = rest)
     }
-
-    private fun dealerDraws(value: HandValue): Boolean =
-        value.total < 17 || (value.total == 17 && value.soft && rules.dealerHitsSoft17)
 
     private fun settle(): Round {
         val dealerValue = valueOf(dealer)
@@ -213,6 +233,46 @@ data class Round(
     companion object {
         /** The fewest cards a round can need: four hands drawing out and a dealer doing the same. */
         const val CARDS_NEEDED = 60
+
+        /**
+         * Plays the dealer's hand out by the house rules: draw to seventeen.
+         * Returns the finished hand and what is left of the shoe.
+         */
+        fun drawDealer(dealer: List<Card>, shoe: List<Card>, rules: Rules): Pair<List<Card>, List<Card>> {
+            var cards = dealer
+            var rest = shoe
+            while (valueOf(cards).let { it.total < 17 || (it.total == 17 && it.soft && rules.dealerHitsSoft17) }) {
+                check(rest.isNotEmpty()) { "The shoe has run out" }
+                cards = cards + rest.first()
+                rest = rest.drop(1)
+            }
+            return cards to rest
+        }
+
+        /**
+         * One player's round at a shared table, from cards the table has
+         * already dealt: theirs, and the dealer's two, which every player at
+         * the table faces. [shoe] is what is left for whoever draws next.
+         */
+        fun seated(bet: Long, stack: Long, cards: List<Card>, dealer: List<Card>, shoe: List<Card>, rules: Rules = Rules()): Round {
+            require(bet > 0) { "A bet must be more than nothing" }
+            require(bet <= stack) { "A bet of $bet is more than the $stack you have" }
+            require(cards.size == 2 && dealer.size == 2) { "A round starts with two cards each" }
+
+            val round = Round(
+                rules = rules,
+                shoe = shoe,
+                dealer = dealer,
+                hands = listOf(PlayerHand(cards = cards, bet = bet)),
+                active = 0,
+                phase = Phase.PLAYER,
+                stack = stack - bet,
+                insurance = 0,
+                result = null,
+                sharedDealer = true,
+            )
+            return if (round.dealerUpCard.rank == Rank.ACE) round.copy(phase = Phase.INSURANCE) else round.afterPeek()
+        }
 
         fun deal(bet: Long, stack: Long, shoe: List<Card>, rules: Rules = Rules()): Round {
             require(bet > 0) { "A bet must be more than nothing" }

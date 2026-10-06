@@ -24,7 +24,8 @@ export function deriveBlackjackEvents(before: BlackjackView | null, now: Blackja
   const sameRound = before !== null && before.roundNumber === now.roundNumber
 
   if (!sameRound) {
-    events.push({ type: 'round_started', bet: now.hands[0]?.bet ?? 0 })
+    // At a shared table a round can start that this player is only watching.
+    if (now.hands.length > 0) events.push({ type: 'round_started', bet: now.hands[0].bet })
   } else {
     const added = staked(now) - staked(before)
     if (added > 0) events.push({ type: 'stake_added', amount: added })

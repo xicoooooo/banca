@@ -1,11 +1,8 @@
 package com.banca.sessions
 
 import com.banca.games.blackjack.BlackjackAction
-import com.banca.games.blackjack.Phase
-import com.banca.games.blackjack.PlayerHand
 import com.banca.games.blackjack.Round
 import com.banca.games.blackjack.Rules
-import com.banca.games.blackjack.valueOf
 import com.banca.games.cards.Card
 import com.banca.games.cards.Deck
 import kotlin.random.Random
@@ -80,67 +77,5 @@ class BlackjackTable(
         this.stack = stack
     }
 
-    fun view(): BlackjackView {
-        val current = round
-        val settled = current?.isSettled ?: false
-        val legal = current?.takeUnless { it.isSettled }?.legalActions()
-
-        return BlackjackView(
-            roundNumber = roundNumber,
-            phase = when {
-                current == null -> "betting"
-                else -> current.phase.name.lowercase()
-            },
-            stack = stack,
-            minBet = minBet,
-            maxBet = maxBet,
-            lastBet = lastBet,
-            dealer = current?.let { dealerView(it) },
-            hands = current?.hands.orEmpty().mapIndexed { index, hand -> handView(current!!, index, hand) },
-            activeHand = current?.takeIf { it.phase == Phase.PLAYER }?.active,
-            legal = BlackjackLegalView(
-                bet = current == null || settled,
-                hit = legal?.hit ?: false,
-                stand = legal?.stand ?: false,
-                double = legal?.double ?: false,
-                split = legal?.split ?: false,
-                insurance = legal?.insurance ?: false,
-            ),
-            insuranceCost = current?.takeIf { it.phase == Phase.INSURANCE }?.insuranceCost ?: 0,
-            result = current?.result?.let {
-                BlackjackResultView(net = it.net, insuranceReturned = it.insuranceReturned, refilled = refilled)
-            },
-        )
-    }
-
-    /** The hole card stays face down until the round is settled. */
-    private fun dealerView(round: Round): DealerView {
-        val shown = if (round.isSettled) round.dealer else round.dealer.take(1)
-        val value = valueOf(shown)
-        return DealerView(
-            cards = round.dealer.mapIndexed { index, card -> if (index < shown.size) card.toString() else null },
-            total = value.total,
-            soft = value.soft,
-        )
-    }
-
-    private fun handView(round: Round, index: Int, hand: PlayerHand): BlackjackHandView {
-        val result = round.result?.hands?.get(index)
-        return BlackjackHandView(
-            cards = hand.cards.map { it.toString() },
-            bet = hand.bet,
-            total = hand.value.total,
-            soft = hand.value.soft,
-            status = when {
-                hand.isBust -> "bust"
-                hand.isBlackjack -> "blackjack"
-                hand.doubled -> "doubled"
-                hand.isFinished -> "stood"
-                round.phase == Phase.PLAYER && index == round.active -> "playing"
-                else -> "waiting"
-            },
-            outcome = result?.outcome?.name?.lowercase(),
-            returned = result?.returned,
-        )
-    }
+    fun view(): BlackjackView = blackjackViewOf(round, roundNumber, stack, minBet, maxBet, lastBet, refilled)
 }

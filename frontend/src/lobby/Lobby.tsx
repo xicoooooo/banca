@@ -16,8 +16,8 @@ const GAMES: { id: Game; name: string; line: string; detail: string }[] = [
   {
     id: 'blackjack',
     name: 'Blackjack',
-    line: 'You against the house',
-    detail: 'Six decks, blackjack pays 3 to 2, and Banca beside you if you ask what it would do.',
+    line: 'One dealer for the whole table',
+    detail: 'Sit down with other players or take a table to yourself. Banca is beside you if you ask what it would do.',
   },
   {
     id: 'roulette',

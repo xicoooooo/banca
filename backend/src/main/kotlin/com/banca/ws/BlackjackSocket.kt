@@ -2,28 +2,19 @@ package com.banca.ws
 
 import com.banca.agents.Advice
 import com.banca.agents.BlackjackAdvisor
-import com.banca.agents.BlackjackTools
 import com.banca.agents.BookAdvisor
 import com.banca.games.blackjack.BlackjackAction
 import com.banca.games.blackjack.Strategy
 import com.banca.games.blackjack.Rules
-import com.banca.games.blackjack.valueOf
-import com.banca.games.cards.Rank
-import com.banca.players.FinishedRound
 import com.banca.players.Funding
-import com.banca.players.Game
 import com.banca.players.PlayerSession
-import com.banca.players.RoundOutcome
 import com.banca.sessions.BlackjackTable
 import com.banca.sessions.BlackjackView
 import com.banca.sessions.TraceEvent
 import org.slf4j.LoggerFactory
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
 import java.util.UUID
 import kotlin.random.Random
 
@@ -94,16 +85,11 @@ class BlackjackConnection(
     private lateinit var table: BlackjackTable
     private var recordedRound = 0
 
-    private val strategy = Strategy(config.rules)
+    private val tally = DecisionTally(Strategy(config.rules))
 
     /** The coach, asked about one decision at a time. */
     private val coaching = Consultation<Advice>()
 
-    /** How the player's decisions this round compare with the best play, for their record. */
-    private var decisions = 0
-    private var byTheBook = 0
-    private var advisedDecisions = 0
-    private var followedAdvice = 0
 
     // Unlike poker, nothing is dealt until the player has put chips down.
     override suspend fun attached() {
@@ -150,10 +136,7 @@ class BlackjackConnection(
                     if (funding is Funding.Broke) return
                 }
                 table.bet(message.amount)
-                decisions = 0
-                byTheBook = 0
-                advisedDecisions = 0
-                followedAdvice = 0
+                tally.reset()
             }
             is BlackjackClientMessage.Act -> {
                 val action = message.toAction()
@@ -161,7 +144,7 @@ class BlackjackConnection(
                 table.act(action)
                 // Advice for a decision that has been made is of no use to anyone.
                 coaching.cancel()
-                note(before, action)
+                tally.note(before, action, advice = coaching.answerTo(BlackjackHouse.decisionIn(before)))
             }
             is BlackjackClientMessage.Advise -> {
                 advise()
@@ -174,21 +157,6 @@ class BlackjackConnection(
         if (afterRound is Funding.Broke) tell(afterRound)
     }
 
-    /** The decision a view is waiting on, as something two views of the same moment agree on. */
-    private fun decisionIn(view: BlackjackView): String =
-        "${view.roundNumber}:${view.phase}:${view.activeHand}:${view.hands.getOrNull(view.activeHand ?: 0)?.cards}"
-
-    /** Counts a decision the player has just made: whether it was the best play, and whether it was the coach's. */
-    private fun note(before: BlackjackView, action: BlackjackAction) {
-        val tools = runCatching { BlackjackTools(before, strategy) }.getOrNull() ?: return
-        decisions++
-        if (tools.isSound(action)) byTheBook++
-
-        val given = coaching.answerTo(decisionIn(before)) ?: return
-        advisedDecisions++
-        if (given.action == BlackjackTools.nameOf(action)) followedAdvice++
-    }
-
     /**
      * Sets the coach to work on the decision in front of the player. It answers
      * in its own time, on its own coroutine, so the player is never kept from
@@ -199,7 +167,7 @@ class BlackjackConnection(
         check(view.phase == "player" || view.phase == "insurance") { "There is nothing to advise on right now" }
 
         coaching.ask(
-            question = decisionIn(view),
+            question = BlackjackHouse.decisionIn(view),
             work = { config.advisor.advise(view) { event -> emit(BlackjackServerMessage.Trace(view.roundNumber, event)) } },
             deliver = { advice -> emit(BlackjackServerMessage.Advised(view.roundNumber, view.activeHand, advice)) },
             failed = { failure ->
@@ -240,36 +208,7 @@ class BlackjackConnection(
         if (recordedRound == table.roundNumber) return null
         recordedRound = table.roundNumber
 
-        val result = round.result ?: return null
-        session.settle(
-            FinishedRound(
-                game = Game.BLACKJACK,
-                tableId = tableId,
-                staked = round.hands.sumOf { it.bet } + round.insurance,
-                net = result.net,
-                outcome = when {
-                    result.net > 0 -> RoundOutcome.WIN
-                    result.net < 0 -> RoundOutcome.LOSS
-                    else -> RoundOutcome.PUSH
-                },
-                detail = buildJsonObject {
-                    put("hands", round.hands.size)
-                    put("total", round.hands.first().value.total)
-                    put("dealerTotal", valueOf(round.dealer).total)
-                    put("natural", round.hands.any { it.isBlackjack })
-                    put("busts", round.hands.count { it.isBust })
-                    put("doubled", round.hands.count { it.doubled })
-                    put("split", round.hands.size > 1)
-                    put("insuranceOffered", round.dealerUpCard.rank == Rank.ACE)
-                    put("insured", round.insurance > 0)
-                    put("decisions", decisions)
-                    put("byTheBook", byTheBook)
-                    put("advised", advisedDecisions)
-                    put("followedAdvice", followedAdvice)
-                    putJsonArray("outcomes") { result.hands.forEach { add(JsonPrimitive(it.outcome.name.lowercase())) } }
-                },
-            ),
-        )
+        session.settle(BlackjackHouse.finished(round, tableId, tally))
 
         // Chips cannot be bought, so a player left unable to bet is staked by
         // the house, if it has not done so too recently.
@@ -281,7 +220,7 @@ class BlackjackConnection(
     private suspend fun pushState() = emit(BlackjackServerMessage.State(table.view()))
 
     private companion object {
-        const val MIN_BET = 10L
-        const val MAX_BET = 500L
+        const val MIN_BET = BlackjackHouse.MIN_BET
+        const val MAX_BET = BlackjackHouse.MAX_BET
     }
 }

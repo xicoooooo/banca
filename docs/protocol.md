@@ -1,6 +1,6 @@
 # Table protocol
 
-Three games are served, each at its own address: [poker](#connecting), [blackjack](#blackjack) and [roulette](#roulette). They share two rules: the client draws what it is sent and never decides an outcome, and nothing is dealt until the client has said [who is playing](#players).
+Three games are served, each at its own address: [poker](#connecting), [blackjack](#blackjack) and [roulette](#roulette). Blackjack and roulette can also be played with other people, at [shared tables](#blackjack-tables) and in [rooms](#roulette-rooms). They share two rules: the client draws what it is sent and never decides an outcome, and nothing is dealt until the client has said [who is playing](#players).
 
 ## Players
 
@@ -518,3 +518,74 @@ As at the private table.
 ## Dropping and leaving
 
 A bet made is a bet made. If a player's connection drops, their chips stay on the felt and are played at the next spin. Coming back shows them the room as it stands, their result included. A player who does not come back is shown out once nothing of theirs is riding.
+
+---
+
+# Blackjack tables
+
+Version 1, JSON text frames over a WebSocket. Besides the private table, blackjack is played at shared tables, each at its own address:
+
+```
+ws://<host>/ws/blackjack/tables/<table>
+```
+
+`GET /blackjack/tables` lists them: `[{ "id": "emerald", "name": "Emerald Table", "players": 2, "seats": 5 }]`.
+
+A shared table is one dealer and one shoe, and up to five players with a hand each. The table keeps the time:
+
+1. **`betting`**: each player may put down a stake for the coming round. If nobody does, there is no round, and another betting window opens.
+2. **`insurance`**: only when the dealer shows an ace. Everyone dealt in answers at once; anyone who has not answered in time has declined.
+3. **`playing`**: the players act one at a time, in the order they sat down, each with a limit on how long they may take over a decision. A player who runs out of time has that hand stood for them. A player whose connection has dropped is waited for only briefly.
+4. **`results`**: the dealer's hand is played once and every player is settled against it. Then betting opens again.
+
+The rules are those of the private table. Each player's stake, result and record are their own.
+
+## Client to server
+
+```json
+{ "type": "bet", "amount": 50 }
+{ "type": "act", "action": "stand" }
+{ "type": "advise" }
+{ "type": "chat", "text": "Evening all" }
+```
+
+`bet` sets the player's stake for the coming round and is accepted only while betting is open; an amount of nought takes it back. `act` takes the same actions as the private table, and is refused unless it is the player's turn, or an answer about insurance while that is being asked. `advise` and `chat` are as elsewhere.
+
+## Server to client
+
+### `state`
+
+```json
+{
+  "type": "state",
+  "view": {
+    "room": "emerald",
+    "name": "Emerald Table",
+    "roundNumber": 4,
+    "phase": "playing",
+    "msLeft": 18400,
+    "yourTurn": true,
+    "actor": "Ana",
+    "you": { "roundNumber": 4, "phase": "player", "stack": 1950, "hands": [], "dealer": {}, "legal": {}, "result": null },
+    "seats": [
+      { "name": "Ana", "you": true, "bet": 50, "hands": [{ "cards": ["3h", "Ts"], "total": 13, "status": "playing" }], "acting": true, "net": null },
+      { "name": "Marta", "you": false, "bet": 25, "hands": [{ "cards": ["4c", "3d"], "total": 7, "status": "waiting" }], "acting": false, "net": null }
+    ],
+    "seatsInAll": 5
+  }
+}
+```
+
+`you` is the player's own part in the round, in exactly the shape the private table's `view` has, so a client can draw it the same way. Its `legal` plays are only ever true on the player's own turn. Its `phase` can also be `waiting`: the player has finished or is sitting the round out, and others are still playing. A natural is paid on the deal, so `you.result` can be present while the table is still `playing`.
+
+`you.dealer` is the same for every player at the table. The hole card is null until the table reaches `results`, however any one player's round stands, so that a player who has finished cannot tell the others what the dealer holds.
+
+`seats` is everyone at the table in the order they sat down, with their cards face up, as they are at a real table. `net` is set in `results`. `msLeft` is how long the table will wait in this phase, or for the player whose turn it is.
+
+### `chat_log`, `chat`, `trace`, `advice` and `error`
+
+As elsewhere. Sitting down at a table with no seat free is answered with `{ "type": "error", "code": "full", "message": "..." }`.
+
+## Dropping and leaving
+
+A stake put down is played. If a player's connection drops mid-round, their hand stays in play: when their turn comes it is stood after a few seconds, and it is settled with everyone else's. Coming back shows them the table as it stands. A player who does not come back gives up their seat once their round is over.

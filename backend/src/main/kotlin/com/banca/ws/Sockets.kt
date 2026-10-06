@@ -17,6 +17,7 @@ fun Application.configureGameSockets(
     blackjack: BlackjackSocketConfig = BlackjackSocketConfig(),
     roulette: RouletteSocketConfig = RouletteSocketConfig(),
     rooms: RoomsConfig = RoomsConfig(),
+    blackjackTables: BlackjackTablesConfig = BlackjackTablesConfig(),
     /** How long a table waits for a player who has dropped before it is cleared away. */
     keepTablesFor: Duration = 3.minutes,
 ) {
@@ -37,6 +38,16 @@ fun Application.configureGameSockets(
         }
         get("/roulette/rooms") {
             call.respond(shared.map { it.summary() })
+        }
+
+        val sharedBlackjack = blackjackTables.tables.map { spec -> BlackjackRoom(spec, blackjackTables, scope = this@configureGameSockets) }
+        for (table in sharedBlackjack) {
+            gameSocket("/ws/blackjack/tables/${table.id}", players, tables) { send, session ->
+                BlackjackSeat(table, blackjackTables.advisor, send, session)
+            }
+        }
+        get("/blackjack/tables") {
+            call.respond(sharedBlackjack.map { it.summary() })
         }
     }
 }

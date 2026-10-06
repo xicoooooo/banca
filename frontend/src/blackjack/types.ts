@@ -1,5 +1,6 @@
 // Mirrors the backend's BlackjackView. The wire format is documented in docs/protocol.md.
 
+import type { ChatLine, Phrase } from '../casino/room'
 import type { ChipNotice } from '../player/types'
 
 export type Outcome = 'blackjack' | 'win' | 'push' | 'lose' | 'bust'
@@ -16,7 +17,8 @@ export type BlackjackHandView = {
 
 export type BlackjackView = {
   roundNumber: number
-  phase: 'betting' | 'insurance' | 'player' | 'settled'
+  /** 'waiting' is only seen at a shared table: this player has finished, or sat the round out, and others are still playing. */
+  phase: 'betting' | 'insurance' | 'player' | 'waiting' | 'settled'
   stack: number
   minBet: number
   maxBet: number
@@ -49,5 +51,39 @@ export type BlackjackServerMessage =
   | { type: 'trace'; roundNumber: number; event: CoachStep }
   | { type: 'advice'; roundNumber: number; hand: number | null; advice: Advice }
   | { type: 'error'; message: string }
+
+/** Someone at a shared table, as the others see them. */
+export type TableSeat = { name: string; you: boolean; bet: number; hands: BlackjackHandView[]; acting: boolean; net: number | null }
+
+/** A shared blackjack table as one player sees it. `you` is their own part in the round, in the shape a table alone has. */
+export type BlackjackTableView = {
+  room: string
+  name: string
+  roundNumber: number
+  phase: 'betting' | 'insurance' | 'playing' | 'results'
+  /** How long the table will wait in this phase, or for the player whose turn it is. */
+  msLeft: number
+  yourTurn: boolean
+  actor: string | null
+  you: BlackjackView
+  seats: TableSeat[]
+  seatsInAll: number
+}
+
+export type BlackjackTableServerMessage =
+  | ChipNotice
+  | { type: 'state'; view: BlackjackTableView }
+  | { type: 'chat_log'; lines: ChatLine[]; phrases: Phrase[] }
+  | { type: 'chat'; line: ChatLine }
+  | { type: 'trace'; roundNumber: number; event: CoachStep }
+  | { type: 'advice'; roundNumber: number; hand: number | null; advice: Advice }
+  | { type: 'error'; message: string; code?: string }
+
+export type BlackjackTableClientMessage =
+  | { type: 'bet'; amount: number }
+  | { type: 'act'; action: BlackjackAction }
+  | { type: 'advise' }
+  | { type: 'chat'; say: string }
+  | { type: 'chat'; text: string }
 
 export type BlackjackClientMessage = { type: 'bet'; amount: number } | { type: 'act'; action: BlackjackAction } | { type: 'advise' }

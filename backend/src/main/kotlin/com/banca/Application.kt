@@ -16,6 +16,7 @@ import com.banca.players.SignInConfig
 import com.banca.players.SupabaseAccounts
 import com.banca.players.configurePlayerRoutes
 import com.banca.ws.BlackjackSocketConfig
+import com.banca.ws.BlackjackTablesConfig
 import com.banca.ws.RoomsConfig
 import com.banca.ws.RouletteSocketConfig
 import com.banca.ws.TableSocketConfig
@@ -142,6 +143,7 @@ fun Application.module(
     blackjack: BlackjackSocketConfig = BlackjackSocketConfig(),
     roulette: RouletteSocketConfig = RouletteSocketConfig(),
     rooms: RoomsConfig = RoomsConfig(analyst = roulette.analyst),
+    blackjackTables: BlackjackTablesConfig = BlackjackTablesConfig(rules = blackjack.rules, advisor = blackjack.advisor),
     players: Players = Players(InMemoryPlayerStore()),
     signIn: SignInConfig? = null,
     keepTablesFor: Duration = 3.minutes,
@@ -151,5 +153,5 @@ fun Application.module(
     configureCors()
     configureRouting()
     configurePlayerRoutes(players, signIn)
-    configureGameSockets(players = players, poker = tableSocket, blackjack = blackjack, roulette = roulette, rooms = rooms, keepTablesFor = keepTablesFor)
+    configureGameSockets(players = players, poker = tableSocket, blackjack = blackjack, roulette = roulette, rooms = rooms, blackjackTables = blackjackTables, keepTablesFor = keepTablesFor)
 }

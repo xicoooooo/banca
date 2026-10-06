@@ -1,5 +1,6 @@
 // Mirrors the backend's RouletteView. The wire format is documented in docs/protocol.md.
 
+import type { ChatLine, Phrase, RoomPlayer, TableListing } from '../casino/room'
 import type { ChipNotice } from '../player/types'
 
 export type PocketColor = 'green' | 'red' | 'black'
@@ -60,16 +61,8 @@ export type RouletteServerMessage =
   | { type: 'read'; read: LayoutRead }
   | { type: 'error'; message: string }
 
-/** Someone in a shared room, as the others see them. `net` is what the last spin did for them, once the ball has landed. */
-export type RoomPlayer = { name: string; staked: number; net: number | null; you: boolean }
-
 /** The chips on one bet, everyone's together, and how many players put them there. */
 export type CrowdSpot = { kind: Wager['kind']; number: number | null; amount: number; players: number }
-
-/** Something said in a room: a set phrase, or a message a player typed, as tidied by the server. */
-export type ChatLine = { from: string; text: string; emote: boolean }
-
-export type Phrase = { id: string; text: string; emote: boolean }
 
 /** A shared room as one player sees it. The room keeps the time; `msLeft` is how long its current phase has to run. */
 export type RoomView = {
@@ -90,7 +83,7 @@ export type RoomView = {
   result: RouletteResult | null
 }
 
-export type RoomSummary = { id: string; name: string; players: number; history: number[] }
+export type RoomSummary = TableListing & { history: number[] }
 
 export type RoomServerMessage =
   | ChipNotice

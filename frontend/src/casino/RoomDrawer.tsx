@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { sound } from '../casino/sound'
-import { useDialog } from '../casino/useDialog'
-import type { ChatLine, Phrase, RoomPlayer } from './types'
+import type { ChatLine, Phrase, RoomPlayer } from './room'
+import { sound } from './sound'
+import { useDialog } from './useDialog'
 
 type RoomDrawerProps = {
   name: string
@@ -25,7 +25,7 @@ function signed(amount: number): string {
 }
 
 /**
- * Who is in the room and what has been said in it. Players can type, or say
+ * Who is at a shared table and what has been said at it, the same at every game. Players can type, or say
  * one of the room's phrases with a single press. Nobody watches over a room,
  * so each player can mute anyone they would rather not hear from.
  */

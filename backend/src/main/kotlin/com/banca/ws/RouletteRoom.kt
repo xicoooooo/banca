@@ -188,7 +188,6 @@ class RouletteRoom(
         var net: Long? = null
         /** What the player is shown as having: their balance, less the chips they have down. */
         var stack = 0L
-        var lastSpoke = 0L
 
         val staked: Long get() = wagers.sumOf { it.amount }
     }
@@ -197,7 +196,7 @@ class RouletteRoom(
     private val lock = Mutex()
     private val members = LinkedHashMap<UUID, Member>()
     private val history = ArrayDeque<Int>()
-    private val chat = ArrayDeque<ChatLine>()
+    private val chat = RoomChat()
 
     private var running = false
     private var phase = Phase.BETTING
@@ -227,7 +226,7 @@ class RouletteRoom(
         } else {
             broadcast()
         }
-        member.send(encode(RoomServerMessage.ChatLog(chat.toList(), RoomPhrases.ALL)))
+        member.send(encode(RoomServerMessage.ChatLog(chat.recent(), RoomPhrases.ALL)))
     }
 
     /** The player's connection has gone. Their chips stay down: a bet made is a bet made. */
@@ -271,27 +270,10 @@ class RouletteRoom(
         broadcast()
     }
 
-    /**
-     * Says something to the room: a set phrase by its id, or a typed message,
-     * which is tidied before anyone sees it. Not too often, so one player
-     * cannot fill the screen.
-     */
+    /** Says something to the room: a set phrase by its id, or a typed message. */
     suspend fun say(playerId: UUID, phraseId: String?, typed: String?) = lock.withLock {
         val member = members[playerId] ?: error("You are not in this room")
-
-        val line = if (phraseId != null) {
-            val phrase = RoomPhrases.find(phraseId) ?: throw IllegalArgumentException("That is not one of the room's phrases")
-            ChatLine(from = member.name, text = phrase.text, emote = phrase.emote)
-        } else {
-            val text = typed?.let(ChatText::clean) ?: throw IllegalArgumentException("There is nothing there to say")
-            ChatLine(from = member.name, text = text, emote = false)
-        }
-
-        check(now() - member.lastSpoke >= CHAT_EVERY_MS) { "Give it a moment before saying more" }
-        member.lastSpoke = now()
-
-        chat.addLast(line)
-        while (chat.size > CHAT_KEPT) chat.removeFirst()
+        val line = chat.say(playerId, member.name, phraseId, typed)
         val message = encode(RoomServerMessage.Said(line))
         members.values.filter { it.connected }.forEach { it.send(message) }
     }
@@ -431,10 +413,6 @@ class RouletteRoom(
 
     private fun encode(message: RoomServerMessage): String = wireJson.encodeToString(RoomServerMessage.serializer(), message)
 
-    private companion object {
-        const val CHAT_EVERY_MS = 1_500L
-        const val CHAT_KEPT = 30
-    }
 }
 
 /**

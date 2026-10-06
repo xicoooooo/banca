@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useChipNotices } from '../casino/useChipNotices'
 import { chipsFor } from '../casino/chips'
 import { flyChips } from '../casino/flights'
+import { prefersReducedMotion } from '../casino/motion'
 import { sound } from '../casino/sound'
 import { useSocket } from '../casino/useSocket'
 import { deriveBlackjackEvents } from './events'
@@ -50,49 +51,15 @@ export type Reveal = {
   instant: boolean
 }
 
-/** The blackjack table as the server describes it, with the movement and sound that go with each change. */
-export function useBlackjack() {
-  const [view, setView] = useState<BlackjackView | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [refusals, setRefusals] = useState(0)
+/**
+ * The movement and sound that go with each change to a blackjack view: chips
+ * to the bet, cards from the shoe, the dealer's turn. Returns when the result
+ * of a settled round may be shown, once the dealer has been seen to finish.
+ * Shared by the table played alone and the one played with others.
+ */
+export function useBlackjackPresentation(view: BlackjackView | null): Reveal {
   const [reveal, setReveal] = useState<Reveal>({ roundNumber: 0, delay: 0, instant: false })
   const previous = useRef<BlackjackView | null>(null)
-  const chips = useChipNotices()
-  const [coach, setCoach] = useState<Coaching>(NO_COACHING)
-
-  const { connection, sittings, send } = useSocket<BlackjackServerMessage, BlackjackClientMessage>('/ws/blackjack', (message) => {
-    if (message.type === 'staked' || message.type === 'broke') {
-      chips.receive(message)
-    } else if (message.type === 'trace') {
-      setCoach((current) => (current.status === 'thinking' ? { ...current, steps: [...current.steps, message.event] } : current))
-    } else if (message.type === 'advice') {
-      setCoach((current) => (current.status === 'idle' ? current : { ...current, status: 'ready', advice: message.advice }))
-    } else if (message.type === 'state') {
-      // The table says first where things stand, and only then that it cannot deal.
-      chips.dealt()
-      setView(message.view)
-      setError(null)
-    } else {
-      setError(message.message)
-      setRefusals((count) => count + 1)
-      // A coach that could not answer is no longer thinking.
-      setCoach((current) => (current.status === 'thinking' ? NO_COACHING : current))
-    }
-  })
-
-  // Advice is for one decision. Once the cards or the question change, it is put away.
-  const decision = view ? decisionIn(view) : null
-  const [coachedDecision, setCoachedDecision] = useState(decision)
-  if (coachedDecision !== decision) {
-    setCoachedDecision(decision)
-    setCoach(NO_COACHING)
-  }
-
-  const askCoach = () => {
-    if (coach.status !== 'idle') return
-    setCoach({ status: 'thinking', steps: [], advice: null })
-    send({ type: 'advise' })
-  }
 
   useEffect(() => {
     if (!view || previous.current === view) return
@@ -153,7 +120,101 @@ export function useBlackjack() {
     }
   }, [view])
 
+  return reveal
+}
+
+/**
+ * True once the dealer has finished and the result may be said out loud. The
+ * server settles a round in one step; the table takes a moment to play it out.
+ */
+export function useResultShown(view: BlackjackView | null, reveal: Reveal): boolean {
+  const [shownRound, setShownRound] = useState(0)
+  const settled = view?.phase === 'settled'
+  const round = view?.roundNumber ?? 0
+
+  useEffect(() => {
+    if (!settled || reveal.roundNumber !== round) return
+    const timer = setTimeout(() => setShownRound(round), prefersReducedMotion() ? 0 : reveal.delay)
+    return () => clearTimeout(timer)
+  }, [settled, round, reveal])
+
+  return settled && shownRound === round
+}
+
+/**
+ * The coach's part in the decision in front of the player. Advice is for one
+ * decision: once the cards or the question change, it is put away.
+ */
+export function useCoaching(view: BlackjackView | null) {
+  const [coach, setCoach] = useState<Coaching>(NO_COACHING)
+
+  const decision = view ? decisionIn(view) : null
+  const [coachedDecision, setCoachedDecision] = useState(decision)
+  if (coachedDecision !== decision) {
+    setCoachedDecision(decision)
+    setCoach(NO_COACHING)
+  }
+
+  return {
+    coach,
+    /** Marks the coach as asked, unless it already has been. Returns whether there is a question to send. */
+    begin: (): boolean => {
+      if (coach.status !== 'idle') return false
+      setCoach({ status: 'thinking', steps: [], advice: null })
+      return true
+    },
+    heardStep: (step: CoachStep) =>
+      setCoach((current) => (current.status === 'thinking' ? { ...current, steps: [...current.steps, step] } : current)),
+    heardAdvice: (advice: Advice) => setCoach((current) => (current.status === 'idle' ? current : { ...current, status: 'ready', advice })),
+    // A coach that could not answer is no longer thinking.
+    gaveUp: () => setCoach((current) => (current.status === 'thinking' ? NO_COACHING : current)),
+  }
+}
+
+/** The blackjack table as the server describes it, with the movement and sound that go with each change. */
+export function useBlackjack() {
+  const [view, setView] = useState<BlackjackView | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [refusals, setRefusals] = useState(0)
+  const chips = useChipNotices()
+  const coaching = useCoaching(view)
+
+  const { connection, sittings, send } = useSocket<BlackjackServerMessage, BlackjackClientMessage>('/ws/blackjack', (message) => {
+    if (message.type === 'staked' || message.type === 'broke') {
+      chips.receive(message)
+    } else if (message.type === 'trace') {
+      coaching.heardStep(message.event)
+    } else if (message.type === 'advice') {
+      coaching.heardAdvice(message.advice)
+    } else if (message.type === 'state') {
+      // The table says first where things stand, and only then that it cannot deal.
+      chips.dealt()
+      setView(message.view)
+      setError(null)
+    } else {
+      setError(message.message)
+      setRefusals((count) => count + 1)
+      coaching.gaveUp()
+    }
+  })
+
+  const reveal = useBlackjackPresentation(view)
+
   // Sitting back down after a drop gives the controls back, as a refusal does:
   // whatever was pressed as the line went down was never heard.
-  return { view, reveal, connection, error, refusals: refusals + sittings, send, broke: chips.broke, staked: chips.staked, retry: chips.dealt, coach, askCoach }
+  return {
+    view,
+    reveal,
+    connection,
+    error,
+    refusals: refusals + sittings,
+    send,
+    broke: chips.broke,
+    staked: chips.staked,
+    retry: chips.dealt,
+    coach: coaching.coach,
+    askCoach: () => {
+      if (coaching.begin()) send({ type: 'advise' })
+    },
+  }
 }

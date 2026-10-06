@@ -2502,3 +2502,82 @@ button {
 .history__pocket[data-color='green'] {
   background: #0f8a68;
 }
+
+/* ------------------------------------------------------ shared blackjack */
+
+/* The rail above a shared table: the other players, and the way into the chat. */
+.table-rail {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.table-rail__seats {
+  display: flex;
+  flex: 1;
+  gap: 0.4rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: none;
+}
+
+.rail-seat {
+  display: flex;
+  flex: none;
+  gap: 0.5rem;
+  align-items: baseline;
+  max-width: 11rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: rgb(245 241 232 / 0.85);
+  background: var(--glass);
+  transition: border-color var(--t-medium) var(--ease-soft);
+}
+
+/* Whoever the table is waiting on. */
+.rail-seat[data-acting='true'] {
+  border-color: var(--color-gold-bright);
+  box-shadow: 0 0 14px rgb(241 199 91 / 0.3);
+}
+
+/* The rail takes a little of the height the cards would otherwise have. */
+.bj-felt--shared {
+  --table-overhead: 604px;
+  --card-rows: calc((100dvh - var(--table-overhead)) / 1.4);
+  --card-opponent: clamp(34px, min(13.5vw, var(--card-rows) * 0.34), 84px);
+  --card-board: clamp(40px, min(16.5vw, var(--card-rows) * 0.44), 104px);
+  --card-hero: clamp(46px, min(19vw, var(--card-rows) * 0.56), 124px);
+}
+
+@media (max-height: 740px) {
+  .bj-felt--shared {
+    --table-overhead: 588px;
+  }
+}
+
+/* How long the table will wait, run down as a thin line above the controls. */
+.wait-line {
+  height: 3px;
+  margin: 0 0.25rem 0.4rem;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.wait-line span {
+  display: block;
+  height: 100%;
+  transform-origin: left;
+  background: rgb(20 152 119 / 0.8);
+  animation: clock-run linear both;
+}
+
+.wait-line[data-mine='true'] span {
+  background: linear-gradient(90deg, var(--color-gold-warm), var(--color-gold-bright));
+}

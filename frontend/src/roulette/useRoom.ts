@@ -3,7 +3,8 @@ import { prefersReducedMotion } from '../casino/motion'
 import { sound } from '../casino/sound'
 import { useChipNotices } from '../casino/useChipNotices'
 import { useSocket } from '../casino/useSocket'
-import type { ChatLine, Phrase, RoomClientMessage, RoomServerMessage, RoomView, Wager } from './types'
+import type { ChatLine, Phrase } from '../casino/room'
+import type { RoomClientMessage, RoomServerMessage, RoomView, Wager } from './types'
 import type { Reading } from './useRoulette'
 
 const NOT_READING: Reading = { status: 'idle', steps: [], read: null }
@@ -110,14 +111,4 @@ export function useRoom(roomId: string) {
     staked: chips.staked,
     retry: chips.dealt,
   }
-}
-
-/** Whole seconds until [endsAt], kept current while it is on screen. */
-export function useSecondsUntil(endsAt: number): number {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 250)
-    return () => clearInterval(timer)
-  }, [endsAt])
-  return Math.max(0, Math.ceil((endsAt - now) / 1000))
 }

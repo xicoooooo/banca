@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import { BlackjackPicker } from './blackjack/BlackjackPicker'
 import { BlackjackTable } from './blackjack/BlackjackTable'
+import { SharedBlackjackTable } from './blackjack/SharedBlackjackTable'
 import { CasinoShell } from './casino/CasinoShell'
 import { Loading } from './casino/Loading'
 import { Lobby, type Game } from './lobby/Lobby'
@@ -14,7 +16,7 @@ type Screen = Game | 'profile'
 
 const SCREENS: Screen[] = ['poker', 'blackjack', 'roulette', 'profile']
 
-/** Where the address points: a screen, and for roulette which room within it. */
+/** Where the address points: a screen, and for a game with shared tables which one within it. */
 type Place = { screen: Screen; room: string | null }
 
 function placeInAddress(): Place | null {
@@ -74,7 +76,20 @@ function App() {
   }
 
   if (screen === 'poker') return <Table onLeave={leave} />
-  if (screen === 'blackjack') return <BlackjackTable onLeave={leave} />
+  if (screen === 'blackjack') {
+    // Leaving a table goes back to the choice of tables, not all the way out.
+    const toTables = () => open('blackjack')
+    if (place?.room === 'private') return <BlackjackTable onLeave={toTables} />
+    if (place?.room) return <SharedBlackjackTable key={place.room} tableId={place.room} onLeave={toTables} />
+    return (
+      <BlackjackPicker
+        onLeave={leave}
+        onChoose={(table) => {
+          window.location.hash = `/blackjack/${table}`
+        }}
+      />
+    )
+  }
   if (screen === 'roulette') {
     // Leaving a room goes back to the choice of rooms, not all the way out.
     const toRooms = () => open('roulette')
