@@ -7,6 +7,8 @@ import {
   betsFrom,
   angleOf,
   colorOf,
+  firstTurn,
+  turnFor,
   nextRotation,
   numbersOf,
   outlook,
@@ -139,6 +141,40 @@ describe('turning the wheel', () => {
     expect(angleOf(0)).toBe(0)
     expect(angleOf(32)).toBeCloseTo(360 / 37)
     expect(angleOf(26)).toBeCloseTo((36 * 360) / 37)
+  })
+
+  it('turns for the first spin after walking in, whatever round the room is on', () => {
+    // Walking into round 7 while bets are open: no ball down yet.
+    const arrived = firstTurn(7, null)
+    expect(arrived.rotation).toBe(0)
+
+    // Bets still open: nothing to turn for.
+    expect(turnFor(arrived, 7, null)).toBe(arrived)
+
+    // The same round is spun. This is the turn that used to be missed.
+    const spun = turnFor(arrived, 7, 5)
+    expect(spun.moved).toBe(true)
+    expect(arrived.rotation - spun.rotation).toBeGreaterThanOrEqual(4 * 360)
+    expect((((-spun.rotation - angleOf(5)) % 360) + 360) % 360).toBeCloseTo(0, 6)
+
+    // Hearing about the same spin again does not turn it again.
+    expect(turnFor(spun, 7, 5)).toBe(spun)
+
+    // The next round opens, and then is spun.
+    expect(turnFor(spun, 8, null)).toBe(spun)
+    expect(turnFor(spun, 8, 17)).not.toBe(spun)
+  })
+
+  it('arriving after the ball has landed shows the wheel where it stopped, without a spin', () => {
+    const arrived = firstTurn(7, 5)
+    expect(arrived.moved).toBe(false)
+    expect((((-arrived.rotation - angleOf(5)) % 360) + 360) % 360).toBeCloseTo(0, 6)
+    expect(turnFor(arrived, 7, 5)).toBe(arrived)
+  })
+
+  it('a private table starts at rest and turns for its first spin', () => {
+    const fresh = firstTurn(0, null)
+    expect(turnFor(fresh, 1, 26).moved).toBe(true)
   })
 
   it('always spins on the same way, several turns, and stops on the pocket', () => {

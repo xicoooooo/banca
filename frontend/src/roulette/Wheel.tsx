@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { prefersReducedMotion } from '../casino/motion'
-import { WHEEL_ORDER, colorOf, nextRotation } from './layout'
+import { WHEEL_ORDER, colorOf, firstTurn, turnFor } from './layout'
 import { SPIN_MS } from './useRoulette'
 
 const STEP = 360 / WHEEL_ORDER.length
@@ -39,10 +39,9 @@ type WheelProps = {
 export function Wheel({ roundNumber, pocket, spinning }: WheelProps) {
   // Where the wheel rests, in degrees. Each spin carries on from the last,
   // always the same way round, so it never appears to wind back.
-  const [turn, setTurn] = useState({ round: roundNumber, rotation: 0, moved: false })
-  if (turn.round !== roundNumber && pocket !== null) {
-    setTurn({ round: roundNumber, rotation: nextRotation(turn.rotation, pocket), moved: true })
-  }
+  const [turn, setTurn] = useState(() => firstTurn(roundNumber, pocket))
+  const next = turnFor(turn, roundNumber, pocket)
+  if (next !== turn) setTurn(next)
 
   const landed = pocket !== null && !spinning
   const duration = turn.moved && !prefersReducedMotion() ? SPIN_MS : 0

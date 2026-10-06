@@ -143,6 +143,27 @@ export function angleOf(pocket: number): number {
   return (WHEEL_ORDER.indexOf(pocket) * 360) / WHEEL_ORDER.length
 }
 
+/** Where the wheel rests, and the last spin it turned for. */
+export type Turn = { spunFor: number | null; rotation: number; moved: boolean }
+
+/**
+ * How the wheel stands when it first appears. With no ball down it has not
+ * turned for any spin yet, whatever round the table is on, so the next one
+ * will turn it. Arriving when the ball has already landed, it is set straight
+ * to that pocket, without pretending to have watched it get there.
+ */
+export function firstTurn(roundNumber: number, pocket: number | null): Turn {
+  return pocket === null
+    ? { spunFor: null, rotation: 0, moved: false }
+    : { spunFor: roundNumber, rotation: -angleOf(pocket), moved: false }
+}
+
+/** The wheel after a spin it has not yet turned for, or as it was if it already has. */
+export function turnFor(turn: Turn, roundNumber: number, pocket: number | null): Turn {
+  if (pocket === null || turn.spunFor === roundNumber) return turn
+  return { spunFor: roundNumber, rotation: nextRotation(turn.rotation, pocket), moved: true }
+}
+
 /**
  * Where the wheel should stop for a new spin: several whole turns on from
  * where it rests now, ending with the pocket at the top.
