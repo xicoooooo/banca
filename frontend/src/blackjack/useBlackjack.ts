@@ -60,7 +60,7 @@ export function useBlackjack() {
   const chips = useChipNotices()
   const [coach, setCoach] = useState<Coaching>(NO_COACHING)
 
-  const { connection, send } = useSocket<BlackjackServerMessage, BlackjackClientMessage>('/ws/blackjack', (message) => {
+  const { connection, sittings, send } = useSocket<BlackjackServerMessage, BlackjackClientMessage>('/ws/blackjack', (message) => {
     if (message.type === 'staked' || message.type === 'broke') {
       chips.receive(message)
     } else if (message.type === 'trace') {
@@ -153,5 +153,7 @@ export function useBlackjack() {
     }
   }, [view])
 
-  return { view, reveal, connection, error, refusals, send, broke: chips.broke, staked: chips.staked, retry: chips.dealt, coach, askCoach }
+  // Sitting back down after a drop gives the controls back, as a refusal does:
+  // whatever was pressed as the line went down was never heard.
+  return { view, reveal, connection, error, refusals: refusals + sittings, send, broke: chips.broke, staked: chips.staked, retry: chips.dealt, coach, askCoach }
 }

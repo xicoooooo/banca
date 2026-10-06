@@ -138,7 +138,9 @@ class RouletteConnection(
     /** The analyst, asked about one layout at a time. */
     private val analysis = Consultation<LayoutRead>()
 
-    override suspend fun opened() {
+    // A spin is over as soon as it is asked for, so there is never a round to
+    // come back to: only where the ball has been, and what the player has now.
+    override suspend fun attached() {
         val funding = session.fund(MIN_BET)
         pushState(funding.balance)
         tell(funding)
@@ -219,7 +221,7 @@ class RouletteConnection(
         )
     }
 
-    override fun closed() = analysis.cancel()
+    override fun detached() = analysis.cancel()
 
     private suspend fun emit(message: RouletteServerMessage) =
         send(wireJson.encodeToString(RouletteServerMessage.serializer(), message))

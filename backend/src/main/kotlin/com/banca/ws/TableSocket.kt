@@ -64,10 +64,37 @@ class PokerConnection(
     private val actions = mutableMapOf<String, Int>()
     private var recordedHand = 0
 
-    override suspend fun opened() {
-        if (!deal()) return
+    private var seated = false
+
+    override suspend fun attached() {
+        // The first time, a hand is dealt. Coming back, the hand is as it was left.
+        if (!seated) {
+            if (!deal()) return
+            seated = true
+        }
         pushState()
+        // The opponent may have been part way through its turn when the player dropped.
         playOpponentTurns()
+    }
+
+    /**
+     * The player left and did not come back. A hand still being played is
+     * given up: they fold when it is their turn, and until then the opponent
+     * only checks or calls, so nothing more is risked and no model is kept
+     * thinking for an empty chair. The hand is then written down like any other.
+     */
+    override suspend fun abandoned() {
+        var guard = 0
+        while (!table.isHandComplete && guard++ < 50) {
+            when (table.actorSeat) {
+                HUMAN_SEAT -> table.act(HUMAN_SEAT, Action.Fold)
+                else -> {
+                    val legal = table.view(OPPONENT_SEAT).legal
+                    table.act(OPPONENT_SEAT, if (legal?.canCheck == true) Action.Check else Action.Call)
+                }
+            }
+        }
+        record()
     }
 
     override suspend fun received(text: String) {
@@ -77,7 +104,10 @@ class PokerConnection(
                 actions.merge(message.action, 1, Int::plus)
             }
             // With nothing to play with there is no new hand, and nothing new to show.
-            is ClientMessage.NextHand -> if (!deal()) return
+            is ClientMessage.NextHand -> {
+                if (!deal()) return
+                seated = true
+            }
         }
         pushState()
         playOpponentTurns()

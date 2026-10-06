@@ -74,6 +74,12 @@ class BlackjackTable(
         this.refilled = refilled
     }
 
+    /** Brings the stack up to date between rounds without changing what the last round's result says. */
+    fun restock(stack: Long) {
+        check(isBetting) { "Chips cannot change hands mid-round" }
+        this.stack = stack
+    }
+
     fun view(): BlackjackView {
         val current = round
         val settled = current?.isSettled ?: false

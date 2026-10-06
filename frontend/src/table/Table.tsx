@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { CasinoShell } from '../casino/CasinoShell'
 import { Header, type Status } from '../casino/Header'
 import { OutOfChips, StakedNote } from '../casino/ChipNotices'
+import { ConnectionNote } from '../casino/ConnectionNote'
 import { Loading } from '../casino/Loading'
 import { prefersReducedMotion } from '../casino/motion'
 import { ActionBar } from './ActionBar'
@@ -37,8 +38,11 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
     return (
       <CasinoShell>
         <Header detail="Texas Hold'em" onLeave={onLeave} />
-        {connection === 'closed' ? (
-          <Loading failed message="Could not reach the table. Try again in a minute." />
+        {connection === 'closed' || connection === 'replaced' ? (
+          <Loading
+            failed
+            message={connection === 'replaced' ? 'This table is open somewhere else.' : 'Could not reach the table. Try again in a minute.'}
+          />
         ) : broke ? (
           // Nothing has been dealt, because there is nothing to post a blind with.
           <div className="m-auto w-full max-w-md">
@@ -96,9 +100,7 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
 
       {/* A fixed height, so the table never jumps as the controls come and go. */}
       <footer className="mt-2.5 flex min-h-40 flex-col justify-end">
-        {connection === 'closed' && (
-          <p className="label pb-2 text-center text-gold-bright!">Connection lost. Reload to sit back down.</p>
-        )}
+        <ConnectionNote connection={connection} />
         {error && (
           <p role="alert" className="pb-2 text-center text-sm text-gold-bright">
             {error}

@@ -4,6 +4,7 @@ import { CasinoShell } from '../casino/CasinoShell'
 import { OutOfChips, StakedNote } from '../casino/ChipNotices'
 import { CHIP_CLASS, type ChipColor } from '../casino/chips'
 import { Header, type Status } from '../casino/Header'
+import { ConnectionNote } from '../casino/ConnectionNote'
 import { Loading } from '../casino/Loading'
 import { sound } from '../casino/sound'
 import { AnalystPanel, AnalystPill } from './Analyst'
@@ -43,8 +44,11 @@ export function RouletteTable({ onLeave }: { onLeave?: () => void }) {
     return (
       <CasinoShell>
         <Header detail="Roulette" onLeave={onLeave} />
-        {connection === 'closed' ? (
-          <Loading failed message="Could not reach the table. Try again in a minute." />
+        {connection === 'closed' || connection === 'replaced' ? (
+          <Loading
+            failed
+            message={connection === 'replaced' ? 'This table is open somewhere else.' : 'Could not reach the table. Try again in a minute.'}
+          />
         ) : (
           <Loading message="Preparing your table" />
         )}
@@ -148,9 +152,7 @@ export function RouletteTable({ onLeave }: { onLeave?: () => void }) {
       </div>
 
       <footer className="mt-2.5 flex min-h-36 flex-col justify-end">
-        {connection === 'closed' && (
-          <p className="label pb-2 text-center text-gold-bright!">Connection lost. Reload to sit back down.</p>
-        )}
+        <ConnectionNote connection={connection} />
         {error && (
           <p role="alert" className="pb-2 text-center text-sm text-gold-bright">
             {error}

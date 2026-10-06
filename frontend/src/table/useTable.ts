@@ -22,7 +22,7 @@ export function useTable() {
   const [refusals, setRefusals] = useState(0)
   const chips = useChipNotices()
 
-  const { connection, send } = useSocket<ServerMessage, ClientMessage>('/ws/table', (message) => {
+  const { connection, sittings, send } = useSocket<ServerMessage, ClientMessage>('/ws/table', (message) => {
     switch (message.type) {
       case 'staked':
       case 'broke':
@@ -57,5 +57,7 @@ export function useTable() {
     }
   })
 
-  return { view, reasoning, connection, error, refusals, send, broke: chips.broke, staked: chips.staked }
+  // Sitting back down after a drop gives the controls back, as a refusal does:
+  // whatever was pressed as the line went down was never heard.
+  return { view, reasoning, connection, error, refusals: refusals + sittings, send, broke: chips.broke, staked: chips.staked }
 }

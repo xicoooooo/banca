@@ -27,6 +27,7 @@ import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import kotlin.concurrent.thread
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 
 fun main() {
     val port = Config["PORT"]?.toIntOrNull() ?: 8080
@@ -141,11 +142,12 @@ fun Application.module(
     roulette: RouletteSocketConfig = RouletteSocketConfig(),
     players: Players = Players(InMemoryPlayerStore()),
     signIn: SignInConfig? = null,
+    keepTablesFor: Duration = 3.minutes,
 ) {
     configureSerialization()
     configureLogging()
     configureCors()
     configureRouting()
     configurePlayerRoutes(players, signIn)
-    configureGameSockets(players = players, poker = tableSocket, blackjack = blackjack, roulette = roulette)
+    configureGameSockets(players = players, poker = tableSocket, blackjack = blackjack, roulette = roulette, keepTablesFor = keepTablesFor)
 }

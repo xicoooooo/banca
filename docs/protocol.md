@@ -56,6 +56,16 @@ The browser sends the player to the provider, comes back with a code, trades it 
 - **The account has no profile yet.** It takes the profile the browser already has, so nothing a guest has won or played is lost. `token` is null and the browser carries on with the one it had.
 - **The account already has a profile.** `token` is a new one for that profile, and the browser must use it from then on. The guest profile it arrived with is left behind: two bankrolls are never added together, or making guests would be a way of making chips.
 
+### Tables outlive connections
+
+A table belongs to the server, not to the wire. Each player has one table of their own at each game, and a connection only attaches to it.
+
+- **Dropping and coming back.** If the connection is lost, the table waits. Connecting again within three minutes is answered with a `state` showing the table exactly as it was left: the same cards, the same bets, whose turn it is. Nothing is settled by dropping.
+- **One place at a time.** Opening the same table from a second tab or device takes it over. The earlier connection is sent `{ "type": "error", "code": "replaced", "message": "..." }` and closed, and should not try to come back.
+- **Walking away.** A table nobody returns to in time is cleared, and a round still in play is finished on the player's behalf in the way that risks nothing more: a poker hand is folded, a blackjack hand stands and declines insurance. It is then written to their record like any other, so leaving is never a way out of losing a round.
+
+Tables are kept in the server's memory. If the server itself restarts, rounds in play are lost and nothing is charged for them.
+
 ### Saying hello
 
 The first frame on either WebSocket must be:
@@ -76,7 +86,7 @@ How a client talks to a live table. Version 1, JSON text frames over a WebSocket
 ws://<host>/ws/table
 ```
 
-Each connection gets a private heads-up poker table: the person who connected sits in seat 0 against an agent in seat 1. Once the client has [said hello](#saying-hello), a hand is dealt and the first `state` message follows.
+Each player has a private heads-up poker table: they sit in seat 0 against an agent in seat 1. Once the client has [said hello](#saying-hello), a hand is dealt and the first `state` message follows.
 
 The table is a cash game. Each hand the player sits down with their bankroll, up to 2,000 chips, against 2,000 for the agent, and what they win or lose in the hand is written to their bankroll as it ends.
 
@@ -213,7 +223,7 @@ Version 1, JSON text frames over a WebSocket, at its own address:
 ws://<host>/ws/blackjack
 ```
 
-Each connection gets a private table: one player against the house, playing from their own bankroll, with bets from 10 to 500, six decks, and a dealer who stands on every seventeen. Nothing is dealt until a bet is placed, so the first `state` after the [hello](#saying-hello) shows a table waiting for one. `stack` is the player's bankroll, and each round's result is written to it as the round settles.
+Each player has a private table: one player against the house, playing from their own bankroll, with bets from 10 to 500, six decks, and a dealer who stands on every seventeen. Nothing is dealt until a bet is placed, so the first `state` after the [hello](#saying-hello) shows a table waiting for one. `stack` is the player's bankroll, and each round's result is written to it as the round settles.
 
 ## Server to client
 
@@ -321,7 +331,7 @@ Version 1, JSON text frames over a WebSocket, at its own address:
 ws://<host>/ws/roulette
 ```
 
-Each connection gets a private table: one player against a European wheel, with a single zero, playing from their own bankroll. The first `state` after the [hello](#saying-hello) shows a table waiting for bets.
+Each player has a private table: one player against a European wheel, with a single zero, playing from their own bankroll. The first `state` after the [hello](#saying-hello) shows a table waiting for bets.
 
 Roulette has no decisions once the bets are down, so a whole round is one message each way. The player builds a layout of chips in the client, sends it with `spin`, and the answer says where the ball landed and what each bet came to.
 

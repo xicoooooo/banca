@@ -5,28 +5,34 @@ import com.banca.players.Identity
 import com.banca.players.PlayerSession
 import com.banca.players.Players
 import io.ktor.server.routing.Route
-import io.ktor.server.websocket.DefaultWebSocketServerSession
 import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
+import kotlinx.coroutines.job
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 
 /**
- * One player's connection to one game.
+ * One player's table at one game.
  *
- * This is what poker and blackjack turned out to share once both existed. The
- * games differ in almost everything a player sees: who acts, what a round is,
- * what may be known. What they have in common is the shape of a connection. A
- * player says who they are, a table is set up for them, messages arrive one at
- * a time and are applied in order, and a message that is wrong is that sender's
- * problem and never the table's.
+ * This is what the games turned out to share once more than one existed. They
+ * differ in almost everything a player sees: who acts, what a round is, what
+ * may be known. What they have in common is the shape of sitting at a table. A
+ * player says who they are and is shown where things stand, messages arrive
+ * one at a time and are applied in order, and a message that is wrong is that
+ * sender's problem and never the table's.
+ *
+ * A table outlives the connections to it. See [Tables].
  */
 interface GameConnection {
-    /** Called once, when the player is known and seated. */
-    suspend fun opened()
+    /**
+     * Called each time the player connects, the first time and every time they
+     * come back. Sets the table up if it is new, tells the player where things
+     * stand, and picks up anything that was left waiting.
+     */
+    suspend fun attached()
 
     /**
      * Called for each message, in order. Throwing [IllegalArgumentException] or
@@ -35,8 +41,14 @@ interface GameConnection {
      */
     suspend fun received(text: String)
 
-    /** Called once when the player has gone, to stop anything still running for them. */
-    fun closed() {}
+    /** Called when the connection drops, to stop anything running only for the player's benefit. */
+    fun detached() {}
+
+    /**
+     * Called when the player has not come back. Whatever is being played is
+     * finished for them, in the way that risks nothing more, and written down.
+     */
+    suspend fun abandoned() {}
 }
 
 /** Sends one text message to the player. */
@@ -69,8 +81,8 @@ fun brokeNotice(funding: Funding.Broke): String =
 internal fun refusal(message: String, code: String? = null): String =
     wireJson.encodeToString(Refusal.serializer(), Refusal(message = message, code = code))
 
-/** Serves a game at [path], giving every connection a table of its own. */
-fun Route.gameSocket(path: String, players: Players, connect: (Send, PlayerSession) -> GameConnection) {
+/** Serves a game at [path], sitting each player at a table of their own that waits for them if they drop. */
+fun Route.gameSocket(path: String, players: Players, tables: Tables, connect: (Send, PlayerSession) -> GameConnection) {
     webSocket(path) {
         val send: Send = { text -> send(Frame.Text(text)) }
 
@@ -89,30 +101,25 @@ fun Route.gameSocket(path: String, players: Players, connect: (Send, PlayerSessi
         val session = PlayerSession(player, players)
         send(wireJson.encodeToString(Welcome.serializer(), Welcome(player = Identity(player.name, session.balance(), signedIn = player.accountId != null))))
 
-        val connection = connect(send, session)
+        // The table is the player's at this game, whichever connection they reach it by.
+        val connection = coroutineContext.job
+        val seat = tables.sit("${player.id}:$path", connection, send) { toPlayer -> connect(toPlayer, session) }
         try {
-            serve(connection, send)
+            for (frame in incoming) {
+                if (frame !is Frame.Text) continue
+
+                try {
+                    seat.received(frame.readText())
+                } catch (problem: SerializationException) {
+                    send(refusal("That message could not be read"))
+                } catch (problem: IllegalArgumentException) {
+                    send(refusal(problem.message ?: "That is not allowed"))
+                } catch (problem: IllegalStateException) {
+                    send(refusal(problem.message ?: "That is not possible right now"))
+                }
+            }
         } finally {
-            connection.closed()
-        }
-    }
-}
-
-/** Hands the connection its messages in order, until the player leaves. */
-private suspend fun DefaultWebSocketServerSession.serve(connection: GameConnection, send: Send) {
-    connection.opened()
-
-    for (frame in incoming) {
-        if (frame !is Frame.Text) continue
-
-        try {
-            connection.received(frame.readText())
-        } catch (problem: SerializationException) {
-            send(refusal("That message could not be read"))
-        } catch (problem: IllegalArgumentException) {
-            send(refusal(problem.message ?: "That is not allowed"))
-        } catch (problem: IllegalStateException) {
-            send(refusal(problem.message ?: "That is not possible right now"))
+            seat.leave(connection)
         }
     }
 }

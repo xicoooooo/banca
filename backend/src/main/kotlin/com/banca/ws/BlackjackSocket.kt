@@ -106,7 +106,15 @@ class BlackjackConnection(
     private var followedAdvice = 0
 
     // Unlike poker, nothing is dealt until the player has put chips down.
-    override suspend fun opened() {
+    override suspend fun attached() {
+        // Coming back to a table already set up, the round is as it was left.
+        if (::table.isInitialized) {
+            // Between rounds the bankroll may have moved while the player was away.
+            if (table.isBetting) table.restock(session.balance())
+            pushState()
+            return
+        }
+
         val funding = session.fund(MIN_BET)
         table = BlackjackTable(
             stack = funding.balance,
@@ -202,7 +210,22 @@ class BlackjackConnection(
         )
     }
 
-    override fun closed() = coaching.cancel()
+    override fun detached() = coaching.cancel()
+
+    /**
+     * The player left and did not come back. A round still being played is
+     * finished without risking another chip: insurance is declined and every
+     * hand stands. It is then written down like any other.
+     */
+    override suspend fun abandoned() {
+        if (!::table.isInitialized) return
+        var guard = 0
+        while (!table.isBetting && guard++ < 20) {
+            val phase = table.view().phase
+            table.act(if (phase == "insurance") BlackjackAction.DeclineInsurance else BlackjackAction.Stand)
+        }
+        record()
+    }
 
     private suspend fun emit(message: BlackjackServerMessage) =
         send(wireJson.encodeToString(BlackjackServerMessage.serializer(), message))
