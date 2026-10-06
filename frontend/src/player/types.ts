@@ -2,7 +2,7 @@
 // the server from the rounds the player has really played; a null means there
 // is not yet anything to work it out from.
 
-export type GameId = 'poker' | 'blackjack'
+export type GameId = 'poker' | 'blackjack' | 'roulette'
 export type Outcome = 'win' | 'loss' | 'push'
 
 export type Dashboard = {

@@ -1,6 +1,6 @@
 # Table protocol
 
-Two games are served, each at its own address: [poker](#connecting) and [blackjack](#blackjack). They share two rules: the client draws what it is sent and never decides an outcome, and nothing is dealt until the client has said [who is playing](#players).
+Three games are served, each at its own address: [poker](#connecting), [blackjack](#blackjack) and [roulette](#roulette). They share two rules: the client draws what it is sent and never decides an outcome, and nothing is dealt until the client has said [who is playing](#players).
 
 ## Players
 
@@ -39,7 +39,7 @@ A table tells the player about their chips with two messages of its own, the sam
 { "type": "broke", "dailyReady": false, "nextChipsAt": "2026-10-06T16:00:00Z" }
 ```
 
-`staked` says the house has just staked them, so chips do not appear unexplained. `broke` says nothing will be dealt: they cannot cover the smallest bet and the house will not stake them yet. `dailyReady` is true when claiming the daily reward would get them playing again; otherwise `nextChipsAt` is when the next chips of either kind arrive. Asking again (`next_hand` in poker, a `bet` in blackjack) is answered with a deal once they can cover it.
+`staked` says the house has just staked them, so chips do not appear unexplained. `broke` says nothing will be dealt: they cannot cover the smallest bet and the house will not stake them yet. `dailyReady` is true when claiming the daily reward would get them playing again; otherwise `nextChipsAt` is when the next chips of either kind arrive. Asking again (`next_hand` in poker, a `bet` in blackjack, a `spin` in roulette) is answered with a deal once they can cover it.
 
 ### Signing in
 
@@ -310,3 +310,85 @@ As for poker: the last message could not be applied, the table is unchanged, and
 The coach's advice is never taken on trust. What each play is worth is worked out on the server from the rules, and advice from the model is accepted only if it is a play open to the player and as good as any other. A model that fails, stalls or will not settle is replaced by the figures.
 
 A natural pays three to two. Insurance pays two to one. Twenty-one made after a split is an ordinary twenty-one. Any two cards worth the same may be split, up to four hands, and a split hand may be doubled. The dealer does not draw when every hand has bust.
+
+---
+
+# Roulette
+
+Version 1, JSON text frames over a WebSocket, at its own address:
+
+```
+ws://<host>/ws/roulette
+```
+
+Each connection gets a private table: one player against a European wheel, with a single zero, playing from their own bankroll. The first `state` after the [hello](#saying-hello) shows a table waiting for bets.
+
+Roulette has no decisions once the bets are down, so a whole round is one message each way. The player builds a layout of chips in the client, sends it with `spin`, and the answer says where the ball landed and what each bet came to.
+
+## Client to server
+
+```json
+{
+  "type": "spin",
+  "bets": [
+    { "kind": "straight", "number": 17, "amount": 10 },
+    { "kind": "red", "amount": 50 },
+    { "kind": "dozen", "number": 2, "amount": 50 }
+  ]
+}
+```
+
+| `kind` | Covers | Pays | `number` |
+|---|---|---|---|
+| `straight` | One number | 35 to 1 | The number, 0 to 36 |
+| `split` | Two numbers that touch | 17 to 1 | One number, with the other in `other` |
+| `street` | A row of three | 11 to 1 | The lowest: 1, 4, 7 … |
+| `corner` | Four numbers that meet | 8 to 1 | The lowest |
+| `six_line` | Two rows of three | 5 to 1 | The lowest: 1, 4, 7 … |
+| `dozen` | 1–12, 13–24 or 25–36 | 2 to 1 | Which: 1, 2 or 3 |
+| `column` | A column of twelve | 2 to 1 | Which: 1 holds 1, 4, 7 … |
+| `red` `black` `even` `odd` `low` `high` | Eighteen numbers | 1 to 1 | |
+
+## Server to client
+
+### `state`
+
+```json
+{
+  "type": "state",
+  "view": {
+    "roundNumber": 1,
+    "stack": 1695,
+    "minBet": 10,
+    "maxInside": 100,
+    "maxOutside": 500,
+    "history": [15],
+    "result": {
+      "pocket": 15,
+      "color": "black",
+      "wagers": [
+        { "kind": "straight", "number": 17, "other": null, "amount": 10, "returned": 0 },
+        { "kind": "red", "number": null, "other": null, "amount": 50, "returned": 0 },
+        { "kind": "dozen", "number": 2, "other": null, "amount": 50, "returned": 150 }
+      ],
+      "staked": 110,
+      "net": 40,
+      "refilled": false
+    }
+  }
+}
+```
+
+`returned` is every chip coming back for a bet, the stake included, and nought for a bet that lost. `history` is where the ball has landed lately, newest first. `result.refilled` is true when the spin left the player unable to make the smallest bet and the house staked them. Nothing in the view is hidden, because roulette has nothing to hide.
+
+The result is in the same message as the spin: the server decides where the ball lands before the client's wheel begins to turn, and the client only takes its time showing it.
+
+### `error`
+
+As for the other games: the message could not be applied, nothing was spun, and the connection stays open.
+
+## Rules the server enforces
+
+A bet covering *n* numbers pays 36 / *n* − 1 to one, which gives every payout above and leaves the house the same edge, one part in 37, on all of them. Zero is neither red nor black, even nor odd, low nor high.
+
+A layout is taken whole or refused whole. Every bet must be at least `minBet`; a bet on the numbers themselves (`straight` to `six_line`) at most `maxInside`, and any other at most `maxOutside`. Chips on the same bet are counted together. The layout may not come to more than the player has.

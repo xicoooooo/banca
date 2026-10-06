@@ -8,6 +8,7 @@ import java.util.UUID
 enum class Game {
     POKER,
     BLACKJACK,
+    ROULETTE,
 }
 
 /** How a round went for one player, in terms any game can answer. */

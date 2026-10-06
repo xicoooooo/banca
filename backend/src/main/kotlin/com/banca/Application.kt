@@ -15,6 +15,7 @@ import com.banca.players.SignInConfig
 import com.banca.players.SupabaseAccounts
 import com.banca.players.configurePlayerRoutes
 import com.banca.ws.BlackjackSocketConfig
+import com.banca.ws.RouletteSocketConfig
 import com.banca.ws.TableSocketConfig
 import com.banca.ws.configureGameSockets
 import io.ktor.server.application.Application
@@ -133,6 +134,7 @@ private const val DEFAULT_GROQ_MODELS = "qwen/qwen3.8-27b,openai/gpt-oss-120b,op
 fun Application.module(
     tableSocket: TableSocketConfig = TableSocketConfig(),
     blackjack: BlackjackSocketConfig = BlackjackSocketConfig(),
+    roulette: RouletteSocketConfig = RouletteSocketConfig(),
     players: Players = Players(InMemoryPlayerStore()),
     signIn: SignInConfig? = null,
 ) {
@@ -141,5 +143,5 @@ fun Application.module(
     configureCors()
     configureRouting()
     configurePlayerRoutes(players, signIn)
-    configureGameSockets(players = players, poker = tableSocket, blackjack = blackjack)
+    configureGameSockets(players = players, poker = tableSocket, blackjack = blackjack, roulette = roulette)
 }

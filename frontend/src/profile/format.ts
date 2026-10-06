@@ -1,7 +1,7 @@
 // How the dashboard's figures are written and drawn. Pure functions, so they
 // can be tested without a browser.
 
-export const GAME_NAMES: Record<string, string> = { poker: "Texas Hold'em", blackjack: 'Blackjack' }
+export const GAME_NAMES: Record<string, string> = { poker: "Texas Hold'em", blackjack: 'Blackjack', roulette: 'Roulette' }
 
 export function chips(amount: number): string {
   return Math.round(amount).toLocaleString('en-US')

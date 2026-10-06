@@ -1987,3 +1987,257 @@ button {
 .play-value[data-best='true'] .play-value__track span {
   background: linear-gradient(90deg, var(--color-gold-warm), var(--color-gold-bright));
 }
+
+/* ---------------------------------------------------------------- roulette */
+
+.wheel {
+  position: relative;
+  flex: none;
+  /* As large as the screen allows once the layout and controls have their room. */
+  width: clamp(120px, min(42vw, 100dvh - 500px), 250px);
+  aspect-ratio: 1;
+  filter: drop-shadow(0 14px 26px rgb(0 0 0 / 0.5));
+}
+
+.wheel svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wheel__rim {
+  fill: #2a1d0c;
+  stroke: var(--color-gold);
+  stroke-width: 1.4;
+}
+
+.wheel__turning {
+  transform-origin: 0 0;
+  /* Fast away and a long time settling, the way a wheel loses its speed. */
+  transition: transform 0ms cubic-bezier(0.12, 0.62, 0.1, 1);
+}
+
+.wheel__number {
+  fill: var(--color-ivory);
+  font-size: 7.4px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.wheel__cone {
+  fill: #0b4a3a;
+  stroke: #c9a24a;
+  stroke-width: 0.8;
+}
+
+.wheel__spoke {
+  fill: #c9a24a;
+  opacity: 0.75;
+}
+
+.wheel__hub {
+  fill: var(--color-gold);
+  stroke: #6b4d17;
+  stroke-width: 1;
+}
+
+.wheel__ball {
+  fill: #fdfbf5;
+  stroke: rgb(0 0 0 / 0.35);
+  stroke-width: 0.4;
+  filter: drop-shadow(0 0.6px 0.8px rgb(0 0 0 / 0.6));
+}
+
+/* The number the ball landed on, over the hub once the wheel has stopped. */
+.wheel__result {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 34%;
+  aspect-ratio: 1;
+  border: 2px solid var(--color-gold-bright);
+  border-radius: 50%;
+  font-size: clamp(1.1rem, 6vw, 1.9rem);
+  font-weight: 700;
+  color: var(--color-ivory);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.7);
+  transition:
+    opacity var(--t-medium) var(--ease-soft),
+    transform var(--t-medium) var(--ease-soft);
+}
+
+.wheel__result[data-shown='true'] {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 26px rgb(241 199 91 / 0.45);
+}
+
+.wheel__result[data-color='red'] {
+  background: #a8261d;
+}
+
+.wheel__result[data-color='black'] {
+  background: #141a19;
+}
+
+.wheel__result[data-color='green'] {
+  background: #0f8a68;
+}
+
+.history {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history li {
+  display: grid;
+  place-items: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--color-ivory);
+  opacity: 0.75;
+}
+
+/* The latest is the one to notice. */
+.history li:first-child:not(.history__empty) {
+  opacity: 1;
+  outline: 1px solid rgb(241 199 91 / 0.6);
+}
+
+.history li[data-color='red'] {
+  background: #a8261d;
+}
+
+.history li[data-color='black'] {
+  background: #141a19;
+}
+
+.history li[data-color='green'] {
+  background: #0f8a68;
+}
+
+.history .history__empty {
+  opacity: 0.5;
+  outline: none;
+  background: none;
+}
+
+/* The layout: zero, twelve columns of numbers, and the column bets at the end. */
+.roulette-felt {
+  display: grid;
+  grid-template-columns: repeat(14, minmax(0, 1fr));
+  grid-auto-rows: clamp(30px, (100dvh - 470px) / 6, 44px);
+  gap: 2px;
+  width: 100%;
+  max-width: 44rem;
+  padding: 3px;
+  border: 1px solid rgb(201 162 74 / 0.45);
+  border-radius: 12px;
+  background: rgb(201 162 74 / 0.3);
+}
+
+.spot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  font: inherit;
+  font-size: clamp(0.62rem, 2.6vw, 0.86rem);
+  font-weight: 700;
+  color: var(--color-ivory);
+  background: #0b4a3a;
+  transition:
+    filter var(--t-micro) var(--ease-soft),
+    opacity var(--t-medium) var(--ease-soft);
+}
+
+.spot[data-color='red'] {
+  background: #a8261d;
+}
+
+.spot[data-color='black'] {
+  background: #141a19;
+}
+
+.spot[data-color='green'] {
+  background: #0f8a68;
+}
+
+.spot__label {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .spot:hover:not(:disabled) {
+    filter: brightness(1.3);
+  }
+}
+
+.spot:active:not(:disabled) {
+  filter: brightness(1.5);
+}
+
+/* The box the ball's number belongs to, and every bet it paid. */
+.spot[data-won='true'] {
+  z-index: 1;
+  outline: 2px solid var(--color-gold-bright);
+  box-shadow: 0 0 16px rgb(241 199 91 / 0.55);
+}
+
+.spot[data-lost='true'] .spot__chip {
+  opacity: 0.35;
+}
+
+/* A chip on a box covers its label: what is riding there matters more than what it is called. */
+.spot__chip {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: min(92%, 1.7rem);
+  aspect-ratio: 1;
+  border: 2px dashed rgb(29 21 3 / 0.55);
+  border-radius: 50%;
+  font-size: clamp(0.5rem, 2.1vw, 0.66rem);
+  font-weight: 800;
+  color: #1d1503;
+  background: radial-gradient(circle at 35% 30%, #fbe7ae, var(--color-gold) 60%, var(--color-gold-warm));
+  box-shadow: 0 2px 5px rgb(0 0 0 / 0.55);
+  animation: rise-in var(--t-micro) var(--ease-soft) both;
+}
+
+/* Choosing which chip to bet with, as against pressing one to bet it. */
+.chip-button--pick .chip {
+  --chip: clamp(40px, 11.5vw, 50px);
+}
+
+.chip-button--pick {
+  opacity: 0.6;
+}
+
+.chip-button--pick[aria-pressed='true'] {
+  opacity: 1;
+  transform: translateY(-4px);
+  filter: drop-shadow(0 0 10px rgb(241 199 91 / 0.55));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wheel__turning {
+    transition: none;
+  }
+}

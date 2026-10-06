@@ -5,11 +5,12 @@ import { Loading } from './casino/Loading'
 import { Lobby, type Game } from './lobby/Lobby'
 import { confirmSignIn, returningFromSignIn } from './player/account'
 import { Profile } from './profile/Profile'
+import { RouletteTable } from './roulette/RouletteTable'
 import { Table } from './table/Table'
 
 type Screen = Game | 'profile'
 
-const SCREENS: Screen[] = ['poker', 'blackjack', 'profile']
+const SCREENS: Screen[] = ['poker', 'blackjack', 'roulette', 'profile']
 
 function screenInAddress(): Screen | null {
   const name = window.location.hash.replace(/^#\/?/, '')
@@ -66,6 +67,7 @@ function App() {
 
   if (screen === 'poker') return <Table onLeave={leave} />
   if (screen === 'blackjack') return <BlackjackTable onLeave={leave} />
+  if (screen === 'roulette') return <RouletteTable onLeave={leave} />
   if (screen === 'profile') return <Profile onLeave={leave} onPlay={open} signInFailed={arrival === 'failed'} />
   return <Lobby onChoose={open} onProfile={() => open('profile')} />
 }

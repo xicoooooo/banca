@@ -5,14 +5,14 @@ import { Header } from '../casino/Header'
 import { Loading } from '../casino/Loading'
 import { canSignIn, signInWithGoogle, signOut } from '../player/account'
 import { Refused, renamePlayer } from '../player/api'
-import type { Achievement, Dashboard, GameBreakdown } from '../player/types'
+import type { Achievement, Dashboard, GameBreakdown, GameId } from '../player/types'
 import { useDashboard } from '../player/useDashboard'
 import { ActivityChart, BankrollChart } from './charts'
 import { GAME_NAMES, ago, chips, levelProgress, monthAndYear, percent, signed, toneOf } from './format'
 
 type ProfileProps = {
   onLeave: () => void
-  onPlay: (game: 'poker' | 'blackjack') => void
+  onPlay: (game: GameId) => void
   /** True when the player has just come back from a sign-in that did not go through. */
   signInFailed?: boolean
 }
@@ -307,6 +307,9 @@ function FirstVisit({ onPlay }: { onPlay: ProfileProps['onPlay'] }) {
         </button>
         <button type="button" className="btn btn--quiet px-5!" onClick={() => onPlay('blackjack')}>
           Play blackjack
+        </button>
+        <button type="button" className="btn btn--quiet px-5!" onClick={() => onPlay('roulette')}>
+          Play roulette
         </button>
       </div>
     </section>

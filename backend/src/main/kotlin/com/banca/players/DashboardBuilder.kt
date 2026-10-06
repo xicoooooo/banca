@@ -170,6 +170,7 @@ object DashboardBuilder {
             tendencies = if (rounds.size < ENOUGH_ROUNDS) emptyList() else when (game) {
                 Game.POKER -> pokerTendencies(rounds)
                 Game.BLACKJACK -> blackjackTendencies(rounds)
+                Game.ROULETTE -> rouletteTendencies(rounds)
             },
         )
     }
@@ -209,6 +210,21 @@ object DashboardBuilder {
         val offered = rounds.filter { it.detail.flag("insuranceOffered") }
         if (offered.size >= ENOUGH_CASES) {
             add(tendency("Takes insurance", offered.count { it.detail.flag("insured") }, offered.size, "offers"))
+        }
+    }
+
+    private fun rouletteTendencies(rounds: List<RoundRecord>): List<Tendency> = buildList {
+        // Where the chips go: on the numbers themselves, or on the boxes around them.
+        val inside = rounds.sumOf { it.detail.count("insideStake") }
+        val outside = rounds.sumOf { it.detail.count("outsideStake") }
+        if (inside + outside > 0) add(tendency("Chips on the numbers", inside, inside + outside, "chips"))
+
+        val bets = rounds.sumOf { it.detail.count("bets") }
+        if (bets >= ENOUGH_ROUNDS) add(tendency("Bets that win", rounds.sumOf { it.detail.count("betsWon") }, bets, "bets"))
+
+        val onANumber = rounds.filter { it.detail.count("straightBets") > 0 }
+        if (onANumber.size >= ENOUGH_CASES) {
+            add(tendency("Hits a single number", onANumber.count { it.detail.flag("straightHit") }, onANumber.size, "spins with one"))
         }
     }
 
@@ -259,6 +275,19 @@ object Summaries {
     fun of(round: RoundRecord): String = when (round.game) {
         Game.POKER -> poker(round)
         Game.BLACKJACK -> blackjack(round)
+        Game.ROULETTE -> roulette(round)
+    }
+
+    private fun roulette(round: RoundRecord): String {
+        val detail = round.detail
+        val pocket = detail.count("pocket")
+        val landed = if (pocket == 0) "Zero" else "$pocket ${detail.text("color")}"
+        val bets = detail.count("bets")
+        return when {
+            detail.flag("straightHit") -> "$landed, straight up"
+            bets == 1 -> if (round.outcome == RoundOutcome.WIN) "$landed, your bet won" else "$landed, your bet lost"
+            else -> "$landed, ${detail.count("betsWon")} of $bets bets won"
+        }
     }
 
     private fun poker(round: RoundRecord): String {
@@ -315,7 +344,8 @@ object Achievements {
             goal("first_win", "First Win", "Win a round", wins.toLong(), 1),
             goal("rounds_25", "Getting Warm", "Play 25 rounds", rounds.size.toLong(), 25),
             goal("rounds_100", "Regular", "Play 100 rounds", rounds.size.toLong(), 100),
-            goal("both_tables", "Both Tables", "Play Hold'em and blackjack", gamesPlayed.toLong(), 2),
+            goal("both_tables", "Both Tables", "Play at two different tables", gamesPlayed.toLong(), 2),
+            goal("every_table", "Full House", "Play Hold'em, blackjack and roulette", gamesPlayed.toLong(), Game.entries.size.toLong()),
             goal("streak_3", "On a Run", "Win 3 rounds in a row", bestStreak.toLong(), 3),
             goal("streak_5", "Heater", "Win 5 rounds in a row", bestStreak.toLong(), 5),
             goal("natural", "Natural", "Be dealt a blackjack", count { it.detail.flag("natural") }, 1),
@@ -326,6 +356,10 @@ object Achievements {
             goal(
                 "showdown_win", "Called It", "Win a Hold'em showdown",
                 count { it.game == Game.POKER && it.outcome == RoundOutcome.WIN && it.detail.flag("showdown") }, 1,
+            ),
+            goal(
+                "straight_up", "On the Nose", "Hit a single number at roulette",
+                count { it.game == Game.ROULETTE && it.detail.flag("straightHit") }, 1,
             ),
             goal("big_pot", "Big Pot", "Take down a Hold'em pot of 1,000 or more", biggestPot, 1_000),
             goal("peak_5000", "In the Black", "Reach a bankroll of 5,000", peak, 5_000),

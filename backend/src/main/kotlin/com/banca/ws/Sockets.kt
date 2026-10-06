@@ -11,11 +11,13 @@ fun Application.configureGameSockets(
     players: Players,
     poker: TableSocketConfig = TableSocketConfig(),
     blackjack: BlackjackSocketConfig = BlackjackSocketConfig(),
+    roulette: RouletteSocketConfig = RouletteSocketConfig(),
 ) {
     install(WebSockets)
 
     routing {
         gameSocket("/ws/table", players) { send, session -> PokerConnection(poker, send, session) }
         gameSocket("/ws/blackjack", players) { send, session -> BlackjackConnection(blackjack, send, session) }
+        gameSocket("/ws/roulette", players) { send, session -> RouletteConnection(roulette, send, session) }
     }
 }

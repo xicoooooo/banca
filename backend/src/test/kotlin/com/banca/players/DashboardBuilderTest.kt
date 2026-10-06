@@ -109,7 +109,8 @@ class DashboardBuilderTest {
         val dashboard = build(blackjack(100), poker(-200), poker(400), blackjack(-100))
         val byGame = dashboard.games.associateBy { it.game }
 
-        assertEquals(setOf("poker", "blackjack"), byGame.keys, "every game appears, played or not")
+        assertEquals(setOf("poker", "blackjack", "roulette"), byGame.keys, "every game appears, played or not")
+        assertEquals(0, byGame.getValue("roulette").rounds)
         assertEquals(2, byGame.getValue("poker").rounds)
         assertEquals(200, byGame.getValue("poker").net)
         assertEquals(0.5, byGame.getValue("poker").winRate)
@@ -206,6 +207,58 @@ class DashboardBuilderTest {
 
         assertEquals("20%", labels.getValue("Busts").value)
         assertFalse("Takes insurance" in labels)
+    }
+
+    private fun roulette(net: Long, detail: JsonObject) = blackjack(net, detail = detail).copy(game = Game.ROULETTE)
+
+    private fun spin(pocket: Int, color: String, bets: Int, won: Int, inside: Long, outside: Long, straightHit: Boolean = false) =
+        buildJsonObject {
+            put("pocket", pocket); put("color", color); put("bets", bets); put("betsWon", won)
+            put("insideStake", inside); put("outsideStake", outside)
+            put("straightBets", if (inside > 0) 1 else 0); put("straightHit", straightHit)
+        }
+
+    @Test
+    fun `roulette has a place of its own, with where the chips went`() {
+        val rounds = List(6) { roulette(-50, spin(8, "black", bets = 2, won = 0, inside = 10, outside = 40)) } +
+            List(4) { roulette(60, spin(17, "black", bets = 2, won = 1, inside = 10, outside = 40)) }
+
+        val game = build(*rounds.toTypedArray()).games.first { it.game == "roulette" }
+        val labels = game.tendencies.associateBy { it.label }
+
+        assertEquals(10, game.rounds)
+        assertEquals(4, game.wins)
+        assertEquals("20%", labels.getValue("Chips on the numbers").value)
+        assertEquals("100 of 500 chips", labels.getValue("Chips on the numbers").basis)
+        assertEquals("20%", labels.getValue("Bets that win").value)
+        assertEquals("0%", labels.getValue("Hits a single number").value)
+    }
+
+    @Test
+    fun `a spin is summed up by where the ball landed`() {
+        val recent = build(
+            roulette(350, spin(17, "black", bets = 1, won = 1, inside = 10, outside = 0, straightHit = true)),
+            roulette(-30, spin(0, "green", bets = 3, won = 0, inside = 0, outside = 30)),
+            roulette(10, spin(32, "red", bets = 1, won = 1, inside = 0, outside = 10)),
+            roulette(20, spin(5, "red", bets = 3, won = 2, inside = 0, outside = 30)),
+        ).recent.map { it.summary }
+
+        assertEquals(listOf("17 black, straight up", "Zero, 0 of 3 bets won", "32 red, your bet won", "5 red, 2 of 3 bets won"), recent)
+    }
+
+    @Test
+    fun `playing all three games and hitting a number are marked`() {
+        val hit = roulette(350, spin(17, "black", bets = 1, won = 1, inside = 10, outside = 0, straightHit = true))
+        val two = build(blackjack(100), poker(-50)).achievements.associateBy { it.id }
+        val three = build(hit, blackjack(100), poker(-50)).achievements.associateBy { it.id }
+
+        assertTrue(two.getValue("both_tables").earned)
+        assertFalse(two.getValue("every_table").earned)
+        assertEquals(2, two.getValue("every_table").progress)
+        assertFalse(two.getValue("straight_up").earned)
+
+        assertTrue(three.getValue("every_table").earned)
+        assertTrue(three.getValue("straight_up").earned)
     }
 
     @Test

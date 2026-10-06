@@ -4,7 +4,7 @@ import { useDashboard } from '../player/useDashboard'
 import { chips } from '../profile/format'
 import { DailyReward } from './DailyReward'
 
-export type Game = 'poker' | 'blackjack'
+export type Game = 'poker' | 'blackjack' | 'roulette'
 
 const GAMES: { id: Game; name: string; line: string; detail: string }[] = [
   {
@@ -17,7 +17,13 @@ const GAMES: { id: Game; name: string; line: string; detail: string }[] = [
     id: 'blackjack',
     name: 'Blackjack',
     line: 'You against the house',
-    detail: 'Six decks, blackjack pays 3 to 2, and the dealer stands on 17.',
+    detail: 'Six decks, blackjack pays 3 to 2, and Banca beside you if you ask what it would do.',
+  },
+  {
+    id: 'roulette',
+    name: 'Roulette',
+    line: 'You against the wheel',
+    detail: 'A European wheel with a single zero. Lay your chips out and spin.',
   },
 ]
 
