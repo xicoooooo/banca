@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy · Banca</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        background: radial-gradient(120% 85% at 50% 0%, #0b604b 0%, #073d31 36%, #052e26 66%, #031e19 100%) fixed;
+        color: #f5f1e8;
+        font-family: ui-sans-serif, -apple-system, 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        line-height: 1.65;
+      }
+      main {
+        max-width: 42rem;
+        margin: 0 auto;
+        padding: 2.5rem 1.25rem 4rem;
+      }
+      a {
+        color: #f1c75b;
+      }
+      .home {
+        display: inline-flex;
+        gap: 0.6rem;
+        align-items: center;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        text-decoration: none;
+        color: #f5f1e8;
+      }
+      .home img {
+        border-radius: 8px;
+      }
+      h1 {
+        margin: 2rem 0 0.25rem;
+        font-size: 2rem;
+        letter-spacing: -0.02em;
+      }
+      h2 {
+        margin: 2.25rem 0 0.5rem;
+        font-size: 0.72rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: #d9a441;
+      }
+      p,
+      li {
+        color: rgb(245 241 232 / 0.82);
+      }
+      .updated {
+        font-size: 0.85rem;
+        color: rgb(245 241 232 / 0.55);
+      }
+      ul {
+        padding-left: 1.2rem;
+      }
+      li {
+        margin: 0.35rem 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="home" href="/"><img src="/logo-192.png" alt="" width="32" height="32" />Banca</a>
+
+      <h1>Privacy</h1>
+      <p class="updated">Last updated 6 October 2026</p>
+
+      <p>
+        Banca is a personal, open source project: card games played with virtual chips against a computer opponent. Chips
+        are free, cannot be bought, cannot be cashed out and have no value. Banca never asks for or handles money or
+        payment details.
+      </p>
+
+      <h2>What is kept when you play as a guest</h2>
+      <ul>
+        <li>A display name, which starts as "Guest" and a number until you change it.</li>
+        <li>Your chip balance and the record of every change to it.</li>
+        <li>
+          A record of each round you play: the game, what you staked, the result, and a summary of how you played it,
+          such as whether you folded or doubled down. Your statistics, level and achievements are worked out from these.
+        </li>
+        <li>
+          A random token, stored in your browser, that tells the server which profile is yours. The server keeps only a
+          scrambled copy of it.
+        </li>
+      </ul>
+
+      <h2>What is added when you sign in with Google</h2>
+      <p>
+        Signing in is optional. It saves your profile to an account so you can reach it from another device. Sign-in is
+        handled by Supabase, which keeps your Google account's email address, name and profile picture as part of that
+        account. Banca's own game records hold only the account's identifier, and your first name if you had not chosen
+        a display name. Banca never sees your Google password and asks Google for nothing beyond this basic profile.
+      </p>
+
+      <h2>What it is used for</h2>
+      <p>
+        Only to run the game: to keep your chips and history, to show you your own statistics, and to let you sign in.
+        Nothing is sold, shared for advertising, or used to profile you. There are no advertising or analytics trackers
+        on this site.
+      </p>
+
+      <h2>Who else handles it</h2>
+      <ul>
+        <li><strong>Supabase</strong> hosts the database and the sign-in accounts, in the European Union.</li>
+        <li><strong>Render</strong> and <strong>Vercel</strong> host the server and the website, and keep ordinary technical logs such as IP addresses.</li>
+        <li>
+          <strong>Groq</strong> runs the language model that plays the opponent. It is sent the state of the hand being
+          played, such as the cards on the table and the bets made, and nothing that identifies you.
+        </li>
+        <li><strong>Google</strong>, if you choose to sign in with it.</li>
+      </ul>
+
+      <h2>Your choices</h2>
+      <p>
+        You can play without signing in. You can change your display name at any time on your profile. To have your
+        profile and account deleted, or to ask what is held about you, write to
+        <a href="mailto:faragaodias@gmail.com">faragaodias@gmail.com</a> and it will be done.
+      </p>
+
+      <h2>Who is responsible</h2>
+      <p>
+        Francisco Aragão Dias, the author of Banca. The source code is public at
+        <a href="https://github.com/xicoooooo/banca">github.com/xicoooooo/banca</a>, so you can see exactly what is
+        stored and how.
+      </p>
+    </main>
+  </body>
+</html>

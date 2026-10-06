@@ -74,6 +74,10 @@ export function Lobby({ onChoose, onProfile }: { onChoose: (game: Game) => void;
           Chips are free and have no value
           <br />
           Nothing here can be bought or cashed out
+          <br />
+          <a href="/privacy.html" className="underline decoration-white/25 underline-offset-4 transition hover:text-ivory">
+            Privacy
+          </a>
         </p>
       </div>
     </CasinoShell>
