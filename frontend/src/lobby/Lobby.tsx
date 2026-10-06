@@ -10,8 +10,8 @@ const GAMES: { id: Game; name: string; line: string; detail: string }[] = [
   {
     id: 'poker',
     name: "Texas Hold'em",
-    line: 'Heads up against Banca',
-    detail: 'An opponent that works out its odds with tools, and shows you how after every hand.',
+    line: 'Banca has a seat at every table',
+    detail: 'Play it heads up, or with other players at the table. It works out its odds with tools, and shows you how after every hand.',
   },
   {
     id: 'blackjack',

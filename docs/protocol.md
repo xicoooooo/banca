@@ -1,6 +1,6 @@
 # Table protocol
 
-Three games are served, each at its own address: [poker](#connecting), [blackjack](#blackjack) and [roulette](#roulette). Blackjack and roulette can also be played with other people, at [shared tables](#blackjack-tables) and in [rooms](#roulette-rooms). They share two rules: the client draws what it is sent and never decides an outcome, and nothing is dealt until the client has said [who is playing](#players).
+Three games are served, each at its own address: [poker](#connecting), [blackjack](#blackjack) and [roulette](#roulette). All three can also be played with other people: poker and blackjack at shared tables ([poker](#poker-tables), [blackjack](#blackjack-tables)) and roulette in [rooms](#roulette-rooms). They share two rules: the client draws what it is sent and never decides an outcome, and nothing is dealt until the client has said [who is playing](#players).
 
 ## Players
 
@@ -589,3 +589,70 @@ As elsewhere. Sitting down at a table with no seat free is answered with `{ "typ
 ## Dropping and leaving
 
 A stake put down is played. If a player's connection drops mid-round, their hand stays in play: when their turn comes it is stood after a few seconds, and it is settled with everyone else's. Coming back shows them the table as it stands. A player who does not come back gives up their seat once their round is over.
+
+---
+
+# Poker tables
+
+Version 1, JSON text frames over a WebSocket. Besides the table for one, Hold'em is played at shared tables, each at its own address:
+
+```
+ws://<host>/ws/poker/tables/<table>
+```
+
+`GET /poker/tables` lists them: `[{ "id": "emerald", "name": "Emerald Table", "players": 2, "seats": 5 }]`. `seats` is the seats for players; Banca always has one more.
+
+A shared table has six seats. Banca sits in seat 0 at every table and plays as it does heads up: from its own view of the hand, by calling tools. Up to five players take the others. It is a cash game, as the table for one is: each hand a player sits down with their bankroll, up to 2,000 chips, and what the hand wins or loses is written to their bankroll as it ends. Blinds are 10 and 20.
+
+Hands follow one another without anyone asking. A player who sits down while a hand is being played watches it and is dealt into the next. Every decision has a time limit: a player who runs out of time checks if that costs nothing and folds if it does.
+
+## Client to server
+
+```json
+{ "type": "act", "action": "raise", "amount": 120 }
+{ "type": "chat", "text": "Nice hand" }
+```
+
+`act` is as at the table for one, and is refused unless it is the player's turn. There is no `next_hand`: the table deals.
+
+## Server to client
+
+### `state`
+
+```json
+{
+  "type": "state",
+  "view": {
+    "room": "emerald",
+    "name": "Emerald Table",
+    "phase": "playing",
+    "msLeft": 23800,
+    "yourTurn": true,
+    "actor": "Ana",
+    "dealtIn": true,
+    "table": { "handNumber": 7, "street": "flop", "yourSeat": 1, "actorSeat": 1, "players": [], "legal": {}, "result": null },
+    "seats": [
+      { "seat": 0, "name": "Banca", "you": false, "inHand": true, "away": false },
+      { "seat": 1, "name": "Ana", "you": true, "inHand": true, "away": false },
+      { "seat": 2, "name": "Marta", "you": false, "inHand": false, "away": false }
+    ],
+    "seatsInAll": 6
+  }
+}
+```
+
+`table` is the hand as this player may see it, in exactly the shape the table for one sends, so a client can draw it the same way: their own cards, and anyone else's only at a showdown. `phase` is `playing` while a hand is live, `results` while a finished one is left on the table, and `waiting` when there is no hand to deal.
+
+`dealtIn` is false for a player who is at the table but not in the hand, because they sat down part way through. Their `table` then has `yourSeat` of -1 and shows nobody's cards, and they are listed in `seats` with `inHand` false. `msLeft` is how long the table will wait for the player whose turn it is, or before the next hand.
+
+### `trace` and `reveal`
+
+As at the table for one, and sent to everyone at the table: each step Banca takes is shown as it happens with nothing private in it, and its full reasoning for the hand is sent once the hand is over.
+
+### `chat_log`, `chat` and `error`
+
+As elsewhere. Sitting down at a table with no seat free is answered with an `error` whose `code` is `full`.
+
+## Dropping and leaving
+
+A player whose connection drops mid-hand stays in it: when their turn comes they are checked or folded after a few seconds, and the hand is settled for them with everyone else. Coming back shows them the table as it stands. A player who is not there when a hand ends is not dealt into the next, and gives up their seat if they do not return.

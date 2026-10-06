@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from 'react'
 import { sound } from '../casino/sound'
-import type { ClientMessage, LegalView } from './types'
+import type { ActMessage, LegalView } from './types'
 
 const chips = (amount: number) => amount.toLocaleString('en-US')
 
@@ -8,7 +8,7 @@ type ActionBarProps = {
   legal: LegalView
   pot: number
   committed: number
-  send: (message: ClientMessage) => void
+  send: (message: ActMessage) => void
 }
 
 /** Fold, call and raise, with a sizing control when a bet or raise is possible. */
@@ -34,7 +34,7 @@ export function ActionBar({ legal, pot, committed, send }: ActionBarProps) {
   // rebuilt for every new decision, so this never needs clearing by hand.
   const [pending, setPending] = useState<'fold' | 'call' | 'raise' | null>(null)
 
-  const act = (button: 'fold' | 'call' | 'raise', message: ClientMessage) => {
+  const act = (button: 'fold' | 'call' | 'raise', message: ActMessage) => {
     if (pending) return
     sound.click()
     setPending(button)

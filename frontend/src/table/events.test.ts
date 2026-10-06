@@ -50,6 +50,21 @@ describe('deriveEvents', () => {
     expect(types(finished, next)[0]).toBe('hand_started')
   })
 
+  it('says nothing when the hand is sent again with nothing in it changed', () => {
+    // A shared table sends the hand again when someone sits down or a clock
+    // restarts. It is a new object each time, and must not read as a check.
+    const view = table()
+    const again = table()
+    expect(again).not.toBe(view)
+    expect(deriveEvents(view, again)).toEqual([])
+  })
+
+  it('still sees a check, which always passes the turn on', () => {
+    const before = table({ actorSeat: 0 })
+    const after = table({ actorSeat: 1 })
+    expect(deriveEvents(before, after)).toEqual([{ type: 'check', seat: 0 }])
+  })
+
   it('says nothing when the same view is seen twice', () => {
     // Without this a repeated view would read as the actor checking.
     const view = table()

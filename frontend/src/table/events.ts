@@ -33,6 +33,18 @@ export function deriveEvents(before: TableView | null, now: TableView): TableEve
     ]
   }
 
+  // A shared table sends the hand again whenever anything about the table
+  // changes: someone sits down, or a clock restarts. If nothing in the hand
+  // itself has moved, nothing happened in it. Every real action moves the
+  // turn, the pot, the board or the result.
+  const unchanged =
+    before.actorSeat === now.actorSeat &&
+    before.pot === now.pot &&
+    before.board.length === now.board.length &&
+    (before.result === null) === (now.result === null) &&
+    before.players.every((player, index) => player.status === now.players[index]?.status)
+  if (unchanged) return []
+
   const events: TableEvent[] = []
   const actor = before.actorSeat
   const handEnded = now.result !== null && before.result === null

@@ -10,6 +10,8 @@ import { Profile } from './profile/Profile'
 import { RoomPicker } from './roulette/RoomPicker'
 import { RoomTable } from './roulette/RoomTable'
 import { RouletteTable } from './roulette/RouletteTable'
+import { PokerPicker } from './table/PokerPicker'
+import { SharedTable } from './table/SharedTable'
 import { Table } from './table/Table'
 
 type Screen = Game | 'profile'
@@ -75,7 +77,19 @@ function App() {
     )
   }
 
-  if (screen === 'poker') return <Table onLeave={leave} />
+  if (screen === 'poker') {
+    const toTables = () => open('poker')
+    if (place?.room === 'private') return <Table onLeave={toTables} />
+    if (place?.room) return <SharedTable key={place.room} tableId={place.room} onLeave={toTables} />
+    return (
+      <PokerPicker
+        onLeave={leave}
+        onChoose={(table) => {
+          window.location.hash = `/poker/${table}`
+        }}
+      />
+    )
+  }
   if (screen === 'blackjack') {
     // Leaving a table goes back to the choice of tables, not all the way out.
     const toTables = () => open('blackjack')

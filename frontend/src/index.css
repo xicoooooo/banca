@@ -2581,3 +2581,70 @@ button {
 .wait-line[data-mine='true'] span {
   background: linear-gradient(90deg, var(--color-gold-warm), var(--color-gold-bright));
 }
+
+/* ----------------------------------------------------------- shared poker */
+
+/* The way into the chat, tucked into the corner of the felt. */
+.felt__corner {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 2;
+}
+
+/* Up to five other players in a row across the top of the felt. */
+.small-seats {
+  --card-small: clamp(22px, min(6.4vw, var(--card-opponent) * 0.62), 44px);
+  display: flex;
+  gap: clamp(0.35rem, 2.2vw, 1.4rem);
+  align-items: flex-start;
+  justify-content: center;
+  width: 100%;
+  /* Clear of the chat button in the corner. */
+  padding: 0 2.4rem;
+}
+
+.small-seat {
+  display: flex;
+  flex: 0 1 5.5rem;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  min-width: 0;
+  text-align: center;
+}
+
+.small-seat__name {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  margin: 0;
+  padding-top: 2px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+}
+
+.small-seat[data-acting='true'] .small-seat__name {
+  color: var(--color-gold-bright);
+}
+
+.small-seat__button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 50%;
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: #1d1503;
+  background: var(--color-ivory);
+}
+
+.small-seat p {
+  margin: 0;
+}
