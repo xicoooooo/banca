@@ -17,11 +17,6 @@ import com.banca.players.RoundOutcome
 import com.banca.sessions.BlackjackTable
 import com.banca.sessions.BlackjackView
 import com.banca.sessions.TraceEvent
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -101,11 +96,8 @@ class BlackjackConnection(
 
     private val strategy = Strategy(config.rules)
 
-    /** The coach at work, if it has been asked and has not yet answered. */
-    private var coaching: Job? = null
-
-    /** The advice given for the decision in front of the player, so asking twice costs nothing. */
-    private var advised: Pair<String, Advice>? = null
+    /** The coach, asked about one decision at a time. */
+    private val coaching = Consultation<Advice>()
 
     /** How the player's decisions this round compare with the best play, for their record. */
     private var decisions = 0
@@ -160,7 +152,7 @@ class BlackjackConnection(
                 val before = table.view()
                 table.act(action)
                 // Advice for a decision that has been made is of no use to anyone.
-                coaching?.cancel()
+                coaching.cancel()
                 note(before, action)
             }
             is BlackjackClientMessage.Advise -> {
@@ -184,7 +176,7 @@ class BlackjackConnection(
         decisions++
         if (tools.isSound(action)) byTheBook++
 
-        val given = advised?.takeIf { it.first == decisionIn(before) }?.second ?: return
+        val given = coaching.answerTo(decisionIn(before)) ?: return
         advisedDecisions++
         if (given.action == BlackjackTools.nameOf(action)) followedAdvice++
     }
@@ -197,32 +189,20 @@ class BlackjackConnection(
     private suspend fun advise() {
         val view = table.view()
         check(view.phase == "player" || view.phase == "insurance") { "There is nothing to advise on right now" }
-        val decision = decisionIn(view)
 
-        advised?.takeIf { it.first == decision }?.let { (_, advice) ->
-            emit(BlackjackServerMessage.Advised(view.roundNumber, view.activeHand, advice))
-            return
-        }
-        if (coaching?.isActive == true) return
-
-        coaching = CoroutineScope(currentCoroutineContext()).launch {
-            try {
-                val advice = config.advisor.advise(view) { event -> emit(BlackjackServerMessage.Trace(view.roundNumber, event)) }
-                advised = decision to advice
-                emit(BlackjackServerMessage.Advised(view.roundNumber, view.activeHand, advice))
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (failure: Exception) {
+        coaching.ask(
+            question = decisionIn(view),
+            work = { config.advisor.advise(view) { event -> emit(BlackjackServerMessage.Trace(view.roundNumber, event)) } },
+            deliver = { advice -> emit(BlackjackServerMessage.Advised(view.roundNumber, view.activeHand, advice)) },
+            failed = { failure ->
                 // An advisor that breaks must not take the table with it.
                 log.warn("The coach failed", failure)
                 send(refusal("The coach could not be reached. Try again."))
-            }
-        }
+            },
+        )
     }
 
-    override fun closed() {
-        coaching?.cancel()
-    }
+    override fun closed() = coaching.cancel()
 
     private suspend fun emit(message: BlackjackServerMessage) =
         send(wireJson.encodeToString(BlackjackServerMessage.serializer(), message))

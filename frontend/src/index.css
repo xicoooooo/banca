@@ -1946,6 +1946,12 @@ button {
   line-clamp: 2;
 }
 
+/* A read of a roulette layout says two things, and gets a third line to say them in. */
+.coach-reason--longer {
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
 /* The play the coach advised is marked, and left for the player to press. */
 .btn[data-advised='true'] {
   outline: 2px solid var(--color-gold-bright);
@@ -2240,4 +2246,44 @@ button {
   .wheel__turning {
     transition: none;
   }
+}
+
+/* The wheel's pockets shared out by what each would do to a layout. Each part
+   is named beside it as well, so nothing rests on telling the colours apart. */
+.wheel-share {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 5px;
+}
+
+.wheel-share span {
+  min-width: 3px;
+}
+
+.wheel-share__key {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+
+.wheel-share [data-tone='gain'],
+.wheel-share__key[data-tone='gain'] {
+  background: var(--gain);
+}
+
+.wheel-share [data-tone='even'],
+.wheel-share__key[data-tone='even'] {
+  background: rgb(245 241 232 / 0.55);
+}
+
+.wheel-share [data-tone='part'],
+.wheel-share__key[data-tone='part'] {
+  background: var(--color-gold);
+}
+
+.wheel-share [data-tone='loss'],
+.wheel-share__key[data-tone='loss'] {
+  background: var(--loss);
 }

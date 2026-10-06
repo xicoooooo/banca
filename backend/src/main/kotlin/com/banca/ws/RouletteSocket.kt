@@ -1,5 +1,8 @@
 package com.banca.ws
 
+import com.banca.agents.BookAnalyst
+import com.banca.agents.LayoutRead
+import com.banca.agents.RouletteAdvisor
 import com.banca.games.roulette.Bet
 import com.banca.games.roulette.Roulette
 import com.banca.games.roulette.SpinResult
@@ -10,10 +13,12 @@ import com.banca.players.Funding
 import com.banca.players.Game
 import com.banca.players.PlayerSession
 import com.banca.players.RoundOutcome
+import com.banca.sessions.TraceEvent
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import org.slf4j.LoggerFactory
 import java.util.UUID
 import kotlin.random.Random
 
@@ -51,6 +56,11 @@ sealed interface RouletteClientMessage {
     @Serializable
     @SerialName("spin")
     data class Spin(val bets: List<WagerMessage>) : RouletteClientMessage
+
+    /** Asks Banca what it makes of a layout, before spinning it. */
+    @Serializable
+    @SerialName("analyse")
+    data class Analyse(val bets: List<WagerMessage>) : RouletteClientMessage
 }
 
 @Serializable
@@ -89,9 +99,22 @@ sealed interface RouletteServerMessage {
     @Serializable
     @SerialName("state")
     data class State(val view: RouletteView) : RouletteServerMessage
+
+    /** One step the analyst took. Nothing is hidden: it sees only the player's own bets. */
+    @Serializable
+    @SerialName("trace")
+    data class Trace(val event: TraceEvent) : RouletteServerMessage
+
+    @Serializable
+    @SerialName("read")
+    data class Read(val read: LayoutRead) : RouletteServerMessage
 }
 
-class RouletteSocketConfig(val random: () -> Random = { Random.Default })
+class RouletteSocketConfig(
+    val random: () -> Random = { Random.Default },
+    /** Who answers when the player asks about their layout. The figures alone, unless a model is given. */
+    val analyst: RouletteAdvisor = BookAnalyst(),
+)
 
 /**
  * A private roulette table: the person who connected against the wheel,
@@ -99,7 +122,7 @@ class RouletteSocketConfig(val random: () -> Random = { Random.Default })
  * message in and one answer back, written to the ledger in between.
  */
 class RouletteConnection(
-    config: RouletteSocketConfig,
+    private val config: RouletteSocketConfig,
     private val send: Send,
     private val session: PlayerSession,
 ) : GameConnection {
@@ -110,6 +133,11 @@ class RouletteConnection(
     private var roundNumber = 0
     private var result: RouletteResultView? = null
 
+    private val log = LoggerFactory.getLogger(RouletteConnection::class.java)
+
+    /** The analyst, asked about one layout at a time. */
+    private val analysis = Consultation<LayoutRead>()
+
     override suspend fun opened() {
         val funding = session.fund(MIN_BET)
         pushState(funding.balance)
@@ -117,7 +145,12 @@ class RouletteConnection(
     }
 
     override suspend fun received(text: String) {
-        val message = wireJson.decodeFromString<RouletteClientMessage>(text) as RouletteClientMessage.Spin
+        val message = when (val decoded = wireJson.decodeFromString<RouletteClientMessage>(text)) {
+            is RouletteClientMessage.Analyse -> return analyse(decoded.bets)
+            is RouletteClientMessage.Spin -> decoded
+        }
+        // A read of a layout that has been spun is of no use to anyone.
+        analysis.cancel()
 
         val funding = session.fund(MIN_BET)
         if (funding !is Funding.Ready) {
@@ -164,6 +197,32 @@ class RouletteConnection(
         pushState(after.balance)
         if (after is Funding.Broke) tell(after)
     }
+
+    /**
+     * Sets the analyst to work on a layout. It answers in its own time, so the
+     * player is never kept from spinning while it thinks.
+     */
+    private suspend fun analyse(bets: List<WagerMessage>) {
+        val balance = session.balance()
+        val wagers = wagersIn(bets, balance)
+        // The same bets in another order are the same question.
+        val question = wagers.map { "${it.bet}=${it.amount}" }.sorted().joinToString()
+
+        analysis.ask(
+            question = question,
+            work = { config.analyst.read(wagers, balance) { event -> emit(RouletteServerMessage.Trace(event)) } },
+            deliver = { read -> emit(RouletteServerMessage.Read(read)) },
+            failed = { failure ->
+                log.warn("The analyst failed", failure)
+                send(refusal("Banca could not be reached. Try again."))
+            },
+        )
+    }
+
+    override fun closed() = analysis.cancel()
+
+    private suspend fun emit(message: RouletteServerMessage) =
+        send(wireJson.encodeToString(RouletteServerMessage.serializer(), message))
 
     /**
      * Reads the layout the player sent into wagers, refusing it whole if any

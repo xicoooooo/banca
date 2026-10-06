@@ -349,6 +349,8 @@ Roulette has no decisions once the bets are down, so a whole round is one messag
 | `column` | A column of twelve | 2 to 1 | Which: 1 holds 1, 4, 7 … |
 | `red` `black` `even` `odd` `low` `high` | Eighteen numbers | 1 to 1 | |
 
+`analyse` takes the same `bets` as `spin` and asks Banca what it makes of them, without spinning or staking anything. The layout must be one the table would take. The answer arrives in its own time; the player may spin without waiting, and a read of a layout already spun is never sent. Asking again about the same chips repeats the same read.
+
 ## Server to client
 
 ### `state`
@@ -383,6 +385,24 @@ Roulette has no decisions once the bets are down, so a whole round is one messag
 
 The result is in the same message as the spin: the server decides where the ball lands before the client's wheel begins to turn, and the client only takes its time showing it.
 
+### `trace` and `read`
+
+Sent only after the player asks about a layout with `analyse`.
+
+```json
+{ "type": "trace", "event": { "kind": "tool", "label": "Worked out your chances", "detail": "get_chances → {...}" } }
+{
+  "type": "read",
+  "read": {
+    "text": "Your red and black bets cancel each other out. You come out ahead on about 3% of spins, and on average this layout costs you 0.8 chips a spin.",
+    "figures": { "staked": 30, "ahead": 0.027, "level": 0, "behind": 0.946, "nothing": 0.027, "best": 350, "bestPockets": [17], "average": -0.81 },
+    "source": "banca"
+  }
+}
+```
+
+`figures` is worked out on the server by settling the layout on every one of the 37 pockets: the share of them on which the player comes out `ahead`, exactly `level`, `behind` with something back, or with `nothing`; the `best` a spin could do and where; and what the layout comes to on `average`, which is always a loss of one part in 37 of what is staked. `text` is how Banca puts it. `source` is `banca` when the model chose the words and `book` when it could not and the text was made from the figures.
+
 ### `error`
 
 As for the other games: the message could not be applied, nothing was spun, and the connection stays open.
@@ -390,5 +410,7 @@ As for the other games: the message could not be applied, nothing was spun, and 
 ## Rules the server enforces
 
 A bet covering *n* numbers pays 36 / *n* − 1 to one, which gives every payout above and leaves the house the same edge, one part in 37, on all of them. Zero is neither red nor black, even nor odd, low nor high.
+
+Banca has no bet to recommend, because there is none: the tools it reads a layout through give it the figures above and nothing else. It is never shown where the ball has landed before, so it has nothing from which to suggest that a number is due.
 
 A layout is taken whole or refused whole. Every bet must be at least `minBet`; a bet on the numbers themselves (`straight` to `six_line`) at most `maxInside`, and any other at most `maxOutside`. Chips on the same bet are counted together. The layout may not come to more than the player has.

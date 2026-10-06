@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { sound } from '../casino/sound'
+import { BancaPill } from '../casino/BancaPill'
 import type { Advice, BlackjackAction, CoachStep } from './types'
 import type { Coaching } from './useBlackjack'
 
@@ -36,40 +36,29 @@ export function CoachPill({ coach, onAsk, onOpen }: { coach: Coaching; onAsk: ()
   const steps = coach.steps.filter((step) => step.kind === 'tool')
   const latest = steps.at(-1)
 
-  const press = () => {
-    sound.click()
-    if (coach.status === 'idle') onAsk()
-    else onOpen()
-  }
-
   return (
-    <button
-      type="button"
-      onClick={press}
-      aria-label={coach.advice ? `Banca advises: ${PLAY[coach.advice.action]}. Open the reasoning.` : thinking ? 'Banca is thinking. Open the reasoning.' : 'Ask Banca what to do'}
-      className="glass rise-in flex h-9 items-center gap-2.5 rounded-full px-4 transition hover:bg-black/30"
-    >
-      <span aria-hidden className={thinking ? 'orb' : 'orb orb--idle'} />
-
-      <span aria-live="polite" className={`label ${thinking ? 'text-ivory!' : 'text-gold-bright!'}`}>
-        {coach.advice
+    <BancaPill
+      thinking={thinking}
+      label={
+        coach.advice
           ? `Banca says · ${PLAY[coach.advice.action]}`
           : thinking
             ? latest
               ? (IN_PROGRESS[latest.label] ?? latest.label)
               : 'Thinking'
-            : 'Ask Banca'}
-      </span>
-
-      {thinking && (
-        // Three lookups make a full answer; each one taken lights a dot.
-        <span aria-hidden className="flex gap-1">
-          {[0, 1, 2].map((index) => (
-            <span key={index} className="step-dot" data-done={index < steps.length} />
-          ))}
-        </span>
-      )}
-    </button>
+            : 'Ask Banca'
+      }
+      stepsDone={steps.length}
+      stepsInAll={3}
+      describedAs={
+        coach.advice
+          ? `Banca advises: ${PLAY[coach.advice.action]}. Open the reasoning.`
+          : thinking
+            ? 'Banca is thinking. Open the reasoning.'
+            : 'Ask Banca what to do'
+      }
+      onPress={coach.status === 'idle' ? onAsk : onOpen}
+    />
   )
 }
 
@@ -167,7 +156,7 @@ export function CoachPanel({ coach, roundNumber, onClose }: CoachPanelProps) {
                   </li>
                 ))}
               </ul>
-              <p className="label pt-2.5 leading-relaxed tracking-[0.08em]! normal-case">
+              <p className="pt-2.5 text-xs leading-relaxed text-muted">
                 Chips won or lost on average for every 100 staked, if the hand were played many times.
                 {advice.source === 'book' && ' Banca could not put this one into its own words, so the reason comes straight from the figures.'}
               </p>

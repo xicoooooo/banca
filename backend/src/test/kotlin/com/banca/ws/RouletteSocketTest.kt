@@ -171,6 +171,93 @@ class RouletteSocketTest {
         }
     }
 
+    private suspend fun DefaultClientWebSocketSession.nextOf(type: String): JsonObject {
+        while (true) {
+            val message = receiveJson()
+            if (message.getValue("type").jsonPrimitive.content == type) return message
+        }
+    }
+
+    @Test
+    fun `asked about a layout, Banca shows its working and gives a read with the figures`() = table {
+        view()
+        say("""{"type":"analyse","bets":[{"kind":"straight","number":17,"amount":10},{"kind":"red","amount":50}]}""")
+
+        val steps = mutableListOf<String>()
+        var message = receiveJson()
+        while (message.getValue("type").jsonPrimitive.content == "trace") {
+            steps += message.getValue("event").jsonObject.getValue("label").jsonPrimitive.content
+            message = receiveJson()
+        }
+
+        assertEquals("read", message.getValue("type").jsonPrimitive.content)
+        val read = message.getValue("read").jsonObject
+        assertTrue(read.getValue("text").jsonPrimitive.content.isNotBlank())
+        assertEquals(60, read.getValue("figures").jsonObject.getValue("staked").jsonPrimitive.long)
+        assertEquals(listOf("Worked out your chances", "Worked out what it costs", "Gave its read"), steps)
+
+        // Nothing was spun or charged by asking.
+        say("""{"type":"spin","bets":[{"kind":"red","amount":10}]}""")
+        val view = nextOf("state").getValue("view").jsonObject
+        assertEquals(1, view.getValue("roundNumber").jsonPrimitive.int)
+    }
+
+    @Test
+    fun `the same layout asked about twice is read once`() {
+        var asked = 0
+        val counting = com.banca.agents.RouletteAdvisor { wagers, chips, trace -> asked++; com.banca.agents.BookAnalyst().read(wagers, chips, trace) }
+
+        testApplication {
+            val guest = TestPlayers()
+            application { module(roulette = RouletteSocketConfig(random = { Random(5) }, analyst = counting), players = guest.players) }
+            createClient { install(WebSockets) }.webSocket("/ws/roulette") {
+                sayHello(guest.token)
+                view()
+                say("""{"type":"analyse","bets":[{"kind":"red","amount":50},{"kind":"straight","number":17,"amount":10}]}""")
+                val first = nextOf("read").getValue("read")
+                // The same chips, put down in another order.
+                say("""{"type":"analyse","bets":[{"kind":"straight","number":17,"amount":10},{"kind":"red","amount":25},{"kind":"red","amount":25}]}""")
+                assertEquals(first, nextOf("read").getValue("read"))
+                assertEquals(1, asked)
+
+                say("""{"type":"analyse","bets":[{"kind":"black","amount":50}]}""")
+                nextOf("read")
+                assertEquals(2, asked, "a different layout is a different question")
+            }
+        }
+    }
+
+    @Test
+    fun `a layout the table would not take is not read either`() = table {
+        view()
+        say("""{"type":"analyse","bets":[]}""")
+        assertEquals("error", receiveJson().getValue("type").jsonPrimitive.content)
+        say("""{"type":"analyse","bets":[{"kind":"straight","number":17,"amount":500}]}""")
+        assertEquals("error", receiveJson().getValue("type").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `a player who spins while Banca is thinking is not kept waiting`() {
+        val slow = com.banca.agents.RouletteAdvisor { wagers, chips, trace ->
+            kotlinx.coroutines.delay(30_000)
+            com.banca.agents.BookAnalyst().read(wagers, chips, trace)
+        }
+
+        testApplication {
+            val guest = TestPlayers()
+            application { module(roulette = RouletteSocketConfig(random = { Random(5) }, analyst = slow), players = guest.players) }
+            createClient { install(WebSockets) }.webSocket("/ws/roulette") {
+                sayHello(guest.token)
+                view()
+                say("""{"type":"analyse","bets":[{"kind":"red","amount":50}]}""")
+                say("""{"type":"spin","bets":[{"kind":"red","amount":50}]}""")
+
+                val next = kotlinx.coroutines.withTimeout(3_000) { receiveJson() }
+                assertEquals("state", next.getValue("type").jsonPrimitive.content)
+            }
+        }
+    }
+
     @Test
     fun `a player left without chips is staked by the house, and one staked too lately is not dealt in`() {
         val guest = TestPlayers()

@@ -1,9 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { prefersReducedMotion } from '../casino/motion'
 import { sound } from '../casino/sound'
 import { useChipNotices } from '../casino/useChipNotices'
 import { useSocket } from '../casino/useSocket'
-import type { RouletteClientMessage, RouletteServerMessage, RouletteView } from './types'
+import type { LayoutRead, ReadStep, RouletteClientMessage, RouletteServerMessage, RouletteView, Wager } from './types'
+
+/** Banca's part in the layout on the felt: not asked, working, or answered. */
+export type Reading = { status: 'idle' | 'thinking' | 'ready'; steps: ReadStep[]; read: LayoutRead | null }
+
+const NOT_READING: Reading = { status: 'idle', steps: [], read: null }
 
 /** How long the wheel turns before the ball is seen to have landed. */
 export const SPIN_MS = 4_400
@@ -21,10 +26,15 @@ export function useRoulette() {
   const [shownRound, setShownRound] = useState(0)
   const first = useRef(true)
   const chips = useChipNotices()
+  const [reading, setReading] = useState<Reading>(NOT_READING)
 
   const { connection, send } = useSocket<RouletteServerMessage, RouletteClientMessage>('/ws/roulette', (message) => {
     if (message.type === 'staked' || message.type === 'broke') {
       chips.receive(message)
+    } else if (message.type === 'trace') {
+      setReading((current) => (current.status === 'thinking' ? { ...current, steps: [...current.steps, message.event] } : current))
+    } else if (message.type === 'read') {
+      setReading((current) => (current.status === 'idle' ? current : { ...current, status: 'ready', read: message.read }))
     } else if (message.type === 'state') {
       chips.dealt()
       setView(message.view)
@@ -35,8 +45,20 @@ export function useRoulette() {
     } else {
       setError(message.message)
       setRefusals((count) => count + 1)
+      // An analyst that could not answer is no longer thinking.
+      setReading((current) => (current.status === 'thinking' ? NOT_READING : current))
     }
   })
+
+  /** Asks Banca about a layout. The answer is for these bets only. */
+  const askAbout = (bets: Wager[]) => {
+    if (reading.status !== 'idle' || bets.length === 0) return
+    setReading({ status: 'thinking', steps: [], read: null })
+    send({ type: 'analyse', bets })
+  }
+
+  /** Puts the read away, when the layout it was about has changed. */
+  const forgetRead = useCallback(() => setReading(NOT_READING), [])
 
   const roundNumber = view?.roundNumber ?? 0
   const spinning = roundNumber > shownRound
@@ -64,5 +86,5 @@ export function useRoulette() {
     }
   }, [spinning, roundNumber, view?.result])
 
-  return { view, spinning, connection, error, refusals, send, broke: chips.broke, staked: chips.staked, retry: chips.dealt }
+  return { view, spinning, connection, error, refusals, send, broke: chips.broke, staked: chips.staked, retry: chips.dealt, reading, askAbout, forgetRead }
 }

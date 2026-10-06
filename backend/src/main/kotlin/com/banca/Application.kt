@@ -6,6 +6,7 @@ import com.banca.agents.FallbackProvider
 import com.banca.agents.ModelProvider
 import com.banca.agents.OllamaProvider
 import com.banca.agents.OpenAiCompatibleProvider
+import com.banca.agents.RouletteAnalyst
 import com.banca.agents.Warmup
 import com.banca.players.InMemoryPlayerStore
 import com.banca.players.PlayerStore
@@ -34,7 +35,7 @@ fun main() {
     val signIn = signInFromEnvironment()
 
     embeddedServer(Netty, port = port, host = "0.0.0.0") {
-        module(tableSocket = startup.tableSocket, blackjack = startup.blackjack, players = players, signIn = signIn)
+        module(tableSocket = startup.tableSocket, blackjack = startup.blackjack, roulette = startup.roulette, players = players, signIn = signIn)
         // Only once the server is answering, so rehearsing never delays the
         // health check that tells the host the deploy worked.
         startup.modelToWarmUp?.let { model ->
@@ -77,12 +78,13 @@ private fun signInFromEnvironment(): SignInConfig? {
 private class Startup(
     val tableSocket: TableSocketConfig,
     val blackjack: BlackjackSocketConfig = BlackjackSocketConfig(),
+    val roulette: RouletteSocketConfig = RouletteSocketConfig(),
     val modelToWarmUp: ModelProvider? = null,
 )
 
 /**
- * MODEL_PROVIDER picks who plays the poker opponent's seat and coaches at the
- * blackjack table: "ollama" (the default) for a local model, "groq" for the
+ * MODEL_PROVIDER picks who plays the poker opponent's seat, coaches at the
+ * blackjack table and reads layouts at the roulette table: "ollama" (the default) for a local model, "groq" for the
  * hosted free tier, or "passive" for no model at all, which leaves a
  * check-and-call opponent and a coach that answers from the arithmetic alone.
  */
@@ -97,6 +99,7 @@ private fun startupFromEnvironment(): Startup =
             Startup(
                 tableSocket = TableSocketConfig(opponentDelay = Duration.ZERO, opponent = { AgentDriver(model) }),
                 blackjack = BlackjackSocketConfig(advisor = BlackjackCoach(model)),
+                roulette = RouletteSocketConfig(analyst = RouletteAnalyst(model)),
             )
         }
         "groq" -> {
@@ -110,6 +113,7 @@ private fun startupFromEnvironment(): Startup =
             Startup(
                 tableSocket = TableSocketConfig(opponentDelay = Duration.ZERO, opponent = { AgentDriver(model) }),
                 blackjack = BlackjackSocketConfig(advisor = BlackjackCoach(model)),
+                roulette = RouletteSocketConfig(analyst = RouletteAnalyst(model)),
                 modelToWarmUp = model,
             )
         }

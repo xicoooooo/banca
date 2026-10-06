@@ -6,6 +6,7 @@ import { CHIP_CLASS, type ChipColor } from '../casino/chips'
 import { Header, type Status } from '../casino/Header'
 import { Loading } from '../casino/Loading'
 import { sound } from '../casino/sound'
+import { AnalystPanel, AnalystPill } from './Analyst'
 import { Felt } from './Felt'
 import { NO_BETS, colorOf, outlook, place, totalOf, undo, wagersOf, type Bets, type Spot } from './layout'
 import type { RouletteView } from './types'
@@ -31,7 +32,8 @@ function statusOf(view: RouletteView, spinning: boolean, staked: number): Status
  * landed. Everything about the result is the server's; this draws it.
  */
 export function RouletteTable({ onLeave }: { onLeave?: () => void }) {
-  const { view, spinning, connection, error, send, broke, staked, retry } = useRoulette()
+  const { view, spinning, connection, error, send, broke, staked, retry, reading, askAbout, forgetRead } = useRoulette()
+  const [showRead, setShowRead] = useState(false)
   const [bets, setBets] = useState<Bets>(NO_BETS)
   const [chip, setChip] = useState(10)
   // The stack as it stood when the wheel began to turn, shown until the ball lands.
@@ -58,12 +60,18 @@ export function RouletteTable({ onLeave }: { onLeave?: () => void }) {
   const affordable = total <= view.stack
   const { best, covered } = outlook(bets)
 
+  // A read is of one layout. Any change to the chips on the felt puts it away.
+  const change = (next: Bets) => {
+    setBets(next)
+    forgetRead()
+  }
+
   const put = (spot: Spot) => {
     // A layout carried over that can no longer be afforded is cleared by the first new chip.
     const next = place(affordable ? bets : NO_BETS, spot, chip, limits)
     if (next === bets) return
     sound.chipClink()
-    setBets(next)
+    change(next)
   }
 
   const spin = () => {
@@ -83,11 +91,11 @@ export function RouletteTable({ onLeave }: { onLeave?: () => void }) {
 
       <div className="felt mt-2.5 flex flex-1 flex-col">
         <div className="flex flex-1 flex-col items-center justify-evenly gap-2 px-2 py-3 short:py-2">
-          <div className="flex w-full items-center justify-center gap-4">
+          <div className="flex w-full items-center justify-center gap-3">
             <Wheel roundNumber={view.roundNumber} pocket={result?.pocket ?? null} spinning={spinning} />
 
             {/* A fixed width, so the wheel does not shift as the words beside it change. */}
-            <div className="flex w-32 flex-none flex-col items-start gap-2">
+            <div className="flex w-36 flex-none flex-col items-start gap-2">
               <div aria-live="polite" className="min-h-12">
                 {shown ? (
                   <div className="rise-in">
@@ -113,6 +121,15 @@ export function RouletteTable({ onLeave }: { onLeave?: () => void }) {
                   <AnimatedNumber value={spinning ? before : view.stack} />
                 </span>
               </div>
+
+              {!spinning && !broke && (
+                <AnalystPill
+                  reading={reading}
+                  canAsk={total > 0 && affordable}
+                  onAsk={() => askAbout(wagersOf(bets))}
+                  onOpen={() => setShowRead(true)}
+                />
+              )}
             </div>
           </div>
 
@@ -168,20 +185,26 @@ export function RouletteTable({ onLeave }: { onLeave?: () => void }) {
               </div>
 
               <div className="flex gap-1.5">
-                <button type="button" className="btn btn--quiet px-3! text-xs" onClick={() => setBets(undo(bets))} disabled={spinning || total === 0}>
+                <button type="button" className="btn btn--quiet px-3! text-xs" onClick={() => change(undo(bets))} disabled={spinning || total === 0}>
                   Undo
                 </button>
-                <button type="button" className="btn btn--quiet px-3! text-xs" onClick={() => setBets(NO_BETS)} disabled={spinning || total === 0}>
+                <button type="button" className="btn btn--quiet px-3! text-xs" onClick={() => change(NO_BETS)} disabled={spinning || total === 0}>
                   Clear
                 </button>
               </div>
             </div>
 
-            <p className="label text-center tracking-[0.12em]!" aria-live="polite">
-              {total === 0 || !affordable
-                ? 'Pick a chip, then press the layout'
-                : `Wins on ${Math.round(covered * 100)}% of the wheel · up to +${best.toLocaleString('en-US')}`}
-            </p>
+            {reading.read && !spinning ? (
+              <p role="status" className="coach-reason coach-reason--longer rise-in pb-0!">
+                {reading.read.text}
+              </p>
+            ) : (
+              <p className="label text-center tracking-[0.12em]!" aria-live="polite">
+                {total === 0 || !affordable
+                  ? 'Pick a chip, then press the layout'
+                  : `Wins on ${Math.round(covered * 100)}% of the wheel · up to +${best.toLocaleString('en-US')}`}
+              </p>
+            )}
 
             <button type="button" onClick={spin} disabled={spinning || total === 0 || !affordable} data-pending={spinning} className="btn btn--raise">
               {spinning ? 'Spinning' : total > 0 && affordable ? `Spin · ${total.toLocaleString('en-US')}` : 'Place a bet'}
@@ -189,6 +212,8 @@ export function RouletteTable({ onLeave }: { onLeave?: () => void }) {
           </div>
         )}
       </footer>
+
+      {showRead && !spinning && reading.status !== 'idle' && <AnalystPanel reading={reading} onClose={() => setShowRead(false)} />}
     </CasinoShell>
   )
 }

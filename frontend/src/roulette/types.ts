@@ -34,6 +34,30 @@ export type RouletteView = {
   result: RouletteResult | null
 }
 
-export type RouletteServerMessage = ChipNotice | { type: 'state'; view: RouletteView } | { type: 'error'; message: string }
+/** One step Banca took while reading a layout. Nothing in it is hidden: it sees only the player's own bets. */
+export type ReadStep = { kind: 'tool' | 'thought' | 'decision' | 'fallback'; label: string; detail: string | null }
 
-export type RouletteClientMessage = { type: 'spin'; bets: Wager[] }
+/** The figures behind a read, worked out on the server. Chances are shares of the wheel, from 0 to 1. */
+export type LayoutFigures = {
+  staked: number
+  ahead: number
+  level: number
+  behind: number
+  nothing: number
+  best: number
+  bestPockets: number[]
+  /** What the layout comes to on average, per spin. Never above nought. */
+  average: number
+}
+
+/** What Banca makes of a layout: "banca" when the model chose the words, "book" when the figures spoke for themselves. */
+export type LayoutRead = { text: string; figures: LayoutFigures; source: 'banca' | 'book' }
+
+export type RouletteServerMessage =
+  | ChipNotice
+  | { type: 'state'; view: RouletteView }
+  | { type: 'trace'; event: ReadStep }
+  | { type: 'read'; read: LayoutRead }
+  | { type: 'error'; message: string }
+
+export type RouletteClientMessage = { type: 'spin'; bets: Wager[] } | { type: 'analyse'; bets: Wager[] }
