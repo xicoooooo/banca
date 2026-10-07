@@ -53,6 +53,8 @@ class PokerConnection(
     private val config: TableSocketConfig,
     private val send: Send,
     private val session: PlayerSession,
+    /** Who coaches this player. The config's coach, unless they are given one of their own. */
+    private val coach: PokerAdvisor = config.coach,
 ) : GameConnection {
 
     private val tableId = UUID.randomUUID().toString()
@@ -142,7 +144,7 @@ class PokerConnection(
 
         coaching.ask(
             question = question,
-            work = { config.coach.advise(view) { event -> emit(ServerMessage.CoachTrace(view.handNumber, event)) } },
+            work = { coach.advise(view) { event -> emit(ServerMessage.CoachTrace(view.handNumber, event)) } },
             deliver = { advice ->
                 val stillAsked = !table.isHandComplete && PokerHouse.decisionIn(table.view(HUMAN_SEAT)) == question
                 if (stillAsked) emit(ServerMessage.Advised(view.handNumber, advice))

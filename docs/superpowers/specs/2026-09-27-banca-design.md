@@ -56,10 +56,10 @@ Every entry is free at this project's scale. The right-hand column records the l
 | Backend | Kotlin + Ktor | Self-hosted code, no cost |
 | Real-time | WebSockets (Ktor) | No cost |
 | Backend hosting | Render free web service | No card needed. Spins down after ~15 min idle, cold start around 50 s. A GitHub Actions job pings `/health` every ten minutes to keep it warm, and the client shows a waking state when it is not |
-| Database + auth | Supabase free tier | 500 MB, and projects pause after 7 days of inactivity. Any visit to the site reads the database, which is enough while it has players; a scheduled touch is to be added if it ever goes a week without one |
+| Database + auth | Supabase free tier | 500 MB, and projects pause after 7 days of inactivity. The keep-warm job reads the league table once a day, which reaches the database, so a quiet week does not pause it. New guests are limited by address so that nobody can fill the 500 MB by asking for them in a loop |
 | Frontend hosting | Vercel Hobby | Free for non-commercial personal projects; this qualifies |
 | Domain | none, use `*.vercel.app` | Paid domains are deferred. `banca.gg` and `getbanca.com` were free to register if that ever changes |
-| Agent model | Ollama locally in development; Groq's free tier for the deployed demo | Free without a card, with tool calling. Rate limits are low and counted per model, so the deployed agent is given a list of models and falls through to the next when one is throttled. The agent budget in 8.9 is designed around this |
+| Agent model | Ollama locally in development; Groq's free tier for the deployed demo | Free without a card, with tool calling. Rate limits are low and counted per model, so the deployed agent is given a list of models and falls through to the next when one is throttled. The allowance is one for everybody, so each player has a share of the coach, and past it is answered from the figures. The agent budget in 8.9 is designed around this |
 | MCP | Self-written MCP servers on the official Kotlin SDK, run inside the backend process | No cost |
 | Frontend | React + TypeScript + Vite + Tailwind, with animation in CSS and the Web Animations API | No cost |
 | CI | GitHub Actions on a public repository | Unlimited minutes for public repos, which is one reason the repository is public |

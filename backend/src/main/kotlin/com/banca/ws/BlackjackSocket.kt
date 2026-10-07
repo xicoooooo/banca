@@ -78,6 +78,8 @@ class BlackjackConnection(
     private val config: BlackjackSocketConfig,
     private val send: Send,
     private val session: PlayerSession,
+    /** Who coaches this player. The config's coach, unless they are given one of their own. */
+    private val advisor: BlackjackAdvisor = config.advisor,
 ) : GameConnection {
 
     private val log = LoggerFactory.getLogger(BlackjackConnection::class.java)
@@ -168,7 +170,7 @@ class BlackjackConnection(
 
         coaching.ask(
             question = BlackjackHouse.decisionIn(view),
-            work = { config.advisor.advise(view) { event -> emit(BlackjackServerMessage.Trace(view.roundNumber, event)) } },
+            work = { advisor.advise(view) { event -> emit(BlackjackServerMessage.Trace(view.roundNumber, event)) } },
             deliver = { advice -> emit(BlackjackServerMessage.Advised(view.roundNumber, view.activeHand, advice)) },
             failed = { failure ->
                 // An advisor that breaks must not take the table with it.

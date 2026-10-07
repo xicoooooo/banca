@@ -10,12 +10,14 @@ Every player starts as a guest. The server makes one on request and returns a se
 
 | Request | Answer |
 |---|---|
-| `POST /players` | `201` `{ "token": "...", "player": { "name": "Guest 4821", "balance": 2000, "signedIn": false } }` |
+| `POST /players` | `201` `{ "token": "...", "player": { "name": "Guest 4821", "balance": 2000, "signedIn": false } }`. `429` when too many have been asked for from one address |
 | `GET /players/me` | `{ "name": "...", "balance": 1940, "signedIn": false }` |
 | `PATCH /players/me` with `{ "name": "Ana" }` | The same, renamed. `400` with `{ "message": "..." }` if the name is refused |
 | `GET /players/me/dashboard` | Everything the profile page shows, worked out from the player's rounds |
 
 All but the first need `Authorization: Bearer <token>`, and answer `401` to a token the server does not know.
+
+A browser keeps the guest it is given, so nobody needs many. New guests are limited to five an hour and twenty a day from one address, which is room for a household or a group of friends on one connection and not for filling the database.
 
 A new player is granted 2,000 chips, once. After that the balance changes as rounds are won and lost, and by the two [rewards](#rewards) below. Every change is a line in a ledger and the balance is their sum.
 
@@ -397,6 +399,8 @@ As for poker: the last message could not be applied, the table is unchanged, and
 { "type": "act", "action": "insure" }
 { "type": "act", "action": "decline_insurance" }
 ```
+
+Each player has a share of the model behind Banca, across all three games: fifteen questions in ten minutes and a hundred in a day. It is one free allowance for everyone, and this keeps one player from using it up. A player past their share is still answered, from the figures, with `source` set to `book`.
 
 `advise` asks the coach about the decision in front of the player, and is refused when there is none. The answer arrives in its own time; the player may act without waiting, and advice for a decision already made is never sent. Asking again about the same decision repeats the same advice.
 

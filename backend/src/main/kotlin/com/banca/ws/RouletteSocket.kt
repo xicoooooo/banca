@@ -203,6 +203,8 @@ class RouletteConnection(
     private val config: RouletteSocketConfig,
     private val send: Send,
     private val session: PlayerSession,
+    /** Who reads this player's layouts. The config's analyst, unless they are given one of their own. */
+    private val analyst: RouletteAdvisor = config.analyst,
 ) : GameConnection {
 
     private val tableId = UUID.randomUUID().toString()
@@ -268,7 +270,7 @@ class RouletteConnection(
 
         analysis.ask(
             question = question,
-            work = { config.analyst.read(wagers, balance) { event -> emit(RouletteServerMessage.Trace(event)) } },
+            work = { analyst.read(wagers, balance) { event -> emit(RouletteServerMessage.Trace(event)) } },
             deliver = { read -> emit(RouletteServerMessage.Read(read)) },
             failed = { failure ->
                 log.warn("The analyst failed", failure)

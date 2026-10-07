@@ -18,6 +18,8 @@ import com.banca.players.configurePlayerRoutes
 import com.banca.ws.BlackjackSocketConfig
 import com.banca.ws.BlackjackTablesConfig
 import com.banca.ws.PokerTablesConfig
+import com.banca.ws.CoachAllowance
+import com.banca.players.guestAllowance
 import com.banca.agents.PokerCoach
 import com.banca.ws.RoomsConfig
 import com.banca.ws.RouletteSocketConfig
@@ -150,11 +152,13 @@ fun Application.module(
     players: Players = Players(InMemoryPlayerStore()),
     signIn: SignInConfig? = null,
     keepTablesFor: Duration = 3.minutes,
+    newGuests: Allowance = guestAllowance(),
+    coaching: CoachAllowance = CoachAllowance(),
 ) {
     configureSerialization()
     configureLogging()
     configureCors()
     configureRouting()
-    configurePlayerRoutes(players, signIn)
-    configureGameSockets(players = players, poker = tableSocket, blackjack = blackjack, roulette = roulette, rooms = rooms, blackjackTables = blackjackTables, pokerTables = pokerTables, keepTablesFor = keepTablesFor)
+    configurePlayerRoutes(players, signIn, newGuests)
+    configureGameSockets(players = players, poker = tableSocket, blackjack = blackjack, roulette = roulette, rooms = rooms, blackjackTables = blackjackTables, pokerTables = pokerTables, coaching = coaching, keepTablesFor = keepTablesFor)
 }

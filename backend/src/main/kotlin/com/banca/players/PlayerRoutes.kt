@@ -1,5 +1,7 @@
 package com.banca.players
 
+import com.banca.Allowance
+import com.banca.Limit
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -12,6 +14,7 @@ import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import kotlinx.serialization.Serializable
+import kotlin.time.Duration.Companion.hours
 
 @Serializable
 data class Identity(val name: String, val balance: Long, val signedIn: Boolean)
@@ -55,9 +58,30 @@ private suspend fun ApplicationCall.player(players: Players): Player? {
 
 private suspend fun Players.identity(player: Player) = Identity(player.name, balance(player), signedIn = player.accountId != null)
 
-fun Application.configurePlayerRoutes(players: Players, signIn: SignInConfig? = null) {
+/**
+ * Where a request came from. The server sits behind its host's proxies, which
+ * say who they are forwarding for; the first of those headers is set by the
+ * outermost proxy and cannot be forged by the caller. Without any of them the
+ * connection's own address is the caller's.
+ */
+private fun ApplicationCall.callerAddress(): String =
+    listOf("CF-Connecting-IP", "True-Client-IP")
+        .firstNotNullOfOrNull { request.headers[it]?.trim()?.takeIf(String::isNotEmpty) }
+        ?: request.headers["X-Forwarded-For"]?.substringBefore(',')?.trim()?.takeIf(String::isNotEmpty)
+        ?: request.local.remoteAddress
+
+/** New guests from one address: a household's worth in an hour, a small crowd's in a day. */
+fun guestAllowance() = Allowance(Limit(5, 1.hours), Limit(20, 24.hours))
+
+fun Application.configurePlayerRoutes(players: Players, signIn: SignInConfig? = null, newGuests: Allowance = guestAllowance()) {
     routing {
         post("/players") {
+            // A browser keeps the guest it is given, so nobody needs many. A caller
+            // asking for guest after guest is filling the database, not playing.
+            if (!newGuests.take(call.callerAddress())) {
+                call.respond(HttpStatusCode.TooManyRequests, Problem("Too many new players from here for now. Try again in a while."))
+                return@post
+            }
             val (player, token) = players.createGuest()
             call.respond(HttpStatusCode.Created, NewGuest(token, players.identity(player)))
         }

@@ -3,9 +3,14 @@ name: Keep warm
 # Free hosting puts the backend to sleep after about fifteen minutes without a
 # request, and waking it takes close to a minute. A request every ten minutes
 # keeps it awake, within the free plan's monthly hours for one service.
+#
+# The free database is paused after a week with no activity, and the health
+# check never reaches it. So once a day a request is made that does: it reads
+# the league table, which is answered from the database.
 on:
   schedule:
     - cron: '*/10 * * * *'
+    - cron: '17 5 * * *'
   workflow_dispatch:
 
 jobs:
@@ -14,3 +19,7 @@ jobs:
     steps:
       - name: Ping the backend
         run: curl --fail --silent --show-error --max-time 90 https://banca-backend-mmcc.onrender.com/health
+
+      - name: Touch the database
+        if: github.event.schedule == '17 5 * * *' || github.event_name == 'workflow_dispatch'
+        run: curl --fail --silent --show-error --max-time 90 --output /dev/null https://banca-backend-mmcc.onrender.com/league
