@@ -297,10 +297,35 @@ Sent after every change, and always complete.
 | `legal` | What may be done now. `bet` is true whenever a new round can start |
 | `insuranceCost` | Half the bet, while insurance is on offer |
 | `result` | Once settled: `net` (what the round did to your chips), `insuranceReturned`, and `refilled` |
+| `review` | Once settled: the player's own decisions, [graded](#review). Null until then, and for a round that left them nothing to decide |
 
 `soft` means an ace is being counted as eleven. `result.refilled` is true when the round left you unable to make the smallest bet and the house staked you.
 
 A dealer showing an ace offers insurance before anything else: the phase is `insurance` and only `insure` or `decline_insurance` is accepted. A natural on either side settles the round at once, so a `state` straight after a bet can already be `settled`.
+
+### `review`
+
+Part of the settled `state`, so it is there again after a reconnect. Every decision the player made in the round, in the order they made it, set against the best play:
+
+```json
+"review": {
+  "decisions": [
+    {
+      "hand": 0, "cards": ["Ts", "6d"], "total": 16, "soft": false, "dealer": "7h",
+      "played": "stand", "best": "hit", "verdict": "mistake",
+      "playedValue": -0.475, "bestValue": -0.415, "cost": 3.0,
+      "reason": "A dealer showing a 7 busts only 26% of the time, so 16 loses too often as it stands.",
+      "coach": null
+    }
+  ],
+  "sound": 0,
+  "cost": 3.0
+}
+```
+
+`verdict` is `best` for a play as good as any open to the player, `slip` for one that gave up less than five chips in a hundred staked, and `mistake` for anything worse. `playedValue` and `bestValue` are what the two plays return on average per chip of the hand's bet, and `cost` is the difference on that bet, in chips. `reason` says why the best play was better and is null when it was the one played. `coach` is `followed` or `ignored` when the coach had been asked about that decision. `sound` counts the decisions that were `best`, and the outer `cost` adds the round up.
+
+Only the player's own choices are graded: a hand stood for them because a clock ran out is not. The grade is of the decision, from what the player could see when they made it, and never of how the cards fell afterwards. It is worked out from the same figures the coach is held to, with no model involved.
 
 ### `trace` and `advice`
 
@@ -606,6 +631,8 @@ The rules are those of the private table. Each player's stake, result and record
 ```
 
 `you` is the player's own part in the round, in exactly the shape the private table's `view` has, so a client can draw it the same way. Its `legal` plays are only ever true on the player's own turn. Its `phase` can also be `waiting`: the player has finished or is sitting the round out, and others are still playing. A natural is paid on the deal, so `you.result` can be present while the table is still `playing`.
+
+`you.review` is the player's own and is shown to nobody else.
 
 `you.dealer` is the same for every player at the table. The hole card is null until the table reaches `results`, however any one player's round stands, so that a player who has finished cannot tell the others what the dealer holds.
 

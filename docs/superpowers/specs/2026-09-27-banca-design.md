@@ -98,7 +98,7 @@ What makes it feel like one app rather than three demos.
 A visitor is playing within seconds: the server makes them a guest, with a name like "Guest 4821" and 2,000 chips, and the browser keeps a secret token that stands for them. Signing in with Google is optional and does one thing: it saves the profile to an account, so it can be reached from another device and takes a place in the leagues. A guest who signs in keeps everything they had. If the account already has a profile, that one is used and the guest's is left behind: two bankrolls are never added together, or making guests would be a way of making chips.
 
 ### 7.2 Profile and stats
-Built. Display name, level and title, and the numbers that make a player want to play again: chips held, rounds played and won at each game, win rate, biggest win and biggest pot, winning and losing streaks, how they tend to play each game, recent rounds, achievements, and a chart of the bankroll over time. All of it is worked out from the ledger and the record of rounds, so none of it can disagree with what happened. Blackjack decisions graded against the best play come with after-round grading (7.7).
+Built. Display name, level and title, and the numbers that make a player want to play again: chips held, rounds played and won at each game, win rate, biggest win and biggest pot, winning and losing streaks, how they tend to play each game, recent rounds, achievements, and a chart of the bankroll over time. All of it is worked out from the ledger and the record of rounds, so none of it can disagree with what happened. How often the player's blackjack decisions were the best play is among them, from the grading in 7.7.
 
 ### 7.3 Daily rewards and bust protection
 Built. Chips cannot be bought, so these are the only ways to come by them without winning.
@@ -137,7 +137,7 @@ Nothing runs on a timer. A finished week is settled once, by the first request t
 Partly built. This is the feature that separates Banca from an ordinary social casino: the same agent that plays against you can teach you, and its reasoning is visible either way.
 
 - **Before acting, built at blackjack and roulette.** At blackjack the player asks and Banca answers with a play, a reason, and what every play open to them is worth. Those figures are computed on the server from the rules, and the model's advice is passed on only if it agrees with them; otherwise the figures answer in its place. At roulette the answer is a read of the layout: how often it comes out ahead, the best it can do, and what it costs on average.
-- **After the round, to build.** The coach grades the decisions made against what the tools said.
+- **After the round, built at blackjack.** Every decision the player made is graded against the same figures: the best play, a slip, or a mistake, with what it gave up in chips and why the better play was better. It grades the choice and never the outcome, and it is computed on the server with no model involved, so it is there after every round at no cost to the free tier. Roulette has no decisions to grade. Poker's grading waits on the poker coach (section 15).
 - **At the poker table, to build.** Banca is the opponent there, so a coach must be a second agent given only the player's view.
 
 ### 7.8 Social
@@ -148,8 +148,8 @@ A plain statement that chips are play money with no real value and no way to buy
 
 ### 7.10 Staging
 
-- **Built:** identity, profile and stats, levels and achievements, daily rewards, bust protection, the coach before a decision at blackjack and roulette, shared tables with chat, leagues, trophies and public pages.
-- **Left for v1 (through Phase 7):** after-round grading, the poker coach, the tutorial, PWA install, accessibility pass.
+- **Built:** identity, profile and stats, levels and achievements, daily rewards, bust protection, the coach before a decision at blackjack and roulette, grading after a blackjack round, shared tables with chat, leagues, trophies and public pages.
+- **Left for v1 (through Phase 7):** the poker coach and its grading, the tutorial, PWA install, accessibility pass.
 - **Later:** unlocks by level, friends and private tables by invite, daily missions, round replay with the agent's reasoning attached, spectator mode, tournaments.
 
 ## 8. Components
@@ -248,7 +248,7 @@ A lobby, a picker and table for each game in both forms, the profile, the league
 | 3. Blackjack | Second game, with Banca as coach | Done |
 | 4. Roulette | Third game, with Banca as analyst | Done |
 | 5. Platform | Lobby, shared wallet, guest identity and Google sign-in, tables that survive reconnects, shared tables and rooms at all three games, chat | Done |
-| 6. Player experience | Profile and stats, daily rewards, bust protection, coach before a decision, leagues and trophies: done. After-round grading, poker coach, tutorial: to do | In progress |
+| 6. Player experience | Profile and stats, daily rewards, bust protection, coach before a decision, grading after a blackjack round, leagues and trophies: done. Poker coach, tutorial: to do | In progress |
 | 7. Polish and launch | PWA install, accessibility, session reminder, architecture diagram, demo video | To do |
 | 8. Stretch | Unlocks by level, friends and private tables, agent personalities, missions, replay, spectator, tournaments | Open |
 
@@ -298,5 +298,5 @@ The first draft left three questions open and made some choices the build later 
 ## 15. Open questions
 
 - **The poker coach.** Banca already sits at the table as an opponent. A coach must be a second agent that sees only the player's cards, and the interface must make plain that the two share nothing.
-- **Grading after the round.** Blackjack can be graded exactly from the figures. Poker has no single right play, so its grading needs a standard that is fair without pretending to be exact.
+- **Grading a poker hand.** Blackjack is graded exactly from the figures (7.7). Poker has no single right play, so its grading needs a standard that is fair without pretending to be exact.
 - **What levels unlock.** Higher-stake tables are the obvious answer, once there are enough players for more tables to be worth having.

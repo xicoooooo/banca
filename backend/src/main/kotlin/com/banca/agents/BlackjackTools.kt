@@ -7,6 +7,7 @@ import com.banca.games.blackjack.Strategy
 import com.banca.games.blackjack.pointsOf
 import com.banca.games.cards.Card
 import com.banca.sessions.BlackjackView
+import com.banca.sessions.DecisionReview
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
@@ -88,6 +89,36 @@ class BlackjackTools(private val view: BlackjackView, private val strategy: Stra
     fun isSound(action: BlackjackAction): Boolean =
         values.firstOrNull { it.action == action }?.let { best.value - it.value <= CLOSE_ENOUGH } ?: false
 
+    /**
+     * Grades [action], taken at this decision, against the best play. The cost
+     * is what the difference comes to on the hand's bet. [advice] is what the
+     * coach had said about it, if it was asked.
+     */
+    fun review(action: BlackjackAction, advice: Advice?): DecisionReview {
+        val played = values.firstOrNull { it.action == action } ?: error("${nameOf(action)} was not open to the player")
+        val gap = best.value - played.value
+        val sound = gap <= CLOSE_ENOUGH
+        return DecisionReview(
+            hand = view.activeHand ?: 0,
+            cards = hand.cards,
+            total = hand.total,
+            soft = hand.soft,
+            dealer = dealerShows.toString(),
+            played = nameOf(action),
+            best = nameOf(if (sound) action else best.action),
+            verdict = when {
+                sound -> "best"
+                gap < SLIP_BELOW -> "slip"
+                else -> "mistake"
+            },
+            playedValue = played.value.rounded(),
+            bestValue = (if (sound) played.value else best.value).rounded(),
+            cost = if (sound) 0.0 else round(gap * hand.bet * 10) / 10,
+            reason = if (sound) null else bookReason(figures = false),
+            coach = advice?.let { if (it.action == nameOf(action)) "followed" else "ignored" },
+        )
+    }
+
     fun tableState(): JsonObject = buildJsonObject {
         put("deciding", if (insurance) "whether to take insurance" else "how to play the hand")
         putJsonArray("your_cards") { hand.cards.forEach { add(JsonPrimitive(it)) } }
@@ -147,28 +178,36 @@ class BlackjackTools(private val view: BlackjackView, private val strategy: Stra
         source = source,
     )
 
-    private fun bookReason(): String {
+    /**
+     * Why the best play is the best, from the figures. With [figures] it ends
+     * on what the best two plays are worth; a review shows those beside it and
+     * leaves them out.
+     */
+    private fun bookReason(figures: Boolean = true): String {
         val dealer = strategy.dealerOutcomes(pointsOf(dealerShows))
         val dealerBusts = percent(dealer.bust)
         val youBust = percent(strategy.bustChance(hand.total, hand.soft))
         val shows = spoken(dealerShows)
-        val runnerUp = values.getOrNull(1)
-        val margin = runnerUp?.let { "${nameOf(best.action).ing()} is worth ${chips(best.value)} per 100 staked, ${nameOf(it.action).ing()} ${chips(it.value)}" }
+        val margin = values.getOrNull(1)?.takeIf { figures }?.let {
+            "${nameOf(best.action).ing()} is worth ${chips(best.value)} per 100 staked, ${nameOf(it.action).ing()} ${chips(it.value)}"
+        }
+        val closing = margin?.let { " ${it.replaceFirstChar(Char::uppercase)}." }.orEmpty()
 
         return when (best.action) {
             BlackjackAction.DeclineInsurance ->
                 "Insurance pays only if the dealer has a ten underneath, which is 4 times in 13. Taking it loses about 4 chips for every 100 staked."
             BlackjackAction.Insure -> "Insurance is the only choice open."
             BlackjackAction.Stand ->
-                if (youBust == 0) "Another card cannot help enough: $margin." else "You would bust $youBust% of the time by hitting, and the dealer busts $dealerBusts% from $shows. $margin."
+                if (youBust == 0) "Another card cannot help enough${margin?.let { ": $it" }.orEmpty()}."
+                else "You would bust $youBust% of the time by hitting, and the dealer busts $dealerBusts% from $shows.$closing"
             BlackjackAction.Hit ->
-                if (youBust == 0) "You cannot bust on the next card, and ${hand.total} rarely wins as it stands against $shows. $margin."
-                else "A dealer showing $shows busts only $dealerBusts% of the time, so ${hand.total} loses too often as it stands. $margin."
+                if (youBust == 0) "You cannot bust on the next card, and ${hand.total} rarely wins as it stands against $shows.$closing"
+                else "A dealer showing $shows busts only $dealerBusts% of the time, so ${hand.total} loses too often as it stands.$closing"
             BlackjackAction.Double ->
-                "You are ahead here, so it pays to have more on the table: one card for twice the stake. $margin."
+                "You are ahead here, so it pays to have more on the table: one card for twice the stake.$closing"
             BlackjackAction.Split ->
-                "Two hands starting from ${spoken(cards.first())} each do better than ${hand.total} played as one. $margin."
-        }.replaceFirstChar(Char::uppercase)
+                "Two hands starting from ${spoken(cards.first())} each do better than ${hand.total} played as one.$closing"
+        }
     }
 
     fun server(): Server {
@@ -252,6 +291,9 @@ class BlackjackTools(private val view: BlackjackView, private val strategy: Stra
 
         /** Two plays this close in value are both right. */
         const val CLOSE_ENOUGH = 0.005
+
+        /** A play that gives up less than this per chip bet is a slip; more is a mistake. */
+        const val SLIP_BELOW = 0.05
 
         private const val MAX_REASON = 240
 

@@ -28,6 +28,43 @@ data class BlackjackView(
     val legal: BlackjackLegalView,
     val insuranceCost: Long,
     val result: BlackjackResultView?,
+    /** Once settled: how the player's own decisions in the round compare with the best play. Null if they had none to make. */
+    val review: RoundReview? = null,
+)
+
+/**
+ * One decision the player made, set against what the arithmetic says was best.
+ * Values are what a play returns on average per chip of the hand's bet.
+ */
+@Serializable
+data class DecisionReview(
+    val hand: Int,
+    /** The player's cards and the dealer's face-up card when they decided. */
+    val cards: List<String>,
+    val total: Int,
+    val soft: Boolean,
+    val dealer: String,
+    val played: String,
+    val best: String,
+    /** "best", "slip" for a play that gave up a little, or "mistake". */
+    val verdict: String,
+    val playedValue: Double,
+    val bestValue: Double,
+    /** Chips the play gave up on average, against the best one. Nought when it was the best. */
+    val cost: Double,
+    /** Why the best play was better. Null when that is what was played. */
+    val reason: String?,
+    /** "followed" or "ignored" when the coach had been asked about this decision, otherwise null. */
+    val coach: String?,
+)
+
+@Serializable
+data class RoundReview(
+    val decisions: List<DecisionReview>,
+    /** How many of them were the best play. */
+    val sound: Int,
+    /** Chips given up on average over the whole round. */
+    val cost: Double,
 )
 
 @Serializable

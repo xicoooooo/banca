@@ -11,6 +11,9 @@ import com.banca.players.FinishedRound
 import com.banca.players.Game
 import com.banca.players.RoundOutcome
 import com.banca.sessions.BlackjackView
+import com.banca.sessions.DecisionReview
+import com.banca.sessions.RoundReview
+import kotlin.math.round
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -30,7 +33,18 @@ class DecisionTally(private val strategy: Strategy) {
     var followedAdvice = 0
         private set
 
+    private val reviews = mutableListOf<DecisionReview>()
+
+    /** The round's decisions graded one by one, or null when the player had none to make. */
+    fun review(): RoundReview? = reviews.takeIf { it.isNotEmpty() }?.let { graded ->
+        RoundReview(decisions = graded.toList(), sound = byTheBook, cost = cost)
+    }
+
+    /** Chips the round's decisions gave up on average, against the best play each time. */
+    val cost: Double get() = round(reviews.sumOf { it.cost } * 10) / 10
+
     fun reset() {
+        reviews.clear()
         decisions = 0
         byTheBook = 0
         advised = 0
@@ -40,8 +54,10 @@ class DecisionTally(private val strategy: Strategy) {
     /** Counts a decision just made from [before], and whether it was what the coach had said, if it had been asked. */
     fun note(before: BlackjackView, action: BlackjackAction, advice: Advice?) {
         val tools = runCatching { BlackjackTools(before, strategy) }.getOrNull() ?: return
+        val graded = runCatching { tools.review(action, advice) }.getOrNull() ?: return
+        reviews += graded
         decisions++
-        if (tools.isSound(action)) byTheBook++
+        if (graded.verdict == "best") byTheBook++
 
         if (advice == null) return
         advised++
@@ -83,6 +99,7 @@ object BlackjackHouse {
                 put("insured", round.insurance > 0)
                 put("decisions", tally.decisions)
                 put("byTheBook", tally.byTheBook)
+                put("givenUp", tally.cost)
                 put("advised", tally.advised)
                 put("followedAdvice", tally.followedAdvice)
                 putJsonArray("outcomes") { result.hands.forEach { add(JsonPrimitive(it.outcome.name.lowercase())) } }

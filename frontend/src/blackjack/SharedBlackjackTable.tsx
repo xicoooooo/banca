@@ -11,6 +11,8 @@ import { sound } from '../casino/sound'
 import { useSecondsUntil } from '../casino/useSecondsUntil'
 import { BetControls } from './BetControls'
 import { CoachPanel, CoachPill, CoachReason } from './Coach'
+import { ReviewNote, ReviewPanel } from './Review'
+import { useLastReview, type Reviewed } from './grading'
 import { PlayControls } from './PlayControls'
 import { Dealer, Hand, Result } from './TableParts'
 import type { BlackjackTableView, TableSeat } from './types'
@@ -55,6 +57,8 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
   const seconds = useSecondsUntil(endsAt)
   const resultShown = useResultShown(view, reveal)
   const [showCoach, setShowCoach] = useState(false)
+  const lastReview = useLastReview(view)
+  const [reviewing, setReviewing] = useState<Reviewed | null>(null)
   const [showRoom, setShowRoom] = useState(false)
   const [heard, setHeard] = useState(0)
   // Who this player would rather not hear from. Kept on this device only, for this visit.
@@ -208,6 +212,11 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
           </div>
         )}
 
+        {/* The last round's review stays to hand through the next betting window: a result is up too briefly to read it in. */}
+        {lastReview && !broke && !deciding && !dealing && (table.phase === 'betting' || (over && resultShown)) && (
+          <ReviewNote review={lastReview.review} onOpen={() => setReviewing(lastReview)} />
+        )}
+
         {broke ? (
           <OutOfChips broke={broke} onRetry={retry} onLeave={onLeave} />
         ) : dealing ? (
@@ -257,6 +266,7 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
         )}
       </footer>
 
+      {reviewing && <ReviewPanel reviewed={reviewing} onClose={() => setReviewing(null)} />}
       {showCoach && deciding && coach.status !== 'idle' && <CoachPanel coach={coach} roundNumber={view.roundNumber} onClose={() => setShowCoach(false)} />}
       {showRoom && (
         <RoomDrawer

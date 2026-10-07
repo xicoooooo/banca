@@ -6,6 +6,8 @@ import { OutOfChips, StakedNote } from '../casino/ChipNotices'
 import { ConnectionNote } from '../casino/ConnectionNote'
 import { Loading } from '../casino/Loading'
 import { CoachPanel, CoachPill, CoachReason } from './Coach'
+import { ReviewNote, ReviewPanel } from './Review'
+import type { Reviewed } from './grading'
 import { Plate } from '../casino/Plate'
 import { BetControls } from './BetControls'
 import { PlayControls } from './PlayControls'
@@ -35,6 +37,7 @@ function statusOf(view: BlackjackView, resultShown: boolean): Status {
 export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
   const { view, reveal, connection, error, refusals, send, broke, staked, retry, coach, askCoach } = useBlackjack()
   const [showCoach, setShowCoach] = useState(false)
+  const [reviewing, setReviewing] = useState<Reviewed | null>(null)
   const resultShown = useResultShown(view, reveal)
 
   if (!view) {
@@ -141,6 +144,9 @@ export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
           <OutOfChips broke={broke} onRetry={retry} onLeave={onLeave} />
         ) : view.legal.bet ? (
           <>
+            {resultShown && view.review && (
+              <ReviewNote review={view.review} onOpen={() => setReviewing({ review: view.review!, roundNumber: view.roundNumber })} />
+            )}
             <BetControls
               // A fresh round gets fresh controls, and a refused bet gets them back.
               key={`${view.roundNumber}-${refusals}`}
@@ -161,6 +167,7 @@ export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
         )}
       </footer>
 
+      {reviewing && <ReviewPanel reviewed={reviewing} onClose={() => setReviewing(null)} />}
       {showCoach && deciding && coach.status !== 'idle' && (
         <CoachPanel coach={coach} roundNumber={view.roundNumber} onClose={() => setShowCoach(false)} />
       )}

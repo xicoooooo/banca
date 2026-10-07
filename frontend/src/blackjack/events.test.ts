@@ -21,6 +21,7 @@ function table(overrides: Partial<BlackjackView> = {}): BlackjackView {
     legal: { bet: false, hit: true, stand: true, double: true, split: false, insurance: false },
     insuranceCost: 0,
     result: null,
+    review: null,
     ...overrides,
   }
 }

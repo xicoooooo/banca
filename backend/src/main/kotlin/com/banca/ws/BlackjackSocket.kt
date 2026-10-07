@@ -217,7 +217,11 @@ class BlackjackConnection(
         return funding
     }
 
-    private suspend fun pushState() = emit(BlackjackServerMessage.State(table.view()))
+    /** A settled round is sent with its decisions graded. */
+    private suspend fun pushState() {
+        val view = table.view()
+        emit(BlackjackServerMessage.State(if (view.phase == "settled") view.copy(review = tally.review()) else view))
+    }
 
     private companion object {
         const val MIN_BET = BlackjackHouse.MIN_BET

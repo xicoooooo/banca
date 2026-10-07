@@ -29,7 +29,29 @@ export type BlackjackView = {
   legal: { bet: boolean; hit: boolean; stand: boolean; double: boolean; split: boolean; insurance: boolean }
   insuranceCost: number
   result: { net: number; insuranceReturned: number; refilled: boolean } | null
+  /** Once settled: the player's decisions graded against the best play. Null when they had none to make. */
+  review: RoundReview | null
 }
+
+/** One decision set against the best play. Values are per chip of the hand's bet. */
+export type DecisionReview = {
+  hand: number
+  cards: string[]
+  total: number
+  soft: boolean
+  dealer: string
+  played: BlackjackAction
+  best: BlackjackAction
+  verdict: 'best' | 'slip' | 'mistake'
+  playedValue: number
+  bestValue: number
+  /** Chips the play gave up on average. Nought when it was the best. */
+  cost: number
+  reason: string | null
+  coach: 'followed' | 'ignored' | null
+}
+
+export type RoundReview = { decisions: DecisionReview[]; sound: number; cost: number }
 
 export type BlackjackAction = 'hit' | 'stand' | 'double' | 'split' | 'insure' | 'decline_insurance'
 

@@ -546,6 +546,7 @@ class BlackjackRoom(
             ),
             // A result is the player's to see as soon as it is certain, which for a natural is on the deal.
             result = own.result,
+            review = member.tally.review().takeIf { round?.isSettled == true },
         )
     }
 

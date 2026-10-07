@@ -2886,3 +2886,85 @@ button {
     text-underline-offset: 3px;
   }
 }
+
+/* The round's review: one quiet line under the result, and its graded decisions. */
+.review-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 auto 0.6rem;
+  padding: 0.3rem 0.75rem 0.3rem 0.35rem;
+  max-width: 100%;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 999px;
+  background: rgb(3 22 18 / 0.45);
+  font-size: 0.8rem;
+  color: rgb(245 241 232 / 0.88);
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.review-note:hover,
+.review-note:focus-visible {
+  border-color: rgb(241 199 91 / 0.45);
+  background: rgb(3 22 18 / 0.7);
+}
+
+.review-note__mark {
+  display: grid;
+  place-items: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  background: rgb(241 199 91 / 0.18);
+  color: #f1c75b;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.review-note[data-clean='true'] .review-note__mark {
+  background: rgb(63 201 150 / 0.18);
+  color: #6fe0b4;
+}
+
+.review-note__more {
+  padding-left: 0.5rem;
+  border-left: 1px solid rgb(255 255 255 / 0.14);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #d9a441;
+}
+
+.graded {
+  padding: 0.8rem 0.9rem;
+  border: 1px solid rgb(255 255 255 / 0.07);
+  border-left: 3px solid rgb(63 201 150 / 0.7);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 0.03);
+}
+
+.graded[data-verdict='slip'] {
+  border-left-color: rgb(241 199 91 / 0.75);
+}
+
+.graded[data-verdict='mistake'] {
+  border-left-color: rgb(232 124 104 / 0.85);
+}
+
+.graded__verdict {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: #6fe0b4;
+}
+
+.graded[data-verdict='slip'] .graded__verdict {
+  color: #f1c75b;
+}
+
+.graded[data-verdict='mistake'] .graded__verdict {
+  color: #f0a08e;
+}
