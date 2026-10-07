@@ -12,6 +12,9 @@ import com.banca.players.RoundOutcome
 import com.banca.sessions.PassiveBot
 import com.banca.sessions.SeatDriver
 import com.banca.sessions.TableView
+import com.banca.agents.BookPokerAdvisor
+import com.banca.agents.PokerAdvice
+import com.banca.agents.PokerAdvisor
 import com.banca.sessions.TraceEvent
 import com.banca.sessions.handSummaryOf
 import com.banca.sessions.tableViewOf
@@ -58,6 +61,8 @@ class PokerTablesConfig(
     /** Who plays Banca's seat at each table. */
     val opponent: () -> SeatDriver = { PassiveBot() },
     val random: () -> Random = { Random.Default },
+    /** Who answers a player who asks what to do. A second agent, apart from the one in Banca's seat. */
+    val coach: PokerAdvisor = BookPokerAdvisor(),
 )
 
 /** Someone with a seat at the table, whether or not they are in the hand being played. */
@@ -95,6 +100,11 @@ sealed interface PokerRoomClientMessage {
     @Serializable
     @SerialName("chat")
     data class Chat(val say: String? = null, val text: String? = null) : PokerRoomClientMessage
+
+    /** Asks the coach what it would do with the decision in front of the player. */
+    @Serializable
+    @SerialName("advise")
+    data object Advise : PokerRoomClientMessage
 }
 
 @Serializable
@@ -120,6 +130,16 @@ sealed interface PokerRoomServerMessage {
     @Serializable
     @SerialName("chat")
     data class Said(val line: ChatLine) : PokerRoomServerMessage
+
+    /** One step the coach took for the player who asked it. Sent to them alone. */
+    @Serializable
+    @SerialName("coach_trace")
+    data class CoachTrace(val handNumber: Int, val event: TraceEvent) : PokerRoomServerMessage
+
+    /** The coach's advice, sent only to the player who asked. */
+    @Serializable
+    @SerialName("advice")
+    data class Advised(val handNumber: Int, val advice: PokerAdvice) : PokerRoomServerMessage
 }
 
 /**
@@ -245,6 +265,14 @@ class PokerRoom(
         member.actions.merge(name, 1, Int::plus)
         acted.trySend(Unit)
         broadcast()
+    }
+
+    /** The hand as this player sees it while it is their turn to act, or null when it is not. */
+    suspend fun decisionOf(playerId: UUID): TableView? = lock.withLock {
+        val member = members[playerId] ?: return@withLock null
+        val current = hand?.takeUnless { it.isComplete || phase != TablePhase.PLAYING } ?: return@withLock null
+        if (current.actorSeat != member.seat || !inHand(member)) return@withLock null
+        tableViewOf(current, handNumber, names, member.seat)
     }
 
     /** Says something to the table. */
@@ -499,12 +527,20 @@ class PokerRoom(
     }
 }
 
-/** One player's seat at a shared poker table: their connection to it. */
+/**
+ * One player's seat at a shared poker table: their connection to it, and the
+ * coach, which is theirs alone. What it tells them goes to nobody else at the
+ * table, and it is given nothing but their own view of the hand.
+ */
 class PokerSeat(
     private val room: PokerRoom,
+    private val coach: PokerAdvisor,
     private val send: Send,
     private val session: PlayerSession,
 ) : GameConnection {
+
+    private val log = LoggerFactory.getLogger(PokerSeat::class.java)
+    private val coaching = Consultation<PokerAdvice>()
 
     override suspend fun attached() {
         try {
@@ -516,12 +552,42 @@ class PokerSeat(
 
     override suspend fun received(text: String) {
         when (val message = wireJson.decodeFromString<PokerRoomClientMessage>(text)) {
-            is PokerRoomClientMessage.Act -> room.act(session.player.id, ClientMessage.Act(message.action, message.amount).toAction(), message.action)
+            is PokerRoomClientMessage.Act -> {
+                room.act(session.player.id, ClientMessage.Act(message.action, message.amount).toAction(), message.action)
+                // Advice for a decision that has been made is of no use to anyone.
+                coaching.cancel()
+            }
             is PokerRoomClientMessage.Chat -> room.say(session.player.id, message.say, message.text)
+            is PokerRoomClientMessage.Advise -> advise()
         }
     }
 
-    override fun detached() = room.disconnected(session.player.id)
+    private suspend fun advise() {
+        val view = room.decisionOf(session.player.id) ?: error("There is nothing to advise on right now")
+        val question = PokerHouse.decisionIn(view)
+
+        coaching.ask(
+            question = question,
+            work = { coach.advise(view) { event -> emit(PokerRoomServerMessage.CoachTrace(view.handNumber, event)) } },
+            deliver = { advice ->
+                // The clock may have folded the hand while the coach was thinking.
+                val stillAsked = room.decisionOf(session.player.id)?.let(PokerHouse::decisionIn) == question
+                if (stillAsked) emit(PokerRoomServerMessage.Advised(view.handNumber, advice))
+            },
+            failed = { failure ->
+                log.warn("The poker coach failed", failure)
+                send(refusal("The coach could not be reached. Try again."))
+            },
+        )
+    }
+
+    override fun detached() {
+        coaching.cancel()
+        room.disconnected(session.player.id)
+    }
 
     override suspend fun abandoned() = room.leave(session.player.id)
+
+    private suspend fun emit(message: PokerRoomServerMessage) =
+        send(wireJson.encodeToString(PokerRoomServerMessage.serializer(), message))
 }

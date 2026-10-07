@@ -18,6 +18,7 @@ import com.banca.players.configurePlayerRoutes
 import com.banca.ws.BlackjackSocketConfig
 import com.banca.ws.BlackjackTablesConfig
 import com.banca.ws.PokerTablesConfig
+import com.banca.agents.PokerCoach
 import com.banca.ws.RoomsConfig
 import com.banca.ws.RouletteSocketConfig
 import com.banca.ws.TableSocketConfig
@@ -101,7 +102,7 @@ private fun startupFromEnvironment(): Startup =
             )
             // The model takes long enough that no artificial pause is needed.
             Startup(
-                tableSocket = TableSocketConfig(opponentDelay = Duration.ZERO, opponent = { AgentDriver(model) }),
+                tableSocket = TableSocketConfig(opponentDelay = Duration.ZERO, opponent = { AgentDriver(model) }, coach = PokerCoach(model)),
                 blackjack = BlackjackSocketConfig(advisor = BlackjackCoach(model)),
                 roulette = RouletteSocketConfig(analyst = RouletteAnalyst(model)),
             )
@@ -115,7 +116,7 @@ private fun startupFromEnvironment(): Startup =
                 .split(',').map { it.trim() }.filter { it.isNotEmpty() }
             val model = FallbackProvider(names.map { it to OpenAiCompatibleProvider.groq(apiKey = key, model = it) })
             Startup(
-                tableSocket = TableSocketConfig(opponentDelay = Duration.ZERO, opponent = { AgentDriver(model) }),
+                tableSocket = TableSocketConfig(opponentDelay = Duration.ZERO, opponent = { AgentDriver(model) }, coach = PokerCoach(model)),
                 blackjack = BlackjackSocketConfig(advisor = BlackjackCoach(model)),
                 roulette = RouletteSocketConfig(analyst = RouletteAnalyst(model)),
                 modelToWarmUp = model,
@@ -145,7 +146,7 @@ fun Application.module(
     roulette: RouletteSocketConfig = RouletteSocketConfig(),
     rooms: RoomsConfig = RoomsConfig(analyst = roulette.analyst),
     blackjackTables: BlackjackTablesConfig = BlackjackTablesConfig(rules = blackjack.rules, advisor = blackjack.advisor),
-    pokerTables: PokerTablesConfig = PokerTablesConfig(opponent = tableSocket.opponent),
+    pokerTables: PokerTablesConfig = PokerTablesConfig(opponent = tableSocket.opponent, coach = tableSocket.coach),
     players: Players = Players(InMemoryPlayerStore()),
     signIn: SignInConfig? = null,
     keepTablesFor: Duration = 3.minutes,

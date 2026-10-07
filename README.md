@@ -13,7 +13,7 @@ A multi-game social casino played with virtual chips: Texas Hold'em, blackjack a
 **Status:** in development, and playable from end to end.
 
 - **Three games.** Texas Hold'em, blackjack against the house, and roulette on a European wheel.
-- **Banca at every table.** At poker it is an opponent that decides by calling tools over MCP, its steps shown as it takes them and its full reasoning revealed once the hand is over. At blackjack it is a coach: ask, and it tells you what it would do, why, and what each play is worth, and after the round it grades each decision you made and says what a mistake cost. At roulette there is nothing to coach, so it is an analyst: it tells you how often your layout wins, what it costs, and that no system changes either.
+- **Banca at every table.** At poker it is an opponent that decides by calling tools over MCP, its steps shown as it takes them and its full reasoning revealed once the hand is over. A second agent, given only your own cards and sharing nothing with the first, will coach you against it if you ask. At blackjack it is a coach: ask, and it tells you what it would do, why, and what each play is worth, and after the round it grades each decision you made and says what a mistake cost. At roulette there is nothing to coach, so it is an analyst: it tells you how often your layout wins, what it costs, and that no system changes either.
 - **With other people, or alone.** Up to five players sit down with Banca at a poker table; several face one dealer at a blackjack table and act in turn against a clock; one wheel turns for everyone in a roulette room. Players see each other's chips and can chat. Every game also has a table to yourself.
 - **Tables that outlive connections.** The server keeps the table, so a dropped connection or a reload finds your round as you left it.
 - **One bankroll.** Chips, history and statistics belong to the player and follow them from table to table. Play as a guest at once, or sign in with Google to keep your profile and reach it from another device.
@@ -21,7 +21,7 @@ A multi-game social casino played with virtual chips: Texas Hold'em, blackjack a
 - **A profile built from real rounds.** Levels, achievements, a bankroll chart and statistics for each game, all worked out from the rounds actually played.
 - **Weekly leagues.** Signed-in players are ranked each week by what they won at the tables, in five leagues from Bronze to Emerald. The top three go up and are paid a prize, and keep a dated trophy for good, shown on a public page anyone can open from the leaderboard.
 
-**Still to come:** a coach at the poker table, a first-run tutorial, and the polish that makes it install and feel like an app.
+**Still to come:** a first-run tutorial, and the polish that makes it install and feel like an app.
 
 ## Why it exists
 

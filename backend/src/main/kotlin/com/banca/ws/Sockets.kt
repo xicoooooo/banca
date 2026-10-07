@@ -53,7 +53,7 @@ fun Application.configureGameSockets(
 
         val sharedPoker = pokerTables.tables.map { spec -> PokerRoom(spec, pokerTables, scope = this@configureGameSockets) }
         for (table in sharedPoker) {
-            gameSocket("/ws/poker/tables/${table.id}", players, tables) { send, session -> PokerSeat(table, send, session) }
+            gameSocket("/ws/poker/tables/${table.id}", players, tables) { send, session -> PokerSeat(table, pokerTables.coach, send, session) }
         }
         get("/poker/tables") {
             call.respond(sharedPoker.map { it.summary() })

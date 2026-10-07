@@ -1,6 +1,6 @@
-import { useState, type CSSProperties } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import { sound } from '../casino/sound'
-import type { ActMessage, LegalView } from './types'
+import type { ActMessage, LegalView, PokerAdvice } from './types'
 
 const chips = (amount: number) => amount.toLocaleString('en-US')
 
@@ -9,14 +9,27 @@ type ActionBarProps = {
   pot: number
   committed: number
   send: (message: ActMessage) => void
+  /** What the coach has advised, if it has been asked. It is marked and sized, never pressed for the player. */
+  advised?: PokerAdvice | null
+  /** The coach's button. It takes the place of the sizing label, so asking costs the table no height. */
+  coach?: ReactNode
 }
 
 /** Fold, call and raise, with a sizing control when a bet or raise is possible. */
-export function ActionBar({ legal, pot, committed, send }: ActionBarProps) {
+export function ActionBar({ legal, pot, committed, send, advised = null, coach }: ActionBarProps) {
   const canSize = legal.canBet || legal.canRaise
   const min = legal.canBet ? legal.minBet : legal.minRaiseTo
   const max = legal.maxTo
   const [amount, setAmount] = useState(min)
+
+  // When the coach advises a size, the slider is set to it once, and is the player's to move again.
+  const [sizedFor, setSizedFor] = useState<PokerAdvice | null>(null)
+  if (advised && advised !== sizedFor) {
+    setSizedFor(advised)
+    if (advised.amount !== null) setAmount(advised.amount)
+  }
+  const advisedButton = !advised ? null : advised.action === 'fold' ? 'fold' : advised.action === 'check' || advised.action === 'call' ? 'call' : 'raise'
+  const coachNote = <span className="sr-only"> (the coach's advice)</span>
 
   const clamp = (value: number) => Math.min(max, Math.max(min, Math.round(value)))
   const chosen = clamp(amount)
@@ -45,10 +58,11 @@ export function ActionBar({ legal, pot, committed, send }: ActionBarProps) {
 
   return (
     <div className="rise-in flex flex-col gap-2.5">
+      {!canSize && coach && <div className="flex justify-center">{coach}</div>}
       {canSize && (
         <div className="flex flex-col gap-1">
-          <div className="flex items-end justify-between">
-            <span className="label pb-1.5">{legal.canBet ? 'Bet' : 'Raise to'}</span>
+          <div className="flex items-end justify-between gap-2">
+            {coach ?? <span className="label pb-1.5">{legal.canBet ? 'Bet' : 'Raise to'}</span>}
             <input
               type="number"
               inputMode="numeric"
@@ -60,7 +74,8 @@ export function ActionBar({ legal, pot, committed, send }: ActionBarProps) {
               onBlur={() => setAmount(chosen)}
               className="amount-field figure"
             />
-            <span className="label figure pb-1.5">of {chips(max)}</span>
+            {/* Beside the coach there is no room for it on a phone, and All-in says the same. */}
+            <span className={`label figure pb-1.5 ${coach ? 'max-[480px]:hidden' : ''}`}>of {chips(max)}</span>
           </div>
 
           <input
@@ -98,9 +113,11 @@ export function ActionBar({ legal, pot, committed, send }: ActionBarProps) {
             onClick={() => act('fold', { type: 'act', action: 'fold' })}
             disabled={pending !== null}
             data-pending={pending === 'fold'}
+            data-advised={advisedButton === 'fold'}
             className="btn btn--fold flex-1"
           >
             Fold
+            {advisedButton === 'fold' && coachNote}
           </button>
         )}
 
@@ -110,9 +127,11 @@ export function ActionBar({ legal, pot, committed, send }: ActionBarProps) {
             onClick={() => act('call', { type: 'act', action: 'check' })}
             disabled={pending !== null}
             data-pending={pending === 'call'}
+            data-advised={advisedButton === 'call'}
             className="btn btn--call flex-1"
           >
             Check
+            {advisedButton === 'call' && coachNote}
           </button>
         ) : (
           <button
@@ -120,9 +139,11 @@ export function ActionBar({ legal, pot, committed, send }: ActionBarProps) {
             onClick={() => act('call', { type: 'act', action: 'call' })}
             disabled={pending !== null}
             data-pending={pending === 'call'}
+            data-advised={advisedButton === 'call'}
             className="btn btn--call flex-1"
           >
             Call <span className="figure">{chips(legal.callCost)}</span>
+            {advisedButton === 'call' && coachNote}
           </button>
         )}
 
@@ -132,6 +153,8 @@ export function ActionBar({ legal, pot, committed, send }: ActionBarProps) {
             onClick={() => act('raise', { type: 'act', action: legal.canBet ? 'bet' : 'raise', amount: chosen })}
             disabled={pending !== null}
             data-pending={pending === 'raise'}
+            // The mark is for the size the coach named; move the slider and it is the player's own bet.
+            data-advised={advisedButton === 'raise' && chosen === advised?.amount}
             className="btn btn--raise flex-[1.2]"
           >
             {chosen === max ? 'All-in' : legal.canBet ? 'Bet' : 'Raise'} <span className="figure">{chips(chosen)}</span>

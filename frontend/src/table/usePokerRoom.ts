@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import type { ChatLine, Phrase } from '../casino/room'
 import { useChipNotices } from '../casino/useChipNotices'
 import { useSocket } from '../casino/useSocket'
+import { usePokerCoaching } from './coaching'
 import type { PokerRoomClientMessage, PokerRoomServerMessage, PokerRoomView, TraceEvent } from './types'
 import type { Reasoning } from './useTable'
 
@@ -28,6 +29,8 @@ export function usePokerRoom(tableId: string) {
   const [phrases, setPhrases] = useState<Phrase[]>([])
   const chips = useChipNotices()
   const lastWait = useRef('')
+  // Only the player's own turn is a decision to be coached on.
+  const coaching = usePokerCoaching(room?.yourTurn ? room.table : null)
 
   const heard = (handNumber: number, event: TraceEvent) =>
     setReasoning((current) => ({
@@ -74,7 +77,14 @@ export function usePokerRoom(tableId: string) {
       case 'chat':
         setChat((lines) => [...lines, message.line].slice(-CHAT_KEPT))
         break
+      case 'coach_trace':
+        coaching.heardStep(message.event)
+        break
+      case 'advice':
+        coaching.heardAdvice(message.advice)
+        break
       case 'error':
+        coaching.gaveUp()
         if (message.code === 'full') setFull(true)
         setError(message.message)
         setRefusals((count) => count + 1)
@@ -98,5 +108,9 @@ export function usePokerRoom(tableId: string) {
     broke: chips.broke,
     staked: chips.staked,
     retry: chips.dealt,
+    coach: coaching.coach,
+    askCoach: () => {
+      if (coaching.begin()) send({ type: 'advise' })
+    },
   }
 }

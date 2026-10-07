@@ -94,19 +94,26 @@ class PokerTools(
         put("note", "Amounts are the total to have in front of you this street. The max is all-in.")
     }
 
-    fun handEquity(): JsonObject {
-        val opponents = view.players.count { it.seat != me.seat && it.status != "folded" }
-        val equity = PokerMath.equity(
+    /** How many others are still in the hand. */
+    val opponents: Int = view.players.count { it.seat != me.seat && it.status != "folded" }
+
+    /**
+     * How often this hand wins against that many random ones. Estimated once
+     * for the decision, so everything that quotes it quotes the same figure.
+     */
+    val equity: Double by lazy {
+        PokerMath.equity(
             hole = me.cards.orEmpty().map(Card::of),
             board = view.board.map(Card::of),
             opponents = opponents,
             iterations = equityIterations,
             random = random,
         )
-        return buildJsonObject {
-            put("equity", equity.rounded())
-            put("against", "$opponents random hand${if (opponents == 1) "" else "s"}")
-        }
+    }
+
+    fun handEquity(): JsonObject = buildJsonObject {
+        put("equity", equity.rounded())
+        put("against", "$opponents random hand${if (opponents == 1) "" else "s"}")
     }
 
     fun potOdds(): JsonObject = buildJsonObject {
@@ -151,7 +158,38 @@ class PokerTools(
         return "Accepted: ${describe(action)}."
     }
 
-    fun server(): Server {
+    /** The tools as the seat's own player uses them: four to look with and one to act with. */
+    fun server(): Server = server(
+        finishingTool = SUBMIT_ACTION,
+        finishingDescription = "Commits your decision for this turn. Call it exactly once, after you have decided.",
+        finishingProperties = buildJsonObject {
+            putJsonObject("action") {
+                put("type", "string")
+                putJsonArray("enum") {
+                    listOf("fold", "check", "call", "bet", "raise").forEach { add(JsonPrimitive(it)) }
+                }
+            }
+            putJsonObject("amount") {
+                put("type", "integer")
+                put("description", "Only for bet or raise: the total to have in front of you this street.")
+            }
+        },
+        finishingRequired = listOf("action"),
+        finish = ::submit,
+    )
+
+    /**
+     * The four tools that look at the table, with whatever ends the job in
+     * place of the fifth. An opponent ends by acting and a coach by advising,
+     * and both read the table through exactly the same eyes.
+     */
+    fun server(
+        finishingTool: String,
+        finishingDescription: String,
+        finishingProperties: JsonObject,
+        finishingRequired: List<String>,
+        finish: (JsonObject?) -> String,
+    ): Server {
         val server = Server(
             Implementation(name = "banca-poker", version = "0.1.0"),
             ServerOptions(capabilities = ServerCapabilities(tools = ServerCapabilities.Tools())),
@@ -185,24 +223,10 @@ class PokerTools(
         ) { reply(potOdds().toString()) }
 
         server.addTool(
-            name = SUBMIT_ACTION,
-            description = "Commits your decision for this turn. Call it exactly once, after you have decided.",
-            inputSchema = ToolSchema(
-                properties = buildJsonObject {
-                    putJsonObject("action") {
-                        put("type", "string")
-                        putJsonArray("enum") {
-                            listOf("fold", "check", "call", "bet", "raise").forEach { add(JsonPrimitive(it)) }
-                        }
-                    }
-                    putJsonObject("amount") {
-                        put("type", "integer")
-                        put("description", "Only for bet or raise: the total to have in front of you this street.")
-                    }
-                },
-                required = listOf("action"),
-            ),
-        ) { request -> reply(submit(request.arguments)) }
+            name = finishingTool,
+            description = finishingDescription,
+            inputSchema = ToolSchema(properties = finishingProperties, required = finishingRequired),
+        ) { request -> reply(finish(request.arguments)) }
 
         return server
     }

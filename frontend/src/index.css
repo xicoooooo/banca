@@ -2968,3 +2968,14 @@ button {
 .graded[data-verdict='mistake'] .graded__verdict {
   color: #f0a08e;
 }
+
+/* Shown only where there is height to spare; a phone reads it in the coach's panel. */
+.coach-reason--roomy {
+  display: none;
+}
+
+@media (min-height: 900px) {
+  .coach-reason--roomy {
+    display: -webkit-box;
+  }
+}

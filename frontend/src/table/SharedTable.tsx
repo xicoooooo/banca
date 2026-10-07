@@ -14,6 +14,7 @@ import { ActionBar } from './ActionBar'
 import { AgentThinking } from './AgentThinking'
 import { Board } from './Board'
 import { Pot } from './Pot'
+import { PokerCoachPanel, PokerCoachPill, PokerCoachReason } from './PokerCoach'
 import { ReasoningPanel } from './ReasoningPanel'
 import { Seat } from './Seat'
 import type { PlayerView, PokerRoomView, TableView } from './types'
@@ -139,11 +140,13 @@ function Outcome({ view, seconds, onShowReasoning }: { view: TableView; seconds:
  * controls are as at a table alone; everyone else sits in a row across the top.
  */
 export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: () => void }) {
-  const { room, endsAt, waitMs, reasoning, connection, error, full, refusals, send, chat, phrases, broke, staked, retry } = usePokerRoom(tableId)
+  const { room, endsAt, waitMs, reasoning, connection, error, full, refusals, send, chat, phrases, broke, staked, retry, coach, askCoach } =
+    usePokerRoom(tableId)
   const view = room?.table ?? null
   const { actions, showdown, potPulse } = usePresentation(view)
   const seconds = useSecondsUntil(endsAt)
   const [showReasoning, setShowReasoning] = useState(false)
+  const [showCoach, setShowCoach] = useState(false)
   const [showRoom, setShowRoom] = useState(false)
   const [heard, setHeard] = useState(0)
   // Who this player would rather not hear from. Kept on this device only, for this visit.
@@ -292,14 +295,19 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
         ) : over ? (
           <Outcome view={view} seconds={seconds} onShowReasoning={reasoning.events.length > 0 ? () => setShowReasoning(true) : undefined} />
         ) : room.yourTurn && view.legal && me ? (
-          <ActionBar
-            // A fresh decision gets fresh controls, so an amount never carries over.
-            key={`${view.handNumber}-${view.street}-${view.legal.minRaiseTo}-${view.legal.callCost}-${refusals}`}
-            legal={view.legal}
-            pot={view.pot}
-            committed={me.committed}
-            send={send}
-          />
+          <>
+            <PokerCoachReason coach={coach} />
+            <ActionBar
+              // A fresh decision gets fresh controls, so an amount never carries over.
+              key={`${view.handNumber}-${view.street}-${view.legal.minRaiseTo}-${view.legal.callCost}-${refusals}`}
+              legal={view.legal}
+              pot={view.pot}
+              committed={me.committed}
+              send={send}
+              advised={coach.advice}
+              coach={<PokerCoachPill coach={coach} onAsk={askCoach} onOpen={() => setShowCoach(true)} />}
+            />
+          </>
         ) : (
           <p className="label pb-6 text-center leading-relaxed">
             {room.phase === 'waiting'
@@ -315,6 +323,9 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
         )}
       </footer>
 
+      {showCoach && room.yourTurn && view && coach.status !== 'idle' && (
+        <PokerCoachPanel coach={coach} handNumber={view.handNumber} onClose={() => setShowCoach(false)} />
+      )}
       {showReasoning && <ReasoningPanel reasoning={reasoning} name="Banca" thinking={bancaThinking} onClose={() => setShowReasoning(false)} />}
       {showRoom && (
         <RoomDrawer

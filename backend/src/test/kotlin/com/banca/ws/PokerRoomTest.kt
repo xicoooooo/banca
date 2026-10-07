@@ -293,4 +293,51 @@ class PokerRoomTest {
             assertEquals("Good luck", nextOf("chat").getValue("line").jsonObject.getValue("text").jsonPrimitive.content)
         }
     }
+
+    @Test
+    fun `the coach answers the player who asked, about their own hand, and nobody else hears it`() {
+        val host = TestPlayers()
+        val (_, otherToken) = anotherPlayerOf(host)
+        val overheard = mutableListOf<String>()
+
+        testApplication {
+            serve(host, quick.let { PokerTimings(turn = 6_000.milliseconds, turnAway = it.turnAway, results = it.results, agentDelay = Duration.ZERO) })
+
+            sockets().webSocket("/ws/poker/tables/emerald") {
+                sayHello(host.token)
+                nextOf("chat_log")
+
+                val other = launch {
+                    sockets().webSocket("/ws/poker/tables/emerald") {
+                        sayHello(otherToken)
+                        // Plays along and notes every kind of message that reaches this seat.
+                        while (true) {
+                            val message = receiveJson()
+                            overheard += message.type
+                            if (message.type != "state") continue
+                            val view = message.getValue("view").jsonObject
+                            if (view.myTurn) {
+                                val canCheck = view.table.getValue("legal").jsonObject.getValue("canCheck").jsonPrimitive.boolean
+                                say("""{"type":"act","action":"${if (canCheck) "check" else "call"}"}""")
+                            }
+                        }
+                    }
+                }
+
+                say("""{"type":"advise"}""".also { viewWhere { it.myTurn } })
+                val advice = nextOf("advice").getValue("advice").jsonObject
+                assertTrue(advice.getValue("reason").jsonPrimitive.content.isNotBlank())
+                assertTrue(advice.getValue("figures").jsonObject.getValue("opponents").jsonPrimitive.int >= 1)
+
+                say("""{"type":"act","action":"fold"}""")
+                viewWhere { !it.myTurn }
+                say("""{"type":"advise"}""")
+                assertEquals("error", nextOf("error").type, "with no decision of their own there is nothing to ask about")
+
+                other.cancel()
+            }
+        }
+
+        assertTrue("coach_trace" !in overheard && "advice" !in overheard, "advice is for the player who asked: $overheard")
+    }
 }

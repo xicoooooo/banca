@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useChipNotices } from '../casino/useChipNotices'
 import { useSocket } from '../casino/useSocket'
+import { usePokerCoaching } from './coaching'
 import type { ClientMessage, ServerMessage, TableView, TraceEvent } from './types'
 
 /** What the opponent did to reach its decisions in one hand. */
@@ -21,6 +22,7 @@ export function useTable() {
   // Counts refusals, so the same error twice in a row is still seen as news.
   const [refusals, setRefusals] = useState(0)
   const chips = useChipNotices()
+  const coaching = usePokerCoaching(view)
 
   const { connection, sittings, send } = useSocket<ServerMessage, ClientMessage>('/ws/table', (message) => {
     switch (message.type) {
@@ -50,14 +52,25 @@ export function useTable() {
       case 'reveal':
         setReasoning({ handNumber: message.handNumber, events: message.events, revealed: true })
         break
+      case 'coach_trace':
+        coaching.heardStep(message.event)
+        break
+      case 'advice':
+        coaching.heardAdvice(message.advice)
+        break
       case 'error':
         setError(message.message)
         setRefusals((count) => count + 1)
+        coaching.gaveUp()
         break
     }
   })
 
+  const askCoach = () => {
+    if (coaching.begin()) send({ type: 'advise' })
+  }
+
   // Sitting back down after a drop gives the controls back, as a refusal does:
   // whatever was pressed as the line went down was never heard.
-  return { view, reasoning, connection, error, refusals: refusals + sittings, send, broke: chips.broke, staked: chips.staked }
+  return { view, reasoning, connection, error, refusals: refusals + sittings, send, broke: chips.broke, staked: chips.staked, coach: coaching.coach, askCoach }
 }

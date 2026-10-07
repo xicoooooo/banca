@@ -10,6 +10,7 @@ import { AgentThinking } from './AgentThinking'
 import { Board } from './Board'
 import { HandResult } from './HandResult'
 import { Pot } from './Pot'
+import { PokerCoachPanel, PokerCoachPill, PokerCoachReason } from './PokerCoach'
 import { ReasoningPanel } from './ReasoningPanel'
 import { Seat } from './Seat'
 import type { TableView } from './types'
@@ -28,9 +29,10 @@ function statusOf(view: TableView): Status {
 }
 
 export function Table({ onLeave }: { onLeave?: () => void }) {
-  const { view, reasoning, connection, error, refusals, send, broke, staked } = useTable()
+  const { view, reasoning, connection, error, refusals, send, broke, staked, coach, askCoach } = useTable()
   const { actions, showdown, potPulse } = usePresentation(view)
   const [showReasoning, setShowReasoning] = useState(false)
+  const [showCoach, setShowCoach] = useState(false)
   // The hand being cleared away, if Next hand has just been pressed.
   const [clearing, setClearing] = useState<number | null>(null)
 
@@ -120,20 +122,28 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
             onShowReasoning={reasoning.events.length > 0 ? () => setShowReasoning(true) : undefined}
           />
         ) : view.legal ? (
-          <ActionBar
-            // A fresh decision gets fresh controls, so an amount never carries over.
-            // A refusal means the last action did not stand, so the controls come back.
-            key={`${view.handNumber}-${view.street}-${view.legal.minRaiseTo}-${view.legal.callCost}-${refusals}`}
-            legal={view.legal}
-            pot={view.pot}
-            committed={me.committed}
-            send={send}
-          />
+          <>
+            <PokerCoachReason coach={coach} />
+            <ActionBar
+              // A fresh decision gets fresh controls, so an amount never carries over.
+              // A refusal means the last action did not stand, so the controls come back.
+              key={`${view.handNumber}-${view.street}-${view.legal.minRaiseTo}-${view.legal.callCost}-${refusals}`}
+              legal={view.legal}
+              pot={view.pot}
+              committed={me.committed}
+              send={send}
+              advised={coach.advice}
+              coach={<PokerCoachPill coach={coach} onAsk={askCoach} onOpen={() => setShowCoach(true)} />}
+            />
+          </>
         ) : (
           <p className="label pb-6 text-center">{opponent.name} is deciding</p>
         )}
       </footer>
 
+      {showCoach && view.legal && coach.status !== 'idle' && (
+        <PokerCoachPanel coach={coach} handNumber={view.handNumber} onClose={() => setShowCoach(false)} />
+      )}
       {showReasoning && (
         <ReasoningPanel
           reasoning={reasoning}

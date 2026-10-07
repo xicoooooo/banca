@@ -51,17 +51,33 @@ export type TraceEvent = {
   detail: string | null
 }
 
+/** The numbers behind a piece of advice: how often the hand wins against random ones, the same marked down when someone has bet, and what a call must win to pay. */
+export type PokerFigures = { equity: number; againstABet: number | null; opponents: number; potOdds: number; pot: number; callCost: number }
+
+/** What the coach advises. `amount` is the total to have in front of you, for a bet or a raise. */
+export type PokerAdvice = {
+  action: 'fold' | 'check' | 'call' | 'bet' | 'raise'
+  amount: number | null
+  reason: string
+  figures: PokerFigures
+  /** "banca" when the model put it into words, "book" when the rule of thumb spoke for itself. */
+  source: 'banca' | 'book'
+}
+
 export type ServerMessage =
   | ChipNotice
   | { type: 'state'; view: TableView }
   | { type: 'trace'; handNumber: number; event: TraceEvent }
   | { type: 'reveal'; handNumber: number; events: TraceEvent[] }
+  | { type: 'coach_trace'; handNumber: number; event: TraceEvent }
+  | { type: 'advice'; handNumber: number; advice: PokerAdvice }
   | { type: 'error'; message: string }
 
 export type ClientMessage =
   | { type: 'act'; action: 'fold' | 'check' | 'call' }
   | { type: 'act'; action: 'bet' | 'raise'; amount: number }
   | { type: 'next_hand' }
+  | { type: 'advise' }
 
 /** A play on a hand, which is said the same way at a table alone and at a shared one. */
 export type ActMessage = Extract<ClientMessage, { type: 'act' }>
@@ -92,9 +108,12 @@ export type PokerRoomServerMessage =
   | { type: 'reveal'; handNumber: number; events: TraceEvent[] }
   | { type: 'chat_log'; lines: ChatLine[]; phrases: Phrase[] }
   | { type: 'chat'; line: ChatLine }
+  | { type: 'coach_trace'; handNumber: number; event: TraceEvent }
+  | { type: 'advice'; handNumber: number; advice: PokerAdvice }
   | { type: 'error'; message: string; code?: string }
 
 export type PokerRoomClientMessage =
+  | { type: 'advise' }
   | { type: 'act'; action: 'fold' | 'check' | 'call' }
   | { type: 'act'; action: 'bet' | 'raise'; amount: number }
   | { type: 'chat'; say: string }

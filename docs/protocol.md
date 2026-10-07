@@ -208,6 +208,29 @@ The opponent's full reasoning for a hand, sent once, straight after the `state` 
 
 Not sent for a hand in which the opponent never had to decide.
 
+### `coach_trace` and `advice`
+
+Sent only after the player asks the coach with `advise`.
+
+```json
+{ "type": "coach_trace", "handNumber": 1, "event": { "kind": "tool", "label": "Estimated how often you win", "detail": "get_hand_equity → {\"equity\":0.682, ...}" } }
+{
+  "type": "advice",
+  "handNumber": 1,
+  "advice": {
+    "action": "call",
+    "amount": null,
+    "reason": "You win about 58% of the time against someone who is betting, and the call only needs 25%.",
+    "figures": { "equity": 0.682, "againstABet": 0.582, "opponents": 1, "potOdds": 0.25, "pot": 30, "callCost": 10 },
+    "source": "banca"
+  }
+}
+```
+
+The coach is a second agent, apart from the one in the opponent's seat. It is built for each question from the asking player's own `view` and from nothing else, so it knows no card they do not, and the opponent's reasoning never reaches it. For that reason each `coach_trace` carries its `detail` at once, where the opponent's `trace` holds it back.
+
+`action` is `fold`, `check`, `call`, `bet` or `raise`, and `amount` is the total to have in front of the player, for a bet or a raise. `figures.equity` is how often the hand wins if played to the end against `opponents` random hands, estimated once for the decision; `againstABet` is that figure less ten points, to allow for a bettor holding better than a random hand, and is null when nobody has bet; `potOdds` is how often a call must win to pay for itself. `source` is `banca` when the model put the advice into words and `book` when it could not and a rule of thumb answered from the figures.
+
 ### `error`
 
 The last message could not be applied. The table is unchanged and the connection stays open.
@@ -238,9 +261,19 @@ The last message could not be applied. The table is unchanged and the connection
 
 Deals the next hand once the current one is over. The button moves one seat. If a player is out of chips, both stacks are reset.
 
+### `advise`
+
+```json
+{ "type": "advise" }
+```
+
+Asks the coach about the decision in front of the player, and is refused when it is not their turn. The answer arrives in its own time; the player may act without waiting, and advice for a decision already made is never sent. Asking again about the same decision repeats the same advice.
+
 ## Rules the server enforces
 
 The client renders and never decides. Every action is validated on the server, and anything illegal is answered with an `error`. No message ever carries cards the receiving seat is not entitled to see.
+
+Poker has no play that is simply right, so the coach's advice is not checked against a best answer as it is at blackjack. It is checked against the figures: it must be a play open to the player, and it may not go plainly against the numbers. Folding when checking is free, folding a hand that wins far more often than a call needs, calling with one that wins far less, and betting or raising as a bluff are all sent back to the model to think again. Within those bounds the choice is the coach's. A model that fails, stalls or will not settle is replaced by the rule of thumb.
 
 ---
 
@@ -669,7 +702,7 @@ Hands follow one another without anyone asking. A player who sits down while a h
 { "type": "chat", "text": "Nice hand" }
 ```
 
-`act` is as at the table for one, and is refused unless it is the player's turn. There is no `next_hand`: the table deals.
+`act` is as at the table for one, and is refused unless it is the player's turn. There is no `next_hand`: the table deals. `advise` is as at the table for one.
 
 ## Server to client
 
@@ -704,6 +737,10 @@ Hands follow one another without anyone asking. A player who sits down while a h
 ### `trace` and `reveal`
 
 As at the table for one, and sent to everyone at the table: each step Banca takes is shown as it happens with nothing private in it, and its full reasoning for the hand is sent once the hand is over.
+
+### `coach_trace` and `advice`
+
+As at the table for one, and sent only to the player who asked. Nobody else at the table is told that the coach was asked, or what it said.
 
 ### `chat_log`, `chat` and `error`
 

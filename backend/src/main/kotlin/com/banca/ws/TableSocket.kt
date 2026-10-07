@@ -1,5 +1,8 @@
 package com.banca.ws
 
+import com.banca.agents.BookPokerAdvisor
+import com.banca.agents.PokerAdvice
+import com.banca.agents.PokerAdvisor
 import com.banca.games.poker.Action
 import com.banca.players.FinishedRound
 import com.banca.players.Funding
@@ -11,6 +14,7 @@ import com.banca.sessions.PokerTable
 import com.banca.sessions.SeatDriver
 import com.banca.sessions.TraceEvent
 import kotlinx.coroutines.delay
+import org.slf4j.LoggerFactory
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.util.UUID
@@ -32,6 +36,8 @@ class TableSocketConfig(
     val opponentDelay: Duration = 700.milliseconds,
     val opponent: () -> SeatDriver = { PassiveBot() },
     val random: () -> Random = { Random.Default },
+    /** Who answers when the player asks what to do. The rule of thumb, unless a model is given. */
+    val coach: PokerAdvisor = BookPokerAdvisor(),
 )
 
 /**
@@ -66,6 +72,11 @@ class PokerConnection(
 
     private var seated = false
 
+    private val log = LoggerFactory.getLogger(PokerConnection::class.java)
+
+    /** The coach, asked about one decision at a time. It is no part of the opponent and is told nothing by it. */
+    private val coaching = Consultation<PokerAdvice>()
+
     override suspend fun attached() {
         // The first time, a hand is dealt. Coming back, the hand is as it was left.
         if (!seated) {
@@ -99,8 +110,14 @@ class PokerConnection(
 
     override suspend fun received(text: String) {
         when (val message = wireJson.decodeFromString<ClientMessage>(text)) {
+            is ClientMessage.Advise -> {
+                advise()
+                return
+            }
             is ClientMessage.Act -> {
                 table.act(HUMAN_SEAT, message.toAction())
+                // Advice for a decision that has been made is of no use to anyone.
+                coaching.cancel()
                 actions.merge(message.action, 1, Int::plus)
             }
             // With nothing to play with there is no new hand, and nothing new to show.
@@ -112,6 +129,33 @@ class PokerConnection(
         pushState()
         playOpponentTurns()
     }
+
+    /**
+     * Sets the coach to work on the decision in front of the player. It is
+     * given their view of the table and nothing else, answers in its own time,
+     * and is stopped if they act first.
+     */
+    private suspend fun advise() {
+        check(!table.isHandComplete && table.actorSeat == HUMAN_SEAT) { "There is nothing to advise on right now" }
+        val view = table.view(HUMAN_SEAT)
+        val question = PokerHouse.decisionIn(view)
+
+        coaching.ask(
+            question = question,
+            work = { config.coach.advise(view) { event -> emit(ServerMessage.CoachTrace(view.handNumber, event)) } },
+            deliver = { advice ->
+                val stillAsked = !table.isHandComplete && PokerHouse.decisionIn(table.view(HUMAN_SEAT)) == question
+                if (stillAsked) emit(ServerMessage.Advised(view.handNumber, advice))
+            },
+            failed = { failure ->
+                // A coach that breaks must not take the table with it.
+                log.warn("The poker coach failed", failure)
+                send(refusal("The coach could not be reached. Try again."))
+            },
+        )
+    }
+
+    override fun detached() = coaching.cancel()
 
     /** Deals the next hand, or says why not and returns false. */
     private suspend fun deal(): Boolean {

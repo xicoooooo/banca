@@ -137,8 +137,8 @@ Nothing runs on a timer. A finished week is settled once, by the first request t
 Partly built. This is the feature that separates Banca from an ordinary social casino: the same agent that plays against you can teach you, and its reasoning is visible either way.
 
 - **Before acting, built at blackjack and roulette.** At blackjack the player asks and Banca answers with a play, a reason, and what every play open to them is worth. Those figures are computed on the server from the rules, and the model's advice is passed on only if it agrees with them; otherwise the figures answer in its place. At roulette the answer is a read of the layout: how often it comes out ahead, the best it can do, and what it costs on average.
-- **After the round, built at blackjack.** Every decision the player made is graded against the same figures: the best play, a slip, or a mistake, with what it gave up in chips and why the better play was better. It grades the choice and never the outcome, and it is computed on the server with no model involved, so it is there after every round at no cost to the free tier. Roulette has no decisions to grade. Poker's grading waits on the poker coach (section 15).
-- **At the poker table, to build.** Banca is the opponent there, so a coach must be a second agent given only the player's view.
+- **After the round, built at blackjack.** Every decision the player made is graded against the same figures: the best play, a slip, or a mistake, with what it gave up in chips and why the better play was better. It grades the choice and never the outcome, and it is computed on the server with no model involved, so it is there after every round at no cost to the free tier. Roulette has no decisions to grade. Grading a poker hand is still an open question (section 15).
+- **At the poker table, built.** Banca is the opponent there, so the coach is a second agent: built afresh for each question from the asking player's own view, reading the table through the same four tools the opponent uses, and sharing nothing with it. At a shared table its answer goes to the asker alone. Poker has no single right play, so the standard is looser than at blackjack: advice must be open to the player and must not go plainly against the figures (no folding for nothing, no paying far more than a hand is worth, no bluffs), and within that the coach chooses. The interface says as much: a read, not an answer. Grading a poker hand afterwards is still open (section 15).
 
 ### 7.8 Social
 Shared tables and rooms are built (section 6). Each has its own chat: a row of set phrases and emotes, and free text. The first draft allowed only the phrases, to avoid moderation; free text was added because a room where people cannot talk is not a room. What makes that affordable is that the server tidies every line (one line, 140 characters, links removed, the worst words starred), limits how often anyone speaks, keeps nothing once the server stops, and lets each player mute any other. Friends lists and private tables by invite remain a stretch.
@@ -148,8 +148,8 @@ A plain statement that chips are play money with no real value and no way to buy
 
 ### 7.10 Staging
 
-- **Built:** identity, profile and stats, levels and achievements, daily rewards, bust protection, the coach before a decision at blackjack and roulette, grading after a blackjack round, shared tables with chat, leagues, trophies and public pages.
-- **Left for v1 (through Phase 7):** the poker coach and its grading, the tutorial, PWA install, accessibility pass.
+- **Built:** identity, profile and stats, levels and achievements, daily rewards, bust protection, the coach before a decision at all three games, grading after a blackjack round, shared tables with chat, leagues, trophies and public pages.
+- **Left for v1 (through Phase 7):** the tutorial, PWA install, accessibility pass.
 - **Later:** unlocks by level, friends and private tables by invite, daily missions, round replay with the agent's reasoning attached, spectator mode, tournaments.
 
 ## 8. Components
@@ -197,10 +197,11 @@ It talks to a `ModelProvider`: Ollama, any OpenAI-compatible host (Groq when dep
 One small MCP server per role, connected to the runtime over an in-process transport: the same protocol as a separate server, without a second process to host.
 
 - **Poker opponent:** `get_game_state`, `get_legal_actions`, `get_hand_equity` (Monte Carlo, computed locally), `get_pot_odds`, `submit_action`
-- **Blackjack coach:** `get_table_state`, `get_action_values`
-- **Roulette analyst:** `get_layout`, `get_chances`, `get_cost`
+- **Poker coach:** the opponent's four reading tools, built from the asking player's view, and `give_advice` in place of `submit_action`
+- **Blackjack coach:** `get_table_state`, `get_action_values`, `get_odds`, `give_advice`
+- **Roulette analyst:** `get_layout`, `get_chances`, `get_cost`, `give_read`
 
-A tool never exposes what its seat is not entitled to. The analyst is given no history of the wheel, so it has nothing from which to say a number is due. Only the opponent can act, and what it submits is validated by the engine like anyone's action.
+A tool never exposes what its seat is not entitled to. The analyst is given no history of the wheel, so it has nothing from which to say a number is due. Only the opponent can act: a coach has no tool that plays a hand, and what it submits is validated by the engine like anyone's action.
 
 ### 8.11 Persistence (`db/migrations`)
 Postgres: `profiles`, `player_tokens`, `wallet_entries`, `rounds`, `round_actions`, `round_results`, `league_weeks`, `league_results`. A round is written when it completes, with its result and the ledger entry in one transaction. Live tables are not persisted; a backend restart ends the rounds in play and charges nothing for them.
@@ -248,7 +249,7 @@ A lobby, a picker and table for each game in both forms, the profile, the league
 | 3. Blackjack | Second game, with Banca as coach | Done |
 | 4. Roulette | Third game, with Banca as analyst | Done |
 | 5. Platform | Lobby, shared wallet, guest identity and Google sign-in, tables that survive reconnects, shared tables and rooms at all three games, chat | Done |
-| 6. Player experience | Profile and stats, daily rewards, bust protection, coach before a decision, grading after a blackjack round, leagues and trophies: done. Poker coach, tutorial: to do | In progress |
+| 6. Player experience | Profile and stats, daily rewards, bust protection, coach before a decision, grading after a blackjack round, leagues and trophies: done. Tutorial: to do | In progress |
 | 7. Polish and launch | PWA install, accessibility, session reminder, architecture diagram, demo video | To do |
 | 8. Stretch | Unlocks by level, friends and private tables, agent personalities, missions, replay, spectator, tournaments | Open |
 
@@ -297,6 +298,5 @@ The first draft left three questions open and made some choices the build later 
 
 ## 15. Open questions
 
-- **The poker coach.** Banca already sits at the table as an opponent. A coach must be a second agent that sees only the player's cards, and the interface must make plain that the two share nothing.
-- **Grading a poker hand.** Blackjack is graded exactly from the figures (7.7). Poker has no single right play, so its grading needs a standard that is fair without pretending to be exact.
+- **Grading a poker hand.** Blackjack is graded exactly from the figures (7.7). Poker has no single right play, so its grading needs a standard that is fair without pretending to be exact. The bounds the poker coach is held to are a start: a decision could be marked only when it falls outside them.
 - **What levels unlock.** Higher-stake tables are the obvious answer, once there are enough players for more tables to be worth having.
