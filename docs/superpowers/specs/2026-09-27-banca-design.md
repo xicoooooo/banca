@@ -149,7 +149,9 @@ Partly built. This is the feature that separates Banca from an ordinary social c
 Shared tables and rooms are built (section 6). Each has its own chat: a row of set phrases and emotes, and free text. The first draft allowed only the phrases, to avoid moderation; free text was added because a room where people cannot talk is not a room. What makes that affordable is that the server tidies every line (one line, 140 characters, links removed, the worst words starred), limits how often anyone speaks, keeps nothing once the server stops, and lets each player mute any other. Friends lists and private tables by invite remain a stretch.
 
 ### 7.9 Responsible framing and accessibility
-A plain statement that chips are play money with no real value and no way to buy them, in the README, the lobby and the privacy page. A privacy page says what is kept and who can see it. An optional session-length reminder is still to do in Phase 7.
+A plain statement that chips are play money with no real value and no way to buy them, in the README, the lobby and the privacy page. A privacy page says what is kept and who can see it.
+
+**The session reminder.** The chips are play money but the time is real, so after an hour in one sitting Banca says how long it has been and asks whether it is a good moment for a break. It only mentions it: the card covers no controls, stops nothing, and offers "Keep playing" beside "Leave the table". It comes round again after the same length. The player sets the length on their profile (30 minutes, 1 hour, 2 hours) or turns it off; it is on at an hour by default, because a reminder nobody has switched on reminds nobody. A sitting ends after ten minutes with Banca closed or out of sight, and time in a background tab is not counted. All of it is kept in the browser and nothing about how long anyone plays is sent to the server.
 
 Accessibility, as built:
 
@@ -163,7 +165,7 @@ Known limits: the shared tables run on clocks that cannot be extended, so a play
 ### 7.10 Staging
 
 - **Built:** identity, profile and stats, levels and achievements, daily rewards, bust protection, the coach before a decision at all three games, grading after a blackjack round, the tutorial, shared tables with chat, leagues, trophies and public pages.
-- **Left for v1 (through Phase 7):** session reminder.
+- **Left for v1 (through Phase 7):** architecture diagram, demo video.
 - **Later:** unlocks by level, friends and private tables by invite, daily missions, round replay with the agent's reasoning attached, spectator mode, tournaments.
 
 ## 8. Components
@@ -264,7 +266,7 @@ A lobby, a picker and table for each game in both forms, the profile, the league
 | 4. Roulette | Third game, with Banca as analyst | Done |
 | 5. Platform | Lobby, shared wallet, guest identity and Google sign-in, tables that survive reconnects, shared tables and rooms at all three games, chat | Done |
 | 6. Player experience | Profile and stats, daily rewards, bust protection, coach at all three games, grading after a blackjack round, tutorial, leagues and trophies | Done |
-| 7. Polish and launch | PWA install, accessibility: done. Session reminder, architecture diagram, demo video: to do | In progress |
+| 7. Polish and launch | PWA install, accessibility, session reminder: done. Architecture diagram, demo video: to do | In progress |
 | 8. Stretch | Unlocks by level, friends and private tables, agent personalities, missions, replay, spectator, tournaments | Open |
 
 Phases are taken in order. The first draft allowed 20 to 27 weeks; Phases 0 to 6 were done well inside that, with nothing cut from Phase 6.

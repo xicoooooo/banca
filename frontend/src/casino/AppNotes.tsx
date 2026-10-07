@@ -1,4 +1,5 @@
 import { useInstall, useOnline } from './install'
+import { useSessionReminder } from './session'
 
 /**
  * Said across the top of every screen while the device has no network. The
@@ -42,5 +43,39 @@ export function InstallCard() {
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * A word when the player has been at it a while. The chips are play money but
+ * the time is real, so Banca says how long it has been and leaves the choice
+ * with them. It covers nothing they need and stops nothing they are doing.
+ */
+export function SessionReminder() {
+  const reminder = useSessionReminder()
+  if (!reminder) return null
+
+  return (
+    <aside className="guide" aria-label="A reminder of how long you have been playing">
+      <div className="guide__card rise-in" role="status">
+        <p className="label text-gold!">A moment</p>
+        <p className="pt-2 text-sm leading-relaxed text-ivory/90">
+          You have been playing for {reminder.playedFor}. The chips are play money, but the time is yours. A good moment for a break?
+        </p>
+        <div className="flex items-center justify-between gap-3 pt-2.5">
+          <a
+            href="#/"
+            className="guide__skip label"
+            onClick={reminder.keepPlaying}
+          >
+            Leave the table
+          </a>
+          <button type="button" className="btn btn--call px-5! py-2! text-sm" onClick={reminder.keepPlaying}>
+            Keep playing
+          </button>
+        </div>
+        <p className="pt-2 text-xs leading-relaxed text-muted">You can change or turn off this reminder on your profile.</p>
+      </div>
+    </aside>
   )
 }

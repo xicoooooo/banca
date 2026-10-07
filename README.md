@@ -27,7 +27,7 @@ A multi-game social casino played with virtual chips: Texas Hold'em, blackjack a
 
 - **Built to be usable by more people.** Playable from a keyboard, nothing told by colour alone (red is hatched at roulette), and motion that steps aside when the system asks it to.
 
-**Still to come:** the last of the polish.
+- **Mindful of your time.** After an hour in one sitting Banca mentions it and leaves the choice with you. Change the length or turn it off on your profile.
 
 ## Why it exists
 

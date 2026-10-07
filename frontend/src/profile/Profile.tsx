@@ -1,3 +1,4 @@
+import { REMINDER_CHOICES, useReminderSetting } from '../casino/session'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { AnimatedNumber } from '../casino/AnimatedNumber'
 import { CasinoShell } from '../casino/CasinoShell'
@@ -81,6 +82,7 @@ export function Profile({ onLeave, onPlay, onLearn, signInFailed = false }: Prof
               ))}
             </div>
           </Section>
+          <ReminderSetting />
           {dashboard.recent.length > 0 && <Recent recent={dashboard.recent} />}
 
           <p className="label py-2 text-center leading-relaxed">
@@ -91,6 +93,34 @@ export function Profile({ onLeave, onPlay, onLearn, signInFailed = false }: Prof
         </div>
       )}
     </CasinoShell>
+  )
+}
+
+const REMINDER_NAMES: Record<number, string> = { 0: 'Off', 30: '30 minutes', 60: '1 hour', 120: '2 hours' }
+
+/** How long a sitting may run before Banca mentions it. Kept on this device. */
+function ReminderSetting() {
+  const [minutes, setMinutes] = useReminderSetting()
+  return (
+    <Section title="Time at the tables" delay={7}>
+      <p className="pb-3 text-sm leading-relaxed text-ivory/80">
+        Banca can tell you when you have been playing for a while. It only mentions it; what you do is up to you.
+      </p>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Remind me after">
+        {REMINDER_CHOICES.map((choice) => (
+          <button
+            key={choice}
+            type="button"
+            className="btn btn--quiet px-4! text-sm"
+            data-selected={minutes === choice}
+            aria-pressed={minutes === choice}
+            onClick={() => setMinutes(choice)}
+          >
+            {REMINDER_NAMES[choice]}
+          </button>
+        ))}
+      </div>
+    </Section>
   )
 }
 
