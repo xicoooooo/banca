@@ -21,7 +21,9 @@ A multi-game social casino played with virtual chips: Texas Hold'em, blackjack a
 - **A profile built from real rounds.** Levels, achievements, a bankroll chart and statistics for each game, all worked out from the rounds actually played.
 - **Weekly leagues.** Signed-in players are ranked each week by what they won at the tables, in five leagues from Bronze to Emerald. The top three go up and are paid a prize, and keep a dated trophy for good, shown on a public page anyone can open from the leaderboard.
 
-**Still to come:** a first-run tutorial, and the polish that makes it install and feel like an app.
+- **A guide to each game.** The first time you sit down, Banca walks you through a real round, step by step. Skip it, or take it again from your profile.
+
+**Still to come:** the polish that makes it install and feel like an app.
 
 ## Why it exists
 

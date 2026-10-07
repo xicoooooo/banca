@@ -16,6 +16,8 @@ import { Seat } from './Seat'
 import type { TableView } from './types'
 import { usePresentation } from './usePresentation'
 import { useTable } from './useTable'
+import { Guide } from '../guide/Guide'
+import { useGuide } from '../guide/useGuide'
 
 /**
  * The poker table. State comes from the server through [useTable] and is only
@@ -35,6 +37,8 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
   const [showCoach, setShowCoach] = useState(false)
   // The hand being cleared away, if Next hand has just been pressed.
   const [clearing, setClearing] = useState<number | null>(null)
+  // Banca's walk through a first hand: while it is played, and once it is over.
+  const guide = useGuide('poker', view && { round: view.handNumber, stage: view.result ? 1 : 0, idle: view.result !== null })
 
   if (!view) {
     return (
@@ -141,6 +145,7 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
         )}
       </footer>
 
+      <Guide guide={guide} />
       {showCoach && view.legal && coach.status !== 'idle' && (
         <PokerCoachPanel coach={coach} handNumber={view.handNumber} onClose={() => setShowCoach(false)} />
       )}

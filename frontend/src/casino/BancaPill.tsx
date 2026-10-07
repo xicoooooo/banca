@@ -28,6 +28,7 @@ export function BancaPill({ thinking, label, stepsDone, stepsInAll, describedAs,
         onPress()
       }}
       aria-label={describedAs}
+      data-guide="banca"
       className={`glass rise-in flex h-9 items-center rounded-full transition hover:bg-black/30 ${compact ? 'gap-2 px-3' : 'gap-2.5 px-4'}`}
     >
       <span aria-hidden className={thinking ? 'orb' : 'orb orb--idle'} />

@@ -15,6 +15,8 @@ import { RouletteTable } from './roulette/RouletteTable'
 import { PokerPicker } from './table/PokerPicker'
 import { SharedTable } from './table/SharedTable'
 import { Table } from './table/Table'
+import { replayGuide } from './guide/useGuide'
+import type { GuidedGame } from './guide/steps'
 
 type Screen = Game | 'profile' | 'leagues' | 'player'
 
@@ -71,6 +73,12 @@ function App() {
     window.location.hash = `/${next}`
   }
 
+  // Banca's guide to a game is given at that game's table for one, started afresh.
+  const learn = (game: GuidedGame) => {
+    replayGuide(game)
+    window.location.hash = `/${game}/private`
+  }
+
   if (arrival === 'confirming') {
     return (
       <CasinoShell>
@@ -120,7 +128,7 @@ function App() {
       />
     )
   }
-  if (screen === 'profile') return <Profile onLeave={leave} onPlay={open} signInFailed={arrival === 'failed'} />
+  if (screen === 'profile') return <Profile onLeave={leave} onPlay={open} onLearn={learn} signInFailed={arrival === 'failed'} />
   if (screen === 'leagues') {
     return (
       <Leaderboard

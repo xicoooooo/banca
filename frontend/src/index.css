@@ -2979,3 +2979,83 @@ button {
     display: -webkit-box;
   }
 }
+
+/* ---------------------------------------------------------------- the guide */
+
+/* Banca's walk through a first round: a card over the top or the foot of the
+   table, which stays live underneath it. */
+.guide {
+  position: fixed;
+  z-index: 40;
+  top: max(0.5rem, env(safe-area-inset-top));
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  padding: 0 0.75rem;
+  pointer-events: none;
+}
+
+.guide[data-at='bottom'] {
+  top: auto;
+  bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+.guide__card {
+  width: 100%;
+  max-width: 30rem;
+  padding: 0.8rem 1rem 0.75rem;
+  border: 1px solid rgb(241 199 91 / 0.38);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgb(8 44 36 / 0.94), rgb(3 22 18 / 0.96));
+  box-shadow:
+    0 18px 50px rgb(0 0 0 / 0.5),
+    inset 0 1px 0 rgb(241 199 91 / 0.1);
+  backdrop-filter: blur(18px) saturate(130%);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  pointer-events: auto;
+}
+
+.guide__skip {
+  padding: 0.4rem 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.guide__skip:hover {
+  color: var(--color-ivory);
+}
+
+/* What a step is about is ringed on the table while it is said. */
+:root[data-guide-focus='hand'] .seat[data-me='true'],
+:root[data-guide-focus='pot'] .pot,
+:root[data-guide-focus='controls'] main > footer,
+:root[data-guide-focus='opponent'] button[aria-label="Open the agent's reasoning"],
+:root[data-guide-focus='banca'] [data-guide='banca'],
+:root[data-guide-focus='review'] .review-note,
+:root[data-guide-focus='chips'] [data-guide='chips'],
+:root[data-guide-focus='layout'] .roulette-felt {
+  outline: 2px solid var(--color-gold-bright);
+  outline-offset: 5px;
+  border-radius: 18px;
+  animation: guide-ring 1.8s ease-in-out infinite;
+}
+
+@keyframes guide-ring {
+  0%,
+  100% {
+    outline-color: rgb(241 199 91 / 0.95);
+  }
+  50% {
+    outline-color: rgb(241 199 91 / 0.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-guide-focus] * {
+    animation-name: none;
+  }
+}

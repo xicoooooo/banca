@@ -116,7 +116,11 @@ After day 7 the week starts over, and so does a streak with a missed day. Days a
 Neither is stored as state. The streak and both clocks are read from the ledger, which is also what makes a claim impossible to pay twice.
 
 ### 7.4 Onboarding tutorial
-To build, in Phase 6. First run offers a short guided round of the chosen game: a poker hand with prompts explaining position, pot and actions; a blackjack hand explaining hit, stand and double; a roulette round explaining the bet types on the felt. Skippable, and replayable later from the profile. The coach agent (7.7) narrates it, which means the tutorial reuses the agent work instead of being a separate system.
+Built. The first time a player opens a game's table for one, Banca walks them through a round of it: at poker, their cards, the pot, the actions, the opponent thinking and the coach; at blackjack, the bet, the hand, hit, stand and double, the coach and the review; at roulette, the chips, the layout, the read and the house edge. It can be skipped at any step and taken again from the profile.
+
+It is a guide laid over a real round, not a scripted one. The round is dealt by the server like any other, the guide follows it by watching where it stands, and half its steps wait for the player to act. Steps that do not apply to the round dealt, such as insurance, are left out, and a round that ends early, by a natural or a fold, takes the guide with it. So nothing had to be built on the server, and what a player learns on is the game itself. Where it says to ask Banca, the coach they ask is the real one (7.7).
+
+What it says is written, not generated: a first-time player should get the same clear explanation every time, at no cost to the free tier. Whether a guide has been seen is kept in the browser, so a new device offers it again. The shared tables have no guide, since they run on a clock that will not wait for one.
 
 ### 7.5 Levels and achievements
 Built, earlier than planned, because the profile was thin without them. Every round earns experience, more for a win, a natural or a showdown won, and each level asks for a hundred more than the last. Levels carry a title, from Newcomer upwards. Fourteen achievements mark things done at the tables. Levels do not yet unlock anything; higher-stake tables gated by level remain a stretch.
@@ -148,8 +152,8 @@ A plain statement that chips are play money with no real value and no way to buy
 
 ### 7.10 Staging
 
-- **Built:** identity, profile and stats, levels and achievements, daily rewards, bust protection, the coach before a decision at all three games, grading after a blackjack round, shared tables with chat, leagues, trophies and public pages.
-- **Left for v1 (through Phase 7):** the tutorial, PWA install, accessibility pass.
+- **Built:** identity, profile and stats, levels and achievements, daily rewards, bust protection, the coach before a decision at all three games, grading after a blackjack round, the tutorial, shared tables with chat, leagues, trophies and public pages.
+- **Left for v1 (through Phase 7):** PWA install, accessibility pass, session reminder.
 - **Later:** unlocks by level, friends and private tables by invite, daily missions, round replay with the agent's reasoning attached, spectator mode, tournaments.
 
 ## 8. Components
@@ -207,7 +211,7 @@ A tool never exposes what its seat is not entitled to. The analyst is given no h
 Postgres: `profiles`, `player_tokens`, `wallet_entries`, `rounds`, `round_actions`, `round_results`, `league_weeks`, `league_results`. A round is written when it completes, with its result and the ledger entry in one transaction. Live tables are not persisted; a backend restart ends the rounds in play and charges nothing for them.
 
 ### 8.12 Frontend (`frontend/src`)
-A lobby, a picker and table for each game in both forms, the profile, the leagues and leaderboards, and public player pages, routed by the URL's hash. A shared **reasoning panel** shows Banca's tool calls and decision in every game. The server sends states, and the client works out what happened between two of them in order to animate it. The client renders and never decides rules.
+A lobby, a picker and table for each game in both forms, the profile, the leagues and leaderboards, public player pages, and Banca's guide to each game, routed by the URL's hash. A shared **reasoning panel** shows Banca's tool calls and decision in every game. The server sends states, and the client works out what happened between two of them in order to animate it. The client renders and never decides rules.
 
 ## 9. Data flow (one agent turn)
 
@@ -249,11 +253,11 @@ A lobby, a picker and table for each game in both forms, the profile, the league
 | 3. Blackjack | Second game, with Banca as coach | Done |
 | 4. Roulette | Third game, with Banca as analyst | Done |
 | 5. Platform | Lobby, shared wallet, guest identity and Google sign-in, tables that survive reconnects, shared tables and rooms at all three games, chat | Done |
-| 6. Player experience | Profile and stats, daily rewards, bust protection, coach before a decision, grading after a blackjack round, leagues and trophies: done. Tutorial: to do | In progress |
+| 6. Player experience | Profile and stats, daily rewards, bust protection, coach at all three games, grading after a blackjack round, tutorial, leagues and trophies | Done |
 | 7. Polish and launch | PWA install, accessibility, session reminder, architecture diagram, demo video | To do |
 | 8. Stretch | Unlocks by level, friends and private tables, agent personalities, missions, replay, spectator, tournaments | Open |
 
-Phases are taken in order. The first draft allowed 20 to 27 weeks; Phases 0 to 5 and most of 6 were done well inside that, so nothing in Phase 6 needs cutting.
+Phases are taken in order. The first draft allowed 20 to 27 weeks; Phases 0 to 6 were done well inside that, with nothing cut from Phase 6.
 
 **Success criteria for v1** (end of Phase 7): a public URL where a stranger on a phone is playing within seconds, gets a tutorial, claims a daily bonus, plays real rounds of all three games alone or with others on one chip balance, watches the agent reason, and sees their stats afterwards; CI green; the README explains the architecture in under five minutes.
 

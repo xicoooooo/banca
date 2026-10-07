@@ -13,6 +13,8 @@ import { NO_BETS, colorOf, outlook, place, totalOf, undo, wagersOf, type Bets, t
 import type { RouletteView } from './types'
 import { useRoulette } from './useRoulette'
 import { Wheel } from './Wheel'
+import { Guide } from '../guide/Guide'
+import { useGuide } from '../guide/useGuide'
 
 function statusOf(view: RouletteView, spinning: boolean, staked: number): Status {
   if (spinning) return { text: 'No more bets', tone: 'emerald' }
@@ -32,6 +34,8 @@ export function RouletteTable({ onLeave }: { onLeave?: () => void }) {
   const [chip, setChip] = useState(10)
   // The stack as it stood when the wheel began to turn, shown until the ball lands.
   const [before, setBefore] = useState(0)
+  // Banca's walk through a first spin: while chips go down and the wheel turns, and once the ball has landed.
+  const guide = useGuide('roulette', view && { round: view.roundNumber, stage: view.result && !spinning ? 1 : 0, idle: !spinning })
 
   if (!view) {
     return (
@@ -159,7 +163,9 @@ export function RouletteTable({ onLeave }: { onLeave?: () => void }) {
         ) : (
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between gap-2">
-              <ChipPicker chip={chip} onPick={setChip} />
+              <div data-guide="chips">
+                <ChipPicker chip={chip} onPick={setChip} />
+              </div>
 
               <div className="flex gap-1.5">
                 <button type="button" className="btn btn--quiet px-3! text-xs" onClick={() => change(undo(bets))} disabled={spinning || total === 0}>
@@ -190,6 +196,8 @@ export function RouletteTable({ onLeave }: { onLeave?: () => void }) {
         )}
       </footer>
 
+      {/* Put away while the wheel turns, which is the thing to watch. */}
+      <Guide guide={guide} quiet={spinning} />
       {showRead && !spinning && reading.status !== 'idle' && <AnalystPanel reading={reading} onClose={() => setShowRead(false)} />}
     </CasinoShell>
   )

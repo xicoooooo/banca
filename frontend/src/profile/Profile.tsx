@@ -14,12 +14,20 @@ import { GAME_NAMES, ago, chips, levelProgress, monthAndYear, percent, signed, t
 type ProfileProps = {
   onLeave: () => void
   onPlay: (game: GameId) => void
+  /** Opens a game's own table with Banca's guide to it started afresh. */
+  onLearn: (game: GameId) => void
   /** True when the player has just come back from a sign-in that did not go through. */
   signInFailed?: boolean
 }
 
 /** The player's own page: who they are, what they have, and how they have played. */
-export function Profile({ onLeave, onPlay, signInFailed = false }: ProfileProps) {
+const GUIDED: { id: GameId; name: string }[] = [
+  { id: 'poker', name: "Texas Hold'em" },
+  { id: 'blackjack', name: 'Blackjack' },
+  { id: 'roulette', name: 'Roulette' },
+]
+
+export function Profile({ onLeave, onPlay, onLearn, signInFailed = false }: ProfileProps) {
   const { status, dashboard, refresh } = useDashboard()
 
   return (
@@ -61,6 +69,18 @@ export function Profile({ onLeave, onPlay, signInFailed = false }: ProfileProps)
             )}
           </Section>
           <Achievements achievements={dashboard.achievements} />
+          <Section title="Learn the games" delay={6}>
+            <p className="pb-3 text-sm leading-relaxed text-ivory/80">
+              Banca walks you through a round, step by step, at a table to yourself. Take it again whenever you like.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {GUIDED.map((game) => (
+                <button key={game.id} type="button" className="btn btn--quiet px-4! text-sm" onClick={() => onLearn(game.id)}>
+                  {game.name}
+                </button>
+              ))}
+            </div>
+          </Section>
           {dashboard.recent.length > 0 && <Recent recent={dashboard.recent} />}
 
           <p className="label py-2 text-center leading-relaxed">

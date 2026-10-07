@@ -14,6 +14,8 @@ import { PlayControls } from './PlayControls'
 import type { BlackjackView } from './types'
 import { Dealer, Hand, Result } from './TableParts'
 import { useBlackjack, useResultShown } from './useBlackjack'
+import { Guide } from '../guide/Guide'
+import { useGuide } from '../guide/useGuide'
 
 function statusOf(view: BlackjackView, resultShown: boolean): Status {
   switch (view.phase) {
@@ -39,6 +41,16 @@ export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
   const [showCoach, setShowCoach] = useState(false)
   const [reviewing, setReviewing] = useState<Reviewed | null>(null)
   const resultShown = useResultShown(view, reveal)
+  // Banca's walk through a first round follows the round: before the cards, while the hand is played, once it is settled.
+  const guide = useGuide(
+    'blackjack',
+    view && {
+      round: view.roundNumber,
+      stage: view.phase === 'betting' ? 0 : view.phase === 'settled' && resultShown ? 2 : 1,
+      idle: view.legal.bet,
+      facts: { insurance: view.phase === 'insurance', deciding: view.phase === 'player' },
+    },
+  )
 
   if (!view) {
     return (
@@ -167,6 +179,8 @@ export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
         )}
       </footer>
 
+      {/* Put away while the dealer turns cards over, which is the thing to watch. */}
+      <Guide guide={guide} quiet={dealing} />
       {reviewing && <ReviewPanel reviewed={reviewing} onClose={() => setReviewing(null)} />}
       {showCoach && deciding && coach.status !== 'idle' && (
         <CoachPanel coach={coach} roundNumber={view.roundNumber} onClose={() => setShowCoach(false)} />
