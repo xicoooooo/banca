@@ -165,7 +165,7 @@ Known limits: the shared tables run on clocks that cannot be extended, so a play
 ### 7.10 Staging
 
 - **Built:** identity, profile and stats, levels and achievements, daily rewards, bust protection, the coach before a decision at all three games, grading after a blackjack round, the tutorial, shared tables with chat, leagues, trophies and public pages.
-- **Left for v1 (through Phase 7):** architecture diagram, demo video.
+- **Left for v1 (through Phase 7):** demo video.
 - **Later:** unlocks by level, friends and private tables by invite, daily missions, round replay with the agent's reasoning attached, spectator mode, tournaments.
 
 ## 8. Components
@@ -266,7 +266,7 @@ A lobby, a picker and table for each game in both forms, the profile, the league
 | 4. Roulette | Third game, with Banca as analyst | Done |
 | 5. Platform | Lobby, shared wallet, guest identity and Google sign-in, tables that survive reconnects, shared tables and rooms at all three games, chat | Done |
 | 6. Player experience | Profile and stats, daily rewards, bust protection, coach at all three games, grading after a blackjack round, tutorial, leagues and trophies | Done |
-| 7. Polish and launch | PWA install, accessibility, session reminder: done. Architecture diagram, demo video: to do | In progress |
+| 7. Polish and launch | PWA install, accessibility, session reminder, architecture diagram: done. Demo video: to do | In progress |
 | 8. Stretch | Unlocks by level, friends and private tables, agent personalities, missions, replay, spectator, tournaments | Open |
 
 Phases are taken in order. The first draft allowed 20 to 27 weeks; Phases 0 to 6 were done well inside that, with nothing cut from Phase 6.
@@ -287,6 +287,7 @@ banca/
 ├── db/migrations/        Postgres schema
 ├── frontend/             React + TS app
 ├── docs/
+│   ├── architecture.svg
 │   ├── protocol.md
 │   └── superpowers/specs/
 ├── .github/workflows/    CI and the keep-warm ping

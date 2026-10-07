@@ -43,6 +43,12 @@ The agent is not a chatbot bolted to a game. It receives only what a player in i
 
 ## Architecture
 
+<p align="center">
+  <img src="docs/architecture.svg" alt="Banca's architecture: a React app on the player's device talks to one Kotlin backend over a WebSocket per table and over HTTPS. Inside the backend a gateway keeps the live tables, pure game engines hold the rules, agents call tools over MCP, and a players module keeps the chip ledger. The backend talks to a language model for the agents and to Supabase for Postgres and sign-in." width="100%" />
+</p>
+
+In the repository:
+
 ```
 backend/        Kotlin + Ktor, one process
   games/        poker, blackjack and roulette engines: pure Kotlin, no I/O
@@ -52,7 +58,7 @@ backend/        Kotlin + Ktor, one process
   players/      identity, the chip ledger, rewards, statistics, leagues
 db/migrations/  the Postgres schema, applied in order
 frontend/       React + TypeScript, installable as a PWA
-docs/           the wire protocol and the design spec
+docs/           the wire protocol, the design spec and this diagram
 ```
 
 - **The server owns the rules.** Game rules live in pure, framework-free modules with immutable state, so they can be tested exhaustively on their own. The client draws what it is sent and never decides an outcome.
