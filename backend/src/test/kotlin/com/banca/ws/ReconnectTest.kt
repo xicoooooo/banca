@@ -182,6 +182,7 @@ class ReconnectTest {
             assertEquals("error", told.getValue("type").jsonPrimitive.content)
             assertEquals("replaced", told.getValue("code").jsonPrimitive.content)
             assertNull(withTimeout(3_000) { incoming.receiveCatching().getOrNull() }, "and the first connection is closed")
+            assertEquals(REPLACED, withTimeout(3_000) { closeReason.await() }?.code, "with a code that says why")
             second.join()
         }
     }

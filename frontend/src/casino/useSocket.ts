@@ -8,6 +8,9 @@ const RETRY_EVERY_MS = 3_000
 const MAX_ATTEMPTS = 30
 const RECONNECT_AFTER_MS = 600
 
+/** The code the server closes a connection with when its table has been opened somewhere else. */
+const REPLACED_CODE = 4001
+
 /**
  * Where the connection to a table stands. "reconnecting" is a table that was
  * open and has dropped: the server keeps it for a few minutes, so it is worth
@@ -98,7 +101,13 @@ export function useSocket<Incoming, Outgoing>(path: string, onMessage: (message:
         handler.current(message as Incoming)
       }
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
+        // The server closes a replaced connection with a code of its own, in
+        // case the message saying so never arrived.
+        if (event.code === REPLACED_CODE && !disposed) {
+          replaced = true
+          setConnection('replaced')
+        }
         if (disposed || replaced) return
         if (stranger && attempts < MAX_ATTEMPTS) {
           void connect()

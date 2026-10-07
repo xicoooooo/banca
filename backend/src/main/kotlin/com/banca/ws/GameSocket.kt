@@ -81,6 +81,9 @@ fun brokeNotice(funding: Funding.Broke): String =
 internal fun refusal(message: String, code: String? = null): String =
     wireJson.encodeToString(Refusal.serializer(), Refusal(message = message, code = code))
 
+/** The close code of a connection whose table has been opened somewhere else. In the range left to applications. */
+const val REPLACED: Short = 4001
+
 /** Serves a game at [path], sitting each player at a table of their own that waits for them if they drop. */
 fun Route.gameSocket(path: String, players: Players, tables: Tables, connect: (Send, PlayerSession) -> GameConnection) {
     webSocket(path) {
@@ -103,7 +106,13 @@ fun Route.gameSocket(path: String, players: Players, tables: Tables, connect: (S
 
         // The table is the player's at this game, whichever connection they reach it by.
         val connection = coroutineContext.job
-        val seat = tables.sit("${player.id}:$path", connection, send) { toPlayer -> connect(toPlayer, session) }
+        val seat = tables.sit(
+            key = "${player.id}:$path",
+            connection = connection,
+            send = send,
+            // The close code says why, for a client that missed being told in words.
+            dismiss = { close(CloseReason(REPLACED, "replaced")) },
+        ) { toPlayer -> connect(toPlayer, session) }
         try {
             for (frame in incoming) {
                 if (frame !is Frame.Text) continue

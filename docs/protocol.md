@@ -61,7 +61,7 @@ The browser sends the player to the provider, comes back with a code, trades it 
 A table belongs to the server, not to the wire. Each player has one table of their own at each game, and a connection only attaches to it.
 
 - **Dropping and coming back.** If the connection is lost, the table waits. Connecting again within three minutes is answered with a `state` showing the table exactly as it was left: the same cards, the same bets, whose turn it is. Nothing is settled by dropping.
-- **One place at a time.** Opening the same table from a second tab or device takes it over. The earlier connection is sent `{ "type": "error", "code": "replaced", "message": "..." }` and closed, and should not try to come back.
+- **One place at a time.** Opening the same table from a second tab or device takes it over. The earlier connection is sent `{ "type": "error", "code": "replaced", "message": "..." }` and closed with code `4001`, and should not try to come back. The close code says the same as the message, for a client that lost the one in the closing of the other.
 - **Walking away.** A table nobody returns to in time is cleared, and a round still in play is finished on the player's behalf in the way that risks nothing more: a poker hand is folded, a blackjack hand stands and declines insurance. It is then written to their record like any other, so leaving is never a way out of losing a round.
 
 Tables are kept in the server's memory. If the server itself restarts, rounds in play are lost and nothing is charged for them.

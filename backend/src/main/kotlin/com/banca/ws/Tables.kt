@@ -6,10 +6,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The tables in play, kept by the server rather than by any one connection.
@@ -34,6 +36,9 @@ class Tables(private val scope: CoroutineScope, private val keepFor: Duration = 
         private val turn = Mutex()
 
         private var holder: Job? = null
+
+        /** Closes the holder's connection in good order, so that what it was last told reaches it. */
+        private var dismissHolder: suspend () -> Unit = {}
         private var clearing: Job? = null
 
         /**
@@ -41,14 +46,19 @@ class Tables(private val scope: CoroutineScope, private val keepFor: Duration = 
          * connection the same player has to it. The table then tells the new
          * connection where things stand.
          */
-        internal suspend fun take(connection: Job, send: Send) {
+        internal suspend fun take(connection: Job, send: Send, dismiss: suspend () -> Unit) {
             clearing?.cancel()
             holder?.takeIf { it !== connection && it.isActive }?.let { earlier ->
                 // The table can only be played from one place. The newest wins.
                 outbox.deliver(refusal("This table has been opened somewhere else", code = "replaced"))
+                // Closed before it is cut off: a connection cancelled outright can lose the
+                // message it was just sent, and a client that never heard it was replaced
+                // would come straight back and take the table away again.
+                runCatching { withTimeoutOrNull(DISMISS_WITHIN) { dismissHolder() } }
                 earlier.cancel()
             }
             holder = connection
+            dismissHolder = dismiss
             outbox.target = send
             turn.withLock { table.attached() }
         }
@@ -82,17 +92,22 @@ class Tables(private val scope: CoroutineScope, private val keepFor: Duration = 
      * Sits [connection] at the table known by [key], setting one up with
      * [create] if the player is not already at one.
      */
-    suspend fun sit(key: String, connection: Job, send: Send, create: (Send) -> GameConnection): Seat {
+    suspend fun sit(key: String, connection: Job, send: Send, dismiss: suspend () -> Unit = {}, create: (Send) -> GameConnection): Seat {
         val seat = seats.computeIfAbsent(key) {
             val outbox = Outbox()
             Seat(key, create(outbox::deliver), outbox)
         }
-        seat.take(connection, send)
+        seat.take(connection, send, dismiss)
         return seat
     }
 
     /** How many tables are being kept, connected or not. */
     val size: Int get() = seats.size
+
+    private companion object {
+        /** How long a connection being replaced is given to close before it is cut off regardless. */
+        val DISMISS_WITHIN = 2.seconds
+    }
 }
 
 /**
