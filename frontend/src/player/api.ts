@@ -57,3 +57,17 @@ export async function renamePlayer(name: string): Promise<void> {
     body: JSON.stringify({ name }),
   })
 }
+
+/**
+ * Opens a table for the player to invite others to, at the address the game
+ * lists its shared tables at, and returns where it is.
+ */
+export async function openTable(listedAt: string): Promise<{ id: string; name: string }> {
+  const token = await playerToken()
+  const response = await fetch(httpUrl(listedAt), { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+  if (!response.ok) {
+    const problem = (await response.json().catch(() => null)) as { message?: string } | null
+    throw new Refused(problem?.message ?? 'The table could not be opened. Try again in a moment.')
+  }
+  return response.json() as Promise<{ id: string; name: string }>
+}

@@ -29,7 +29,8 @@ class RoomTimings(
     val results: Duration = 5.seconds,
 )
 
-class RoomSpec(val id: String, val name: String)
+/** A shared table: its address and its name. One opened [byInvite] is on no list, and reached only by its address. */
+class RoomSpec(val id: String, val name: String, val byInvite: Boolean = false)
 
 class RoomsConfig(
     val rooms: List<RoomSpec> = listOf(
@@ -58,6 +59,8 @@ data class ChatLine(val from: String, val text: String, val emote: Boolean)
 data class RoomView(
     val room: String,
     val name: String,
+    /** True for a table a player opened for their own company, which is on no list. */
+    val byInvite: Boolean = false,
     val roundNumber: Int,
     /** "betting", "spinning" or "results". */
     val phase: String,
@@ -385,6 +388,7 @@ class RouletteRoom(
             val view = RoomView(
                 room = spec.id,
                 name = spec.name,
+                byInvite = spec.byInvite,
                 roundNumber = roundNumber,
                 phase = phase.name.lowercase(),
                 msLeft = msLeft,

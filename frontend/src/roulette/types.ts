@@ -68,6 +68,8 @@ export type CrowdSpot = { kind: Wager['kind']; number: number | null; amount: nu
 export type RoomView = {
   room: string
   name: string
+  /** True for a room a player opened for their own company, which is on no list. */
+  byInvite: boolean
   roundNumber: number
   phase: 'betting' | 'spinning' | 'results'
   msLeft: number

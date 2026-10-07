@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { ChatLine, Phrase, RoomPlayer } from './room'
+import { InviteButton } from './Invite'
 import { sound } from './sound'
 import { useDialog } from './useDialog'
 
@@ -15,6 +16,8 @@ type RoomDrawerProps = {
   muted: Set<string>
   onMute: (name: string) => void
   onClose: () => void
+  /** True for a table a player opened for their own company. It is on no list, so it says so. */
+  byInvite?: boolean
 }
 
 /** The most a message may be. The server holds to the same limit. */
@@ -29,7 +32,7 @@ function signed(amount: number): string {
  * one of the room's phrases with a single press. Nobody watches over a room,
  * so each player can mute anyone they would rather not hear from.
  */
-export function RoomDrawer({ name, players, chat, phrases, onSay, onType, muted, onMute, onClose }: RoomDrawerProps) {
+export function RoomDrawer({ name, players, chat, phrases, onSay, onType, muted, onMute, onClose, byInvite = false }: RoomDrawerProps) {
   const [draft, setDraft] = useState('')
 
   const sendDraft = (event: FormEvent) => {
@@ -73,6 +76,15 @@ export function RoomDrawer({ name, players, chat, phrases, onSay, onType, muted,
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col px-5" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
+          <div className="invite-row">
+            <p className="text-xs leading-relaxed text-muted">
+              {byInvite
+                ? 'This table is on no list. Only people you give the link to can find it.'
+                : 'Want company? Anyone you send the link to lands at this table.'}
+            </p>
+            <InviteButton table={name} prominent={byInvite && players.length <= 1} />
+          </div>
+
           <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0 pb-3">
             {players.map((player, index) => (
               <li key={`${player.name}-${index}`} className="room-player" data-you={player.you} data-muted={muted.has(player.name)}>

@@ -11,12 +11,16 @@ const RECONNECT_AFTER_MS = 600
 /** The code the server closes a connection with when its table has been opened somewhere else. */
 const REPLACED_CODE = 4001
 
+/** The code the server closes a connection with when there is no such table: one opened by invitation and since cleared away. */
+const NO_TABLE_CODE = 4004
+
 /**
  * Where the connection to a table stands. "reconnecting" is a table that was
  * open and has dropped: the server keeps it for a few minutes, so it is worth
- * going back for. "replaced" is one the player has opened somewhere else.
+ * going back for. "replaced" is one the player has opened somewhere else, and
+ * "gone" is a table that is no longer there to go back to.
  */
-export type Connection = 'connecting' | 'open' | 'reconnecting' | 'replaced' | 'closed'
+export type Connection = 'connecting' | 'open' | 'reconnecting' | 'replaced' | 'gone' | 'closed'
 
 /** What the server says before the game begins: who it takes this player to be, or that it does not know them. */
 type Greeting = { type: 'welcome' } | { type: 'error'; code?: string }
@@ -67,6 +71,7 @@ export function useSocket<Incoming, Outgoing>(path: string, onMessage: (message:
       let welcomed = false
       let stranger = false
       let replaced = false
+      let gone = false
       const ws = new WebSocket(socketUrl(path))
       socket.current = ws
 
@@ -98,6 +103,12 @@ export function useSocket<Incoming, Outgoing>(path: string, onMessage: (message:
           setConnection('replaced')
           return
         }
+        // An invitation to a table that has since been cleared away. There is nothing to retry.
+        if (greeting.type === 'error' && greeting.code === 'no_table') {
+          gone = true
+          setConnection('gone')
+          return
+        }
         handler.current(message as Incoming)
       }
 
@@ -108,7 +119,11 @@ export function useSocket<Incoming, Outgoing>(path: string, onMessage: (message:
           replaced = true
           setConnection('replaced')
         }
-        if (disposed || replaced) return
+        if (event.code === NO_TABLE_CODE && !disposed) {
+          gone = true
+          setConnection('gone')
+        }
+        if (disposed || replaced || gone) return
         if (stranger && attempts < MAX_ATTEMPTS) {
           void connect()
           return

@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { AnimatedNumber } from '../casino/AnimatedNumber'
 import { Card } from '../casino/Card'
 import { CasinoShell } from '../casino/CasinoShell'
@@ -7,6 +7,7 @@ import { OutOfChips, StakedNote } from '../casino/ChipNotices'
 import { ConnectionNote } from '../casino/ConnectionNote'
 import { Header, type Status } from '../casino/Header'
 import { Loading } from '../casino/Loading'
+import { useInviteOffer } from '../casino/useInviteOffer'
 import { RoomDrawer } from '../casino/RoomDrawer'
 import { sound } from '../casino/sound'
 import { useSecondsUntil } from '../casino/useSecondsUntil'
@@ -148,6 +149,8 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
   const [showReasoning, setShowReasoning] = useState(false)
   const [showCoach, setShowCoach] = useState(false)
   const [showRoom, setShowRoom] = useState(false)
+  // Banca is always there, so alone means nobody but the player and Banca.
+  useInviteOffer(room?.byInvite === true && room.seats.length <= 2, useCallback(() => setShowRoom(true), []))
   const [heard, setHeard] = useState(0)
   // Who this player would rather not hear from. Kept on this device only, for this visit.
   const [muted, setMuted] = useState<Set<string>>(new Set())
@@ -174,6 +177,8 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
         <Header detail="Texas Hold'em" onLeave={onLeave} />
         {full ? (
           <Loading failed message="This table is full. Try another, or come back in a moment." />
+        ) : connection === 'gone' ? (
+          <Loading failed message="This table has closed. Ask for a new link, or open a table of your own." />
         ) : connection === 'closed' || connection === 'replaced' ? (
           <Loading
             failed
@@ -330,6 +335,7 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
       {showRoom && (
         <RoomDrawer
           name={room.name}
+          byInvite={room.byInvite}
           players={room.seats.map((seat) => {
             const player = view.players.find((inHand) => inHand.seat === seat.seat)
             const won = view.result?.winnings[seat.seat]

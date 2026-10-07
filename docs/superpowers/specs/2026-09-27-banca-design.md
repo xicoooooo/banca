@@ -86,8 +86,9 @@ The dealer and the croupier are not agents. They follow fixed rules, so there is
 
 **Roulette:** European single zero. Straight, split, street, corner, six line, dozen, column and the six even-money bets, each paying 36 / *n* − 1 to one for *n* numbers covered. From 10 a bet, up to 100 on the numbers and 500 outside.
 
-Each game is played in two ways:
+Each game is played in three ways:
 
+- **A private table**, opened by a player for their own company. It is a shared table like the listed ones in every way but one: it is on no list. Its address is the invitation, eight characters that cannot usefully be guessed, and whoever is sent the link sits down. It is cleared away once it has stood empty for half an hour.
 - **A table to yourself**, at your own pace: heads-up against Banca at poker, alone against the dealer or the wheel at the others.
 - **Shared tables**, three for each game (Emerald, Gold and Ivory), which keep their own time. A poker table seats Banca and up to five players, deals hand after hand, and gives each decision a limit. A blackjack table seats five against one dealer and one shoe, with a betting window and then a turn each. A roulette room is one wheel on a half-minute round, with everyone's chips on the same felt and the same history of where the ball has landed.
 
@@ -146,7 +147,7 @@ Partly built. This is the feature that separates Banca from an ordinary social c
 - **At the poker table, built.** Banca is the opponent there, so the coach is a second agent: built afresh for each question from the asking player's own view, reading the table through the same four tools the opponent uses, and sharing nothing with it. At a shared table its answer goes to the asker alone. Poker has no single right play, so the standard is looser than at blackjack: advice must be open to the player and must not go plainly against the figures (no folding for nothing, no paying far more than a hand is worth, no bluffs), and within that the coach chooses. The interface says as much: a read, not an answer. Grading a poker hand afterwards is still open (section 15).
 
 ### 7.8 Social
-Shared tables and rooms are built (section 6). Each has its own chat: a row of set phrases and emotes, and free text. The first draft allowed only the phrases, to avoid moderation; free text was added because a room where people cannot talk is not a room. What makes that affordable is that the server tidies every line (one line, 140 characters, links removed, the worst words starred), limits how often anyone speaks, keeps nothing once the server stops, and lets each player mute any other. Friends lists and private tables by invite remain a stretch.
+Shared tables and rooms are built (section 6). Each has its own chat: a row of set phrases and emotes, and free text. The first draft allowed only the phrases, to avoid moderation; free text was added because a room where people cannot talk is not a room. What makes that affordable is that the server tidies every line (one line, 140 characters, links removed, the worst words starred), limits how often anyone speaks, keeps nothing once the server stops, and lets each player mute any other. Private tables by invitation are built (section 6): the player who opens one is shown the link to send, through the phone's share sheet where there is one. A friends list, with who is online, remains a stretch.
 
 ### 7.9 Responsible framing and accessibility
 A plain statement that chips are play money with no real value and no way to buy them, in the README, the lobby and the privacy page. A privacy page says what is kept and who can see it.
@@ -166,7 +167,7 @@ Known limits: the shared tables run on clocks that cannot be extended, so a play
 
 - **Built:** identity, profile and stats, levels and achievements, daily rewards, bust protection, the coach before a decision at all three games, grading after a blackjack round, the tutorial, shared tables with chat, leagues, trophies and public pages.
 - **Left for v1 (through Phase 7):** demo video.
-- **Later:** unlocks by level, friends and private tables by invite, daily missions, round replay with the agent's reasoning attached, spectator mode, tournaments.
+- **Later:** unlocks by level, a friends list, daily missions, round replay with the agent's reasoning attached, spectator mode, tournaments.
 
 ## 8. Components
 
@@ -191,7 +192,7 @@ The first draft expected a game-module interface to be extracted in Phase 3. It 
 - room chat (`RoomChat`), and on the client the shell, socket, pickers and drawers under `frontend/src/casino`.
 
 ### 8.5 Tables (`sessions`, `ws`)
-Live tables are held in memory. A private table (`PokerTable`, `BlackjackTable`, and roulette's) belongs to one player; a shared one (`PokerRoom`, `BlackjackRoom`, `RouletteRoom`) seats several and runs on its own clock, with timers for betting windows and turns. Every action, a player's or the agent's, goes through the same engine call.
+Live tables are held in memory. A table for one (`PokerTable`, `BlackjackTable`, and roulette's) belongs to one player; a shared one (`PokerRoom`, `BlackjackRoom`, `RouletteRoom`) seats several and runs on its own clock, with timers for betting windows and turns. Every action, a player's or the agent's, goes through the same engine call.
 
 A table belongs to the server, not to the connection. Dropping and returning within three minutes finds it as it was; opening it elsewhere takes it over; a table nobody returns to is cleared, and a round still in play is finished in the way that risks nothing more and then recorded, so leaving is never a way out of losing.
 
@@ -237,7 +238,7 @@ A lobby, a picker and table for each game in both forms, the profile, the league
 
 - Illegal or missing agent action → safest legal fallback (check if free, otherwise fold; stand in blackjack; no bet in roulette). The trace shows the fallback.
 - Model failure, timeout, or a rate-limited free tier → same fallback, logged. A table never stalls because a provider is throttling.
-- Human disconnect → the table waits. At a private table the round is as it was left for three minutes; at a shared one the turn timer plays the safe action when it runs out. Reconnecting restores the seat's view either way.
+- Human disconnect → the table waits. At a table for one the round is as it was left for three minutes; at a shared one the turn timer plays the safe action when it runs out. Reconnecting restores the seat's view either way.
 - The same table opened twice → the newer connection takes it over and the older is told it has been replaced.
 - Cold start on the free hosting tier → the client shows an explicit "waking up the table" state rather than appearing broken.
 - Malformed client message → rejected with an error; never crashes a table.
@@ -267,7 +268,7 @@ A lobby, a picker and table for each game in both forms, the profile, the league
 | 5. Platform | Lobby, shared wallet, guest identity and Google sign-in, tables that survive reconnects, shared tables and rooms at all three games, chat | Done |
 | 6. Player experience | Profile and stats, daily rewards, bust protection, coach at all three games, grading after a blackjack round, tutorial, leagues and trophies | Done |
 | 7. Polish and launch | PWA install, accessibility, session reminder, architecture diagram: done. Demo video: to do | In progress |
-| 8. Stretch | Unlocks by level, friends and private tables, agent personalities, missions, replay, spectator, tournaments | Open |
+| 8. Stretch | Private tables by invitation: done. Unlocks by level, a friends list, agent personalities, missions, replay, spectator, tournaments | Open |
 
 Phases are taken in order. The first draft allowed 20 to 27 weeks; Phases 0 to 6 were done well inside that, with nothing cut from Phase 6.
 
@@ -280,7 +281,7 @@ banca/
 ├── backend/              Ktor app
 │   └── src/main/kotlin/com/banca/
 │       ├── games/        poker, blackjack, roulette engines
-│       ├── sessions/     private tables and the views seats are sent
+│       ├── sessions/     tables for one and the views seats are sent
 │       ├── ws/           gateway, table register, shared rooms, chat
 │       ├── agents/       agent runtime, MCP tools, model providers
 │       └── players/      identity, ledger, rewards, stats, leagues
@@ -311,6 +312,7 @@ The first draft left three questions open and made some choices the build later 
 | Weekly and all-time leaderboards | Those, plus weekly leagues with promotion, prizes and trophies, for signed-in players | A reason to come back each week, and a reason to sign in |
 | Levels and achievements in v1.1 | Built with the profile | The profile was thin without them, and both fall out of the rounds already recorded |
 | Framer Motion, DiceBear, CC0 audio, Google Fonts | CSS and Web Animations, initials, synthesised sound, system fonts | Fewer dependencies and nothing fetched from a third party |
+| "Private table" meant a table for one | A private table is one a player opens and invites friends to; the table for one is "Play alone" | That is what the words mean to a player, and it was the first thing asked for once friends were to be invited |
 | A separate `mcp-servers/` directory | Tools live in `backend/.../agents` | They are part of the one process (see the first row) |
 
 ## 15. Open questions

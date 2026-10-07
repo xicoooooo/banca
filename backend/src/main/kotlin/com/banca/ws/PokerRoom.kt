@@ -73,6 +73,8 @@ data class PokerSeatView(val seat: Int, val name: String, val you: Boolean, val 
 data class PokerRoomView(
     val room: String,
     val name: String,
+    /** True for a table a player opened for their own company, which is on no list. */
+    val byInvite: Boolean = false,
     /** "waiting" for a hand to be dealt, "playing" one, or showing its "results". */
     val phase: String,
     /** How long the table will wait for the player whose turn it is, or before the next hand, in milliseconds. */
@@ -498,6 +500,7 @@ class PokerRoom(
             val view = PokerRoomView(
                 room = spec.id,
                 name = spec.name,
+                byInvite = spec.byInvite,
                 phase = phase.name.lowercase(),
                 msLeft = msLeft,
                 yourTurn = dealtIn && actorSeat == member.seat,

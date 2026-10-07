@@ -89,6 +89,8 @@ export type PokerSeat = { seat: number; name: string; you: boolean; inHand: bool
 export type PokerRoomView = {
   room: string
   name: string
+  /** True for a table a player opened for their own company, which is on no list. */
+  byInvite: boolean
   phase: 'waiting' | 'playing' | 'results'
   /** How long the table will wait for the player whose turn it is, or before the next hand. */
   msLeft: number

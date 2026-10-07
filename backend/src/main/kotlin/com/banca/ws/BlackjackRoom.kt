@@ -77,6 +77,8 @@ data class TableSeatView(
 data class BlackjackTableView(
     val room: String,
     val name: String,
+    /** True for a table a player opened for their own company, which is on no list. */
+    val byInvite: Boolean = false,
     val roundNumber: Int,
     /** "betting", "insurance", "playing" or "results". */
     val phase: String,
@@ -558,6 +560,7 @@ class BlackjackRoom(
             val view = BlackjackTableView(
                 room = spec.id,
                 name = spec.name,
+                byInvite = spec.byInvite,
                 roundNumber = roundNumber,
                 phase = phase.name.lowercase(),
                 msLeft = msLeft,

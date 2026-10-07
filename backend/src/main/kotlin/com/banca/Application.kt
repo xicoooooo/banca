@@ -19,6 +19,7 @@ import com.banca.ws.BlackjackSocketConfig
 import com.banca.ws.BlackjackTablesConfig
 import com.banca.ws.PokerTablesConfig
 import com.banca.ws.CoachAllowance
+import com.banca.ws.inviteAllowance
 import com.banca.players.guestAllowance
 import com.banca.agents.PokerCoach
 import com.banca.ws.RoomsConfig
@@ -154,11 +155,12 @@ fun Application.module(
     keepTablesFor: Duration = 3.minutes,
     newGuests: Allowance = guestAllowance(),
     coaching: CoachAllowance = CoachAllowance(),
+    invites: Allowance = inviteAllowance(),
 ) {
     configureSerialization()
     configureLogging()
     configureCors()
     configureRouting()
     configurePlayerRoutes(players, signIn, newGuests)
-    configureGameSockets(players = players, poker = tableSocket, blackjack = blackjack, roulette = roulette, rooms = rooms, blackjackTables = blackjackTables, pokerTables = pokerTables, coaching = coaching, keepTablesFor = keepTablesFor)
+    configureGameSockets(players = players, poker = tableSocket, blackjack = blackjack, roulette = roulette, rooms = rooms, blackjackTables = blackjackTables, pokerTables = pokerTables, coaching = coaching, keepTablesFor = keepTablesFor, invites = invites)
 }

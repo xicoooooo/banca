@@ -3106,3 +3106,21 @@ button {
 .wheel__result[data-color='red'] {
   background-image: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.17) 0 2px, transparent 2px 6px);
 }
+
+/* ------------------------------------------------------------ invite tables */
+
+.invite-row {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.85rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 0.03);
+}
+
+.invite-row .btn {
+  flex: none;
+}

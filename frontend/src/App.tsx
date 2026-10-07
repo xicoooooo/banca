@@ -68,6 +68,9 @@ function App() {
     }
   }, [returning])
 
+  // The table to oneself. It was called private before private tables were ones to invite friends to.
+  const alone = place?.room === 'solo' || place?.room === 'private'
+
   // Each screen names itself in the tab and to a screen reader arriving on it.
   const screenName = place ? TITLES[place.screen] : null
   useEffect(() => {
@@ -91,7 +94,7 @@ function App() {
   // Banca's guide to a game is given at that game's table for one, started afresh.
   const learn = (game: GuidedGame) => {
     replayGuide(game)
-    window.location.hash = `/${game}/private`
+    window.location.hash = `/${game}/solo`
   }
 
   if (arrival === 'confirming') {
@@ -104,7 +107,7 @@ function App() {
 
   if (screen === 'poker') {
     const toTables = () => open('poker')
-    if (place?.room === 'private') return <Table onLeave={toTables} />
+    if (alone) return <Table onLeave={toTables} />
     if (place?.room) return <SharedTable key={place.room} tableId={place.room} onLeave={toTables} />
     return (
       <PokerPicker
@@ -118,7 +121,7 @@ function App() {
   if (screen === 'blackjack') {
     // Leaving a table goes back to the choice of tables, not all the way out.
     const toTables = () => open('blackjack')
-    if (place?.room === 'private') return <BlackjackTable onLeave={toTables} />
+    if (alone) return <BlackjackTable onLeave={toTables} />
     if (place?.room) return <SharedBlackjackTable key={place.room} tableId={place.room} onLeave={toTables} />
     return (
       <BlackjackPicker
@@ -132,7 +135,7 @@ function App() {
   if (screen === 'roulette') {
     // Leaving a room goes back to the choice of rooms, not all the way out.
     const toRooms = () => open('roulette')
-    if (place?.room === 'private') return <RouletteTable onLeave={toRooms} />
+    if (alone) return <RouletteTable onLeave={toRooms} />
     if (place?.room) return <RoomTable key={place.room} roomId={place.room} onLeave={toRooms} />
     return (
       <RoomPicker

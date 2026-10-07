@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { AnimatedNumber } from '../casino/AnimatedNumber'
 import { CasinoShell } from '../casino/CasinoShell'
 import { OutOfChips, StakedNote } from '../casino/ChipNotices'
+import { useInviteOffer } from '../casino/useInviteOffer'
 import { RoomDrawer } from '../casino/RoomDrawer'
 import { ConnectionNote } from '../casino/ConnectionNote'
 import { Header, type Status } from '../casino/Header'
@@ -37,6 +38,7 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
   const [chip, setChip] = useState(10)
   const [showRead, setShowRead] = useState(false)
   const [showRoom, setShowRoom] = useState(false)
+  useInviteOffer(view?.byInvite === true && view.players.length <= 1, useCallback(() => setShowRoom(true), []))
   const [heard, setHeard] = useState(0)
   // Who this player would rather not hear from. Kept on this device only, for this visit.
   const [muted, setMuted] = useState<Set<string>>(new Set())
@@ -78,7 +80,9 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
     return (
       <CasinoShell>
         <Header detail="Roulette" onLeave={onLeave} />
-        {connection === 'closed' || connection === 'replaced' ? (
+        {connection === 'gone' ? (
+          <Loading failed message="This room has closed. Ask for a new link, or open a room of your own." />
+        ) : connection === 'closed' || connection === 'replaced' ? (
           <Loading
             failed
             message={connection === 'replaced' ? 'This room is open somewhere else.' : 'Could not reach the room. Try again in a minute.'}
@@ -276,6 +280,7 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
       {showRoom && (
         <RoomDrawer
           name={view.name}
+          byInvite={view.byInvite}
           players={view.players}
           chat={chat}
           phrases={phrases}

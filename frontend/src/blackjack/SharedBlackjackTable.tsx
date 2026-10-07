@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { CardSlot } from '../casino/Card'
 import { CasinoShell } from '../casino/CasinoShell'
 import { OutOfChips, StakedNote } from '../casino/ChipNotices'
@@ -6,6 +6,7 @@ import { ConnectionNote } from '../casino/ConnectionNote'
 import { Header, type Status } from '../casino/Header'
 import { Loading } from '../casino/Loading'
 import { Plate } from '../casino/Plate'
+import { useInviteOffer } from '../casino/useInviteOffer'
 import { RoomDrawer } from '../casino/RoomDrawer'
 import { sound } from '../casino/sound'
 import { useSecondsUntil } from '../casino/useSecondsUntil'
@@ -60,6 +61,7 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
   const lastReview = useLastReview(view)
   const [reviewing, setReviewing] = useState<Reviewed | null>(null)
   const [showRoom, setShowRoom] = useState(false)
+  useInviteOffer(table?.byInvite === true && table.seats.length <= 1, useCallback(() => setShowRoom(true), []))
   const [heard, setHeard] = useState(0)
   // Who this player would rather not hear from. Kept on this device only, for this visit.
   const [muted, setMuted] = useState<Set<string>>(new Set())
@@ -86,6 +88,8 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
         <Header detail="Blackjack" onLeave={onLeave} />
         {full ? (
           <Loading failed message="This table is full. Try another, or come back in a moment." />
+        ) : connection === 'gone' ? (
+          <Loading failed message="This table has closed. Ask for a new link, or open a table of your own." />
         ) : connection === 'closed' || connection === 'replaced' ? (
           <Loading
             failed
@@ -271,6 +275,7 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
       {showRoom && (
         <RoomDrawer
           name={table.name}
+          byInvite={table.byInvite}
           players={table.seats.map((seat) => ({ name: seat.name, staked: seat.bet, net: seat.net, you: seat.you }))}
           chat={chat}
           phrases={phrases}

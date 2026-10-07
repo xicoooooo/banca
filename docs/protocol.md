@@ -117,7 +117,7 @@ How a client talks to a live table. Version 1, JSON text frames over a WebSocket
 ws://<host>/ws/table
 ```
 
-Each player has a private heads-up poker table: they sit in seat 0 against an agent in seat 1. Once the client has [said hello](#saying-hello), a hand is dealt and the first `state` message follows.
+Each player has a heads-up poker table of their own: they sit in seat 0 against an agent in seat 1. Once the client has [said hello](#saying-hello), a hand is dealt and the first `state` message follows.
 
 The table is a cash game. Each hand the player sits down with their bankroll, up to 2,000 chips, against 2,000 for the agent, and what they win or lose in the hand is written to their bankroll as it ends.
 
@@ -287,7 +287,7 @@ Version 1, JSON text frames over a WebSocket, at its own address:
 ws://<host>/ws/blackjack
 ```
 
-Each player has a private table: one player against the house, playing from their own bankroll, with bets from 10 to 500, six decks, and a dealer who stands on every seventeen. Nothing is dealt until a bet is placed, so the first `state` after the [hello](#saying-hello) shows a table waiting for one. `stack` is the player's bankroll, and each round's result is written to it as the round settles.
+Each player has a table of their own: one player against the house, playing from their own bankroll, with bets from 10 to 500, six decks, and a dealer who stands on every seventeen. Nothing is dealt until a bet is placed, so the first `state` after the [hello](#saying-hello) shows a table waiting for one. `stack` is the player's bankroll, and each round's result is written to it as the round settles.
 
 ## Server to client
 
@@ -422,7 +422,7 @@ Version 1, JSON text frames over a WebSocket, at its own address:
 ws://<host>/ws/roulette
 ```
 
-Each player has a private table: one player against a European wheel, with a single zero, playing from their own bankroll. The first `state` after the [hello](#saying-hello) shows a table waiting for bets.
+Each player has a table of their own: one player against a European wheel, with a single zero, playing from their own bankroll. The first `state` after the [hello](#saying-hello) shows a table waiting for bets.
 
 Roulette has no decisions once the bets are down, so a whole round is one message each way. The player builds a layout of chips in the client, sends it with `spin`, and the answer says where the ball landed and what each bet came to.
 
@@ -518,9 +518,27 @@ A layout is taken whole or refused whole. Every bet must be at least `minBet`; a
 
 ---
 
+# Tables opened by invitation
+
+Every shared table described below comes in two kinds. Three of each game are listed for anyone to walk into. The rest are opened by a player for their own company: such a table is on no list, and is reached only by its address, which is the invitation.
+
+| Request | Answer |
+|---|---|
+| `POST /poker/tables` | `201` `{ "id": "k7x2m9qf", "name": "Ana's table" }` |
+| `POST /blackjack/tables` | The same |
+| `POST /roulette/rooms` | The same, called a room |
+
+Each needs `Authorization: Bearer <token>` and answers `401` without a player it knows, `429` to a player who has opened more than five in ten minutes or thirty in a day, and `503` when the server is keeping as many as it will.
+
+The table is then played at the usual address for a shared table of that game, with its `id` in place of a listed table's: `ws://<host>/ws/blackjack/tables/k7x2m9qf`. Anyone who has the address may sit down, guest or signed in, and it runs exactly as a listed table does. Its `state` carries `byInvite: true`.
+
+An id is eight characters and cannot usefully be guessed. A table that has stood empty for half an hour is cleared away. Connecting to an address that leads nowhere is answered, after the `welcome`, with `{ "type": "error", "code": "no_table", "message": "..." }` and the connection is closed with code `4004`; a client should not try again.
+
+---
+
 # Roulette rooms
 
-Version 1, JSON text frames over a WebSocket. Besides the private table above, roulette is played in shared rooms, each at its own address:
+Version 1, JSON text frames over a WebSocket. Besides the table for one above, roulette is played in shared rooms, each at its own address:
 
 ```
 ws://<host>/ws/roulette/rooms/<room>
@@ -534,7 +552,7 @@ ws://<host>/ws/roulette/rooms/<room>
 
 A room is one wheel shared by everyone in it, and it keeps time for them all. Each round has three phases: `betting`, while chips may go down; `spinning`, from the moment bets close until the ball is seen to land; and `results`. Then the next round opens. With the default timings a round is half a minute. A room with nobody in it stops, and starts again when someone walks in.
 
-Each player's chips are still their own. The room holds a player's bets until the spin, settles them against the same pocket as everyone else's, and writes the result to that player's record exactly as a private table would. The rules and limits are those of the private table.
+Each player's chips are still their own. The room holds a player's bets until the spin, settles them against the same pocket as everyone else's, and writes the result to that player's record exactly as a table for one would. The rules and limits are those of the table for one.
 
 ## Client to server
 
@@ -554,7 +572,7 @@ Each player's chips are still their own. The room holds a player's bets until th
 
 A typed message is tidied by the server before anyone sees it: made one line, cut to 140 characters, links replaced with `[link]`, and a short list of the most offensive words starred out. One line every second and a half at most. Nobody moderates a room, so the client lets each player mute anyone they would rather not hear from; muting is the listener's business and the server is not told.
 
-`analyse` is as at the private table.
+`analyse` is as at the table for one.
 
 ## Server to client
 
@@ -604,7 +622,7 @@ Sent to everyone in the room whenever the phase changes or anyone's bets do, eac
 
 ### `trace`, `read` and `error`
 
-As at the private table.
+As at the table for one.
 
 ## Dropping and leaving
 
@@ -614,7 +632,7 @@ A bet made is a bet made. If a player's connection drops, their chips stay on th
 
 # Blackjack tables
 
-Version 1, JSON text frames over a WebSocket. Besides the private table, blackjack is played at shared tables, each at its own address:
+Version 1, JSON text frames over a WebSocket. Besides the table for one, blackjack is played at shared tables, each at its own address:
 
 ```
 ws://<host>/ws/blackjack/tables/<table>
@@ -629,7 +647,7 @@ A shared table is one dealer and one shoe, and up to five players with a hand ea
 3. **`playing`**: the players act one at a time, in the order they sat down, each with a limit on how long they may take over a decision. A player who runs out of time has that hand stood for them. A player whose connection has dropped is waited for only briefly.
 4. **`results`**: the dealer's hand is played once and every player is settled against it. Then betting opens again.
 
-The rules are those of the private table. Each player's stake, result and record are their own.
+The rules are those of the table for one. Each player's stake, result and record are their own.
 
 ## Client to server
 
@@ -640,7 +658,7 @@ The rules are those of the private table. Each player's stake, result and record
 { "type": "chat", "text": "Evening all" }
 ```
 
-`bet` sets the player's stake for the coming round and is accepted only while betting is open; an amount of nought takes it back. `act` takes the same actions as the private table, and is refused unless it is the player's turn, or an answer about insurance while that is being asked. `advise` and `chat` are as elsewhere.
+`bet` sets the player's stake for the coming round and is accepted only while betting is open; an amount of nought takes it back. `act` takes the same actions as the table for one, and is refused unless it is the player's turn, or an answer about insurance while that is being asked. `advise` and `chat` are as elsewhere.
 
 ## Server to client
 
@@ -667,7 +685,7 @@ The rules are those of the private table. Each player's stake, result and record
 }
 ```
 
-`you` is the player's own part in the round, in exactly the shape the private table's `view` has, so a client can draw it the same way. Its `legal` plays are only ever true on the player's own turn. Its `phase` can also be `waiting`: the player has finished or is sitting the round out, and others are still playing. A natural is paid on the deal, so `you.result` can be present while the table is still `playing`.
+`you` is the player's own part in the round, in exactly the shape the table for one's `view` has, so a client can draw it the same way. Its `legal` plays are only ever true on the player's own turn. Its `phase` can also be `waiting`: the player has finished or is sitting the round out, and others are still playing. A natural is paid on the deal, so `you.result` can be present while the table is still `playing`.
 
 `you.review` is the player's own and is shown to nobody else.
 

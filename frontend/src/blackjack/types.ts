@@ -81,6 +81,8 @@ export type TableSeat = { name: string; you: boolean; bet: number; hands: Blackj
 export type BlackjackTableView = {
   room: string
   name: string
+  /** True for a table a player opened for their own company, which is on no list. */
+  byInvite: boolean
   roundNumber: number
   phase: 'betting' | 'insurance' | 'playing' | 'results'
   /** How long the table will wait in this phase, or for the player whose turn it is. */
