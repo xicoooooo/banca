@@ -28,7 +28,7 @@ export function InstallCard() {
         <p className="pt-0.5 text-xs leading-relaxed text-muted">
           {installing.how === 'prompt'
             ? 'It opens full screen, like an app. Nothing to download from a store.'
-            : 'Press Share in Safari, then Add to Home Screen. It opens full screen, like an app.'}
+            : "Press your browser's Share button, then Add to Home Screen. It opens full screen, like an app."}
         </p>
         <div className="flex gap-2 pt-2.5">
           {installing.how === 'prompt' && (

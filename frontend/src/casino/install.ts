@@ -49,11 +49,10 @@ function installed(): boolean {
   return window.matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true
 }
 
-/** An iPhone or iPad in Safari, which can install but has no way to be asked to. */
+/** An iPhone or iPad, where any browser can install from its share menu but none can be asked to. */
 function needsShareSheet(): boolean {
   const agent = navigator.userAgent
-  const apple = /iPhone|iPad|iPod/.test(agent) || (/Macintosh/.test(agent) && navigator.maxTouchPoints > 1)
-  return apple && !/CriOS|FxiOS|EdgiOS/.test(agent)
+  return /iPhone|iPad|iPod/.test(agent) || (/Macintosh/.test(agent) && navigator.maxTouchPoints > 1)
 }
 
 export type Installing =
