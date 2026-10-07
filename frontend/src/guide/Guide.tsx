@@ -46,9 +46,13 @@ export function Guide({ guide, quiet = false }: { guide: Guiding | null; quiet?:
         <p className="pt-2 text-sm leading-relaxed text-ivory/90">{step.text}</p>
 
         <div className="flex items-center justify-between gap-3 pt-2.5">
-          <button type="button" className="guide__skip label" onClick={skip}>
-            {last ? '' : 'Skip the guide'}
-          </button>
+          {last ? (
+            <span />
+          ) : (
+            <button type="button" className="guide__skip label" onClick={skip}>
+              Skip the guide
+            </button>
+          )}
           {step.waits ? (
             <p className="label text-gold-bright!">Your move</p>
           ) : (

@@ -149,12 +149,21 @@ Partly built. This is the feature that separates Banca from an ordinary social c
 Shared tables and rooms are built (section 6). Each has its own chat: a row of set phrases and emotes, and free text. The first draft allowed only the phrases, to avoid moderation; free text was added because a room where people cannot talk is not a room. What makes that affordable is that the server tidies every line (one line, 140 characters, links removed, the worst words starred), limits how often anyone speaks, keeps nothing once the server stops, and lets each player mute any other. Friends lists and private tables by invite remain a stretch.
 
 ### 7.9 Responsible framing and accessibility
-A plain statement that chips are play money with no real value and no way to buy them, in the README, the lobby and the privacy page. A privacy page says what is kept and who can see it. Still to do in Phase 7: an optional session-length reminder, roulette's red and black told apart by more than colour, and a pass over keyboard use and reduced motion.
+A plain statement that chips are play money with no real value and no way to buy them, in the README, the lobby and the privacy page. A privacy page says what is kept and who can see it. An optional session-length reminder is still to do in Phase 7.
+
+Accessibility, as built:
+
+- **Nothing rests on colour alone.** Red and black at roulette are the one place the game depends on telling two colours apart, and they are the pair colour blindness most often confuses. Red is hatched wherever it appears, on the layout, the wheel and the run of past results, and every box says its colour to a screen reader. Wins and losses carry a sign as well as a colour, and suits are shapes.
+- **Everything works from a keyboard.** Every control is a real button with a name. Focus is always ringed. A panel that opens takes focus, keeps Tab inside itself, closes on Escape and hands focus back. The roulette layout, some fifty buttons, is crossed with the arrow keys.
+- **Motion is optional.** With the system's reduce-motion setting on, cards, chips, the wheel and counting numbers arrive at once instead of travelling.
+- **Screens name themselves**, in the tab title and to a screen reader. Cards are announced by name, and results, advice and notices are spoken as they arrive.
+
+Known limits: the shared tables run on clocks that cannot be extended, so a player who needs longer has the tables for one, which wait for ever. On the narrowest phones the roulette number boxes are 22 points wide, under the 24 recommended, though spaced so that neighbouring targets do not overlap. Contrast and screen-reader behaviour were checked by inspection, not yet with real assistive technology.
 
 ### 7.10 Staging
 
 - **Built:** identity, profile and stats, levels and achievements, daily rewards, bust protection, the coach before a decision at all three games, grading after a blackjack round, the tutorial, shared tables with chat, leagues, trophies and public pages.
-- **Left for v1 (through Phase 7):** accessibility pass, session reminder.
+- **Left for v1 (through Phase 7):** session reminder.
 - **Later:** unlocks by level, friends and private tables by invite, daily missions, round replay with the agent's reasoning attached, spectator mode, tournaments.
 
 ## 8. Components
@@ -255,7 +264,7 @@ A lobby, a picker and table for each game in both forms, the profile, the league
 | 4. Roulette | Third game, with Banca as analyst | Done |
 | 5. Platform | Lobby, shared wallet, guest identity and Google sign-in, tables that survive reconnects, shared tables and rooms at all three games, chat | Done |
 | 6. Player experience | Profile and stats, daily rewards, bust protection, coach at all three games, grading after a blackjack round, tutorial, leagues and trophies | Done |
-| 7. Polish and launch | PWA install: done. Accessibility, session reminder, architecture diagram, demo video: to do | In progress |
+| 7. Polish and launch | PWA install, accessibility: done. Session reminder, architecture diagram, demo video: to do | In progress |
 | 8. Stretch | Unlocks by level, friends and private tables, agent personalities, missions, replay, spectator, tournaments | Open |
 
 Phases are taken in order. The first draft allowed 20 to 27 weeks; Phases 0 to 6 were done well inside that, with nothing cut from Phase 6.

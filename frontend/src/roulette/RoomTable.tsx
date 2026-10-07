@@ -141,11 +141,11 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
                         {shown.net > 0 ? `+${shown.net.toLocaleString('en-US')}` : shown.net < 0 ? `−${Math.abs(shown.net).toLocaleString('en-US')}` : 'Even'}
                       </p>
                     ) : (
-                      <p className="label pt-1 text-gold/55!">You sat this one out</p>
+                      <p className="label pt-1 text-gold/80!">You sat this one out</p>
                     )}
                   </div>
                 ) : (
-                  <p className="label leading-relaxed text-gold/55!">
+                  <p className="label leading-relaxed text-gold/80!">
                     {spinning ? 'No more bets' : 'One wheel'}
                     <br />
                     {spinning ? '' : 'for the whole room'}

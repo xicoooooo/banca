@@ -49,11 +49,18 @@ export function Wheel({ roundNumber, pocket, spinning }: WheelProps) {
   return (
     <div className="wheel" data-spinning={spinning} role="img" aria-label={landed ? `The ball is on ${pocket} ${colorOf(pocket)}` : spinning ? 'The wheel is spinning' : 'The wheel is still'}>
       <svg viewBox="-100 -100 200 200" aria-hidden>
+        <defs>
+          {/* Red pockets are hatched as well as red, so they can be told from black without the colour. */}
+          <pattern id="wheel-red-hatch" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="1" height="3" fill="rgb(255 255 255 / 0.2)" />
+          </pattern>
+        </defs>
         <circle r="99" className="wheel__rim" />
         <g className="wheel__turning" style={{ transform: `rotate(${turn.rotation}deg)`, transitionDuration: `${duration}ms` }}>
           {WHEEL_ORDER.map((number, index) => (
             <g key={number}>
               <path d={wedge(index, 93, 62)} fill={FILL[colorOf(number)]} stroke="#c9a24a" strokeWidth="0.35" />
+              {colorOf(number) === 'red' && <path d={wedge(index, 93, 62)} fill="url(#wheel-red-hatch)" />}
               <text
                 transform={`rotate(${index * STEP}) translate(0 -80)`}
                 className="wheel__number"

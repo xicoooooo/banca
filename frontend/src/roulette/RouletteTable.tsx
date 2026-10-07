@@ -108,7 +108,7 @@ export function RouletteTable({ onLeave }: { onLeave?: () => void }) {
                     </p>
                   </div>
                 ) : (
-                  <p className="label leading-relaxed text-gold/55!">
+                  <p className="label leading-relaxed text-gold/80!">
                     {spinning ? 'No more bets' : 'Single zero'}
                     <br />
                     {spinning ? '' : 'A number pays 35 to 1'}

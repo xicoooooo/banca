@@ -96,7 +96,7 @@ export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
             ) : deciding ? (
               <CoachPill coach={coach} onAsk={askCoach} onOpen={() => setShowCoach(true)} />
             ) : (
-              <p className="label text-center leading-loose text-gold/45!">
+              <p className="label text-center leading-loose text-gold/75!">
                 Blackjack pays 3 to 2
                 <br />
                 Dealer stands on 17

@@ -49,7 +49,7 @@ export function BetControls({ stack, minBet, maxBet, lastBet, onDeal, verb = 'De
           type="button"
           onClick={() => setAmount(0)}
           disabled={amount === 0 || dealt}
-          className="label pb-1.5 underline-offset-4 hover:text-ivory hover:underline disabled:opacity-40"
+          className="label -mt-1.5 py-1.5 underline-offset-4 hover:text-ivory hover:underline disabled:opacity-40"
         >
           Clear
         </button>

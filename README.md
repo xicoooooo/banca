@@ -25,7 +25,9 @@ A multi-game social casino played with virtual chips: Texas Hold'em, blackjack a
 
 - **Installs like an app.** Add it to a phone's home screen from the lobby and it opens full screen, with no store involved. It opens without a network too, and says it is waiting for one.
 
-**Still to come:** an accessibility pass and the last of the polish.
+- **Built to be usable by more people.** Playable from a keyboard, nothing told by colour alone (red is hatched at roulette), and motion that steps aside when the system asks it to.
+
+**Still to come:** the last of the polish.
 
 ## Why it exists
 

@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, KeyboardEvent } from 'react'
 import { ROWS, amountOn, colorOf, numbersOf, spotOf, type Bets, type Spot } from './layout'
 
 type FeltProps = {
@@ -21,6 +21,46 @@ const EVEN_MONEY: { spot: Spot; label: string; color?: 'red' | 'black' }[] = [
 ]
 
 /** A bet's amount, short enough for the smallest box: 50, 150, 1.2k. */
+const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
+
+/**
+ * Moves focus across the layout with the arrow keys, to the nearest box in
+ * the direction pressed. The layout is some fifty buttons, which is a long way
+ * to go by Tab alone.
+ */
+function moveByArrow(event: KeyboardEvent<HTMLDivElement>) {
+  const direction = ARROWS[event.key]
+  const from = document.activeElement
+  if (!direction || !(from instanceof HTMLElement) || !event.currentTarget.contains(from)) return
+
+  const centre = (box: Element) => {
+    const rect = box.getBoundingClientRect()
+    return [rect.left + rect.width / 2, rect.top + rect.height / 2]
+  }
+  const [x, y] = centre(from)
+  const [dx, dy] = direction
+
+  let nearest: HTMLElement | null = null
+  let nearestDistance = Infinity
+  for (const box of event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled)')) {
+    if (box === from) continue
+    const [bx, by] = centre(box)
+    const along = (bx - x) * dx + (by - y) * dy
+    const across = Math.abs((bx - x) * dy) + Math.abs((by - y) * dx)
+    // Only boxes that lie that way, and more that way than off to the side.
+    if (along <= 1 || across > along) continue
+    const distance = along + across * 2
+    if (distance < nearestDistance) {
+      nearest = box
+      nearestDistance = distance
+    }
+  }
+  if (nearest) {
+    event.preventDefault()
+    nearest.focus()
+  }
+}
+
 function short(amount: number): string {
   return amount >= 1000 ? `${Math.round(amount / 100) / 10}k` : String(amount)
 }
@@ -62,7 +102,7 @@ export function Felt({ bets, landed, disabled, onPlace, others = {} }: FeltProps
   }
 
   return (
-    <div className="roulette-felt" role="group" aria-label="Betting layout">
+    <div className="roulette-felt" role="group" aria-label="Betting layout. Arrow keys move between bets." onKeyDown={moveByArrow}>
       {box(spotOf('straight', 0), '0', { gridColumn: 1, gridRow: '1 / span 3' }, 'green', 'Zero')}
 
       {ROWS.map((row, rowIndex) =>

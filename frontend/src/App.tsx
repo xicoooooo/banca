@@ -22,6 +22,15 @@ type Screen = Game | 'profile' | 'leagues' | 'player'
 
 const SCREENS: Screen[] = ['poker', 'blackjack', 'roulette', 'profile', 'leagues', 'player']
 
+const TITLES: Record<Screen, string> = {
+  poker: "Texas Hold'em",
+  blackjack: 'Blackjack',
+  roulette: 'Roulette',
+  profile: 'Your profile',
+  leagues: 'Leagues',
+  player: 'Player',
+}
+
 /** Where the address points: a screen, and for a game with shared tables which one within it. */
 type Place = { screen: Screen; room: string | null }
 
@@ -58,6 +67,12 @@ function App() {
       disposed = true
     }
   }, [returning])
+
+  // Each screen names itself in the tab and to a screen reader arriving on it.
+  const screenName = place ? TITLES[place.screen] : null
+  useEffect(() => {
+    document.title = screenName ? `${screenName} · Banca` : 'Banca'
+  }, [screenName])
 
   useEffect(() => {
     const onChange = () => setPlace(placeInAddress())

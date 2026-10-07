@@ -1,3 +1,4 @@
+import { keepTabInside } from '../casino/useDialog'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { prefersReducedMotion } from '../casino/motion'
 import type { TraceEvent } from './types'
@@ -173,6 +174,7 @@ export function ReasoningPanel({ reasoning, name, thinking, onClose }: Reasoning
 
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') close()
+      keepTabInside(closeButton.current?.closest('[role="dialog"]'), event)
     }
     window.addEventListener('keydown', onKey)
     return () => {
