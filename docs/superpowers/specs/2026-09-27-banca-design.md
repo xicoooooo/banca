@@ -38,11 +38,12 @@ The name is the Portuguese and Italian word for the house, the bank that runs th
 
 ## 4. Target platforms
 
-One codebase: a responsive web application, to be installable as a PWA. The web manifest and icons are in place; the service worker and the offline shell are Phase 7.
+One codebase: a responsive web application, installable as a PWA. A hand-written service worker keeps the page and the files it is built from, and nothing else: no table, player or chip is ever answered from the device. The page itself is always fetched fresh when there is a network, so a new release is picked up on the next visit without anyone clearing anything.
 
 - **Phones (iOS and Android):** the PWA installs to the home screen and runs full screen. No app-store build, because an Apple Developer account costs 99 EUR/year and Google Play charges a 25 EUR registration fee, and neither is worth paying now.
 - **Tablets and desktop browsers:** the same application, wider layout.
-- **Offline:** the shell loads offline and shows a clear reconnect state, but playing requires a connection, since the server owns the rules.
+- **Installing:** the lobby offers it. Where the browser can install on request there is a button; on an iPhone, where it cannot, the player is told where Add to Home Screen is. Saying no is remembered on that device.
+- **Offline:** the shell loads offline and says so across the top of the screen, but playing requires a connection, since the server owns the rules.
 
 The interface is designed phone-first, since that is how a social casino is actually used.
 
@@ -153,7 +154,7 @@ A plain statement that chips are play money with no real value and no way to buy
 ### 7.10 Staging
 
 - **Built:** identity, profile and stats, levels and achievements, daily rewards, bust protection, the coach before a decision at all three games, grading after a blackjack round, the tutorial, shared tables with chat, leagues, trophies and public pages.
-- **Left for v1 (through Phase 7):** PWA install, accessibility pass, session reminder.
+- **Left for v1 (through Phase 7):** accessibility pass, session reminder.
 - **Later:** unlocks by level, friends and private tables by invite, daily missions, round replay with the agent's reasoning attached, spectator mode, tournaments.
 
 ## 8. Components
@@ -254,7 +255,7 @@ A lobby, a picker and table for each game in both forms, the profile, the league
 | 4. Roulette | Third game, with Banca as analyst | Done |
 | 5. Platform | Lobby, shared wallet, guest identity and Google sign-in, tables that survive reconnects, shared tables and rooms at all three games, chat | Done |
 | 6. Player experience | Profile and stats, daily rewards, bust protection, coach at all three games, grading after a blackjack round, tutorial, leagues and trophies | Done |
-| 7. Polish and launch | PWA install, accessibility, session reminder, architecture diagram, demo video | To do |
+| 7. Polish and launch | PWA install: done. Accessibility, session reminder, architecture diagram, demo video: to do | In progress |
 | 8. Stretch | Unlocks by level, friends and private tables, agent personalities, missions, replay, spectator, tournaments | Open |
 
 Phases are taken in order. The first draft allowed 20 to 27 weeks; Phases 0 to 6 were done well inside that, with nothing cut from Phase 6.

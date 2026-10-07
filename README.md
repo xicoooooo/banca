@@ -23,7 +23,9 @@ A multi-game social casino played with virtual chips: Texas Hold'em, blackjack a
 
 - **A guide to each game.** The first time you sit down, Banca walks you through a real round, step by step. Skip it, or take it again from your profile.
 
-**Still to come:** the polish that makes it install and feel like an app.
+- **Installs like an app.** Add it to a phone's home screen from the lobby and it opens full screen, with no store involved. It opens without a network too, and says it is waiting for one.
+
+**Still to come:** an accessibility pass and the last of the polish.
 
 ## Why it exists
 
@@ -47,7 +49,7 @@ backend/        Kotlin + Ktor, one process
   agents/       the tool-calling loop, the MCP tools for each game, model providers
   players/      identity, the chip ledger, rewards, statistics, leagues
 db/migrations/  the Postgres schema, applied in order
-frontend/       React + TypeScript
+frontend/       React + TypeScript, installable as a PWA
 docs/           the wire protocol and the design spec
 ```
 

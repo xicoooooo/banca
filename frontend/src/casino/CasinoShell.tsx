@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
+import { OfflineNote } from './AppNotes'
 
 // Few, slow and faint: the room should be felt more than seen. Positions are
 // fixed rather than random so the page looks the same on every load.
@@ -59,6 +60,8 @@ export function CasinoShell({ children, showdown = false }: { children: ReactNod
       >
         {children}
       </main>
+
+      <OfflineNote />
 
       {/* Chips in flight are drawn here, above everything and outside the layout. */}
       <div id="flight-layer" aria-hidden />

@@ -1,3 +1,4 @@
+import { InstallCard } from '../casino/AppNotes'
 import { useEffect, useState } from 'react'
 import { CasinoShell } from '../casino/CasinoShell'
 import { Header } from '../casino/Header'
@@ -131,6 +132,8 @@ export function Lobby({ onChoose, onProfile, onLeagues }: { onChoose: (game: Gam
             <span className="text-sm leading-relaxed text-muted">{game.detail}</span>
           </button>
         ))}
+
+        <InstallCard />
 
         <p className="label pt-2 text-center leading-relaxed">
           Chips are free and have no value
