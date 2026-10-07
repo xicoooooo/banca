@@ -10,9 +10,11 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import java.time.Instant
+import java.time.LocalDate
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -206,6 +208,77 @@ abstract class PlayerStoreContract {
         assertEquals(2, claims.size)
         assertTrue(!claims[0].isBefore(claims[1]))
         assertEquals(1, store.grantsOf(player.id, LedgerReason.DAILY_REWARD, 1).size)
+    }
+
+    /** A signed-in player with a name nobody else in a shared database will have. */
+    private suspend fun member(store: PlayerStore, name: String): Player {
+        val player = store.create(name, token(), 2_000)
+        return store.linkAccount(player.id, UUID.randomUUID().toString())
+    }
+
+    @Test
+    fun `standings count each signed-in player's rounds in the window, and nobody else's`() = with { store ->
+        val ana = member(store, "Ana-${token()}")
+        val idle = member(store, "Idle-${token()}")
+        val guest = store.create("Guest-${token()}", token(), 2_000)
+        store.recordRound(ana.id, round(net = 150, game = Game.POKER))
+        store.recordRound(ana.id, round(net = -40))
+        store.recordRound(guest.id, round(net = 900))
+
+        val from = Instant.now().minusSeconds(3_600)
+        val until = Instant.now().plusSeconds(3_600)
+        val all = store.standings(from, until).associateBy { it.playerId }
+
+        assertEquals(110, all.getValue(ana.id).net)
+        assertEquals(2, all.getValue(ana.id).rounds)
+        assertEquals(0, all.getValue(ana.id).tier)
+        assertEquals(0, all.getValue(idle.id).rounds, "a signed-in player who has not played is still listed")
+        assertEquals(0, all.getValue(idle.id).net)
+        assertTrue(guest.id !in all, "a guest is in no league")
+
+        assertEquals(150, store.standings(from, until, Game.POKER).first { it.playerId == ana.id }.net, "one game at a time")
+        assertEquals(0, store.standings(from, until, Game.ROULETTE).first { it.playerId == ana.id }.rounds)
+        assertEquals(0, store.standings(until, until.plusSeconds(60)).first { it.playerId == ana.id }.rounds, "nothing outside the window")
+    }
+
+    @Test
+    fun `settling a week moves leagues, pays prizes and keeps the result, once`() = with { store ->
+        val ana = member(store, "Ana-${token()}")
+        val rui = member(store, "Rui-${token()}")
+        store.recordRound(ana.id, round(net = 500))
+        // A week nobody else's test will settle, and long past, so a database
+        // these tests share with a running server is not left thinking the
+        // future has already been settled.
+        val week = LocalDate.of(1000, 1, 6).plusWeeks((0..40_000L).random())
+        val from = Instant.now().minusSeconds(3_600)
+        val until = Instant.now().plusSeconds(3_600)
+
+        var asked = 0
+        val decide = { standings: List<Standing> ->
+            asked++
+            val mine = standings.first { it.playerId == ana.id }
+            assertEquals(500, mine.net, "the week's standings are what is decided from")
+            listOf(
+                LeagueResult(ana.id, tier = 0, position = 1, net = 500, rounds = 1, outcome = LeagueOutcome.PROMOTED, prize = 1_000),
+                LeagueResult(rui.id, tier = 0, position = 0, net = 0, rounds = 0, outcome = LeagueOutcome.STAYED, prize = 0),
+            )
+        }
+
+        assertTrue(store.settleWeek(week, from, until, decide))
+        assertFalse(store.settleWeek(week, from, until, decide), "a second settling does nothing")
+        assertEquals(1, asked)
+
+        assertEquals(3_500, store.balance(ana.id), "the opening chips, the round and one prize")
+        assertEquals(LedgerReason.LEAGUE_PRIZE, store.ledger(ana.id, 10).last().reason)
+        assertEquals(1, store.standings(from, until).first { it.playerId == ana.id }.tier, "promoted")
+        assertEquals(0, store.standings(from, until).first { it.playerId == rui.id }.tier)
+
+        val kept = assertNotNull(store.leagueResult(ana.id, week))
+        assertEquals(LeagueOutcome.PROMOTED, kept.outcome)
+        assertEquals(1, kept.position)
+        assertEquals(1_000, kept.prize)
+        assertNull(store.leagueResult(ana.id, week.plusWeeks(1)))
+        assertTrue(assertNotNull(store.lastSettledWeek()) >= week, "the latest settled week is no earlier than this one")
     }
 }
 

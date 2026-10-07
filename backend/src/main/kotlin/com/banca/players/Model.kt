@@ -23,13 +23,21 @@ enum class LedgerReason {
     ROUND,
     BUST_TOP_UP,
     DAILY_REWARD,
+    LEAGUE_PRIZE,
 }
 
 /**
  * [accountId] is the account the profile is saved to, or null for a guest,
  * whose profile can only be reached from the device that made it.
  */
-data class Player(val id: UUID, val name: String, val createdAt: Instant, val accountId: String? = null)
+data class Player(
+    val id: UUID,
+    val name: String,
+    val createdAt: Instant,
+    val accountId: String? = null,
+    /** The league the player is in, from 0. Only means anything for a player who has signed in. */
+    val leagueTier: Int = 0,
+)
 
 /** Someone the sign-in provider vouches for. */
 data class Account(val id: String, val name: String?)

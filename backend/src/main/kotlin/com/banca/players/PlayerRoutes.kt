@@ -92,6 +92,19 @@ fun Application.configurePlayerRoutes(players: Players, signIn: SignInConfig? = 
             call.respond(DailyClaim(granted, players.balance(player), players.rewards(player)))
         }
 
+        // The league the caller is in this week. Anyone may look: without a
+        // token, or with a guest's, it is the lowest league, to be read and not joined.
+        get("/league") {
+            call.respond(players.leaderboards.league(players.authenticate(call.token())))
+        }
+
+        // The biggest winners, this week or of all time, at one game or all of them.
+        get("/leaderboard") {
+            val game = call.request.queryParameters["game"]?.let { name -> Game.entries.firstOrNull { it.name.equals(name, ignoreCase = true) } }
+            val thisWeek = call.request.queryParameters["period"] != "all"
+            call.respond(players.leaderboards.top(thisWeek, game, players.authenticate(call.token())))
+        }
+
         get("/sign-in") {
             call.respond(SignInSettings(signIn?.url, signIn?.publicKey))
         }

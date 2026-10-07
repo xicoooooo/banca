@@ -4,6 +4,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDate
 import java.util.UUID
 
 /**
@@ -19,6 +20,7 @@ class InMemoryPlayerStore(private val clock: Clock = Clock.systemUTC()) : Player
 
     private val accounts = mutableMapOf<UUID, Entry>()
     private val tokens = mutableMapOf<String, UUID>()
+    private val settled = mutableMapOf<LocalDate, Map<UUID, LeagueResult>>()
     private val lock = Mutex()
 
     private fun account(id: UUID) = accounts[id] ?: error("No player $id")
@@ -89,6 +91,35 @@ class InMemoryPlayerStore(private val clock: Clock = Clock.systemUTC()) : Player
     override suspend fun grantsOf(id: UUID, reason: LedgerReason, limit: Int): List<Instant> = lock.withLock {
         account(id).ledger.filter { it.reason == reason }.map { it.at }.asReversed().take(limit)
     }
+
+    override suspend fun standings(from: Instant, until: Instant, game: Game?): List<Standing> = lock.withLock { standingsIn(from, until, game) }
+
+    private fun standingsIn(from: Instant, until: Instant, game: Game?): List<Standing> =
+        accounts.values.filter { it.player.accountId != null }.map { entry ->
+            val played = entry.rounds.filter { !it.endedAt.isBefore(from) && it.endedAt.isBefore(until) && (game == null || it.game == game) }
+            Standing(entry.player.id, entry.player.name, entry.player.leagueTier, net = played.sumOf { it.net }, rounds = played.size)
+        }
+
+    override suspend fun lastSettledWeek(): LocalDate? = lock.withLock { settled.keys.maxOrNull() }
+
+    override suspend fun settleWeek(
+        week: LocalDate,
+        from: Instant,
+        until: Instant,
+        decide: (List<Standing>) -> List<LeagueResult>,
+    ): Boolean = lock.withLock {
+        if (week in settled) return@withLock false
+        val results = decide(standingsIn(from, until, null))
+        for (result in results) {
+            val entry = accounts[result.playerId] ?: continue
+            entry.player = entry.player.copy(leagueTier = result.nextTier)
+            if (result.prize > 0) entry.ledger += LedgerEntry(result.prize, LedgerReason.LEAGUE_PRIZE, Instant.now(clock))
+        }
+        settled[week] = results.associateBy { it.playerId }
+        true
+    }
+
+    override suspend fun leagueResult(id: UUID, week: LocalDate): LeagueResult? = lock.withLock { settled[week]?.get(id) }
 
     override suspend fun rounds(id: UUID, limit: Int): List<RoundRecord> = lock.withLock {
         account(id).rounds.asReversed().take(limit)

@@ -11,6 +11,7 @@ import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.Timestamp
 import java.time.Instant
+import java.time.LocalDate
 import java.util.UUID
 import javax.sql.DataSource
 
@@ -168,6 +169,105 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
         }
     }
 
+    override suspend fun standings(from: Instant, until: Instant, game: Game?): List<Standing> = query { it.standings(from, until, game) }
+
+    private fun Connection.standings(from: Instant, until: Instant, game: Game?): List<Standing> =
+        prepareStatement(
+            // Every signed-in player, whether or not they played: the join is on the left for that.
+            "select p.id, p.display_name, p.league_tier, coalesce(sum(played.net_chips), 0) as net, count(played.net_chips) as rounds " +
+                "from profiles p left join (" +
+                "select rr.profile_id, rr.net_chips from round_results rr join rounds r on r.id = rr.round_id " +
+                "where r.ended_at >= ? and r.ended_at < ? and (?::text is null or r.game = ?::game_kind)" +
+                ") played on played.profile_id = p.id " +
+                "where p.auth_user_id is not null group by p.id, p.display_name, p.league_tier",
+        ).use { statement ->
+            statement.setTimestamp(1, Timestamp.from(from))
+            statement.setTimestamp(2, Timestamp.from(until))
+            statement.setString(3, game?.name?.lowercase())
+            statement.setString(4, game?.name?.lowercase())
+            statement.executeQuery().use { rows ->
+                buildList {
+                    while (rows.next()) {
+                        add(
+                            Standing(
+                                playerId = rows.getObject("id", UUID::class.java),
+                                name = rows.getString("display_name"),
+                                tier = rows.getInt("league_tier"),
+                                net = rows.getLong("net"),
+                                rounds = rows.getInt("rounds"),
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+
+    override suspend fun lastSettledWeek(): LocalDate? = query { connection ->
+        connection.prepareStatement("select max(week_start) from league_weeks").use { statement ->
+            statement.executeQuery().use { rows -> if (rows.next()) rows.getDate(1)?.toLocalDate() else null }
+        }
+    }
+
+    override suspend fun settleWeek(
+        week: LocalDate,
+        from: Instant,
+        until: Instant,
+        decide: (List<Standing>) -> List<LeagueResult>,
+    ): Boolean = transaction { connection ->
+        // Claiming the week is what makes it settle once: a second claim inserts nothing and stops here.
+        val claimed = connection.prepareStatement("insert into league_weeks (week_start) values (?) on conflict do nothing").use { statement ->
+            statement.setDate(1, java.sql.Date.valueOf(week))
+            statement.executeUpdate() == 1
+        }
+        if (!claimed) return@transaction false
+
+        for (result in decide(connection.standings(from, until, null))) {
+            connection.prepareStatement(
+                "insert into league_results (week_start, profile_id, tier, position, net, rounds, outcome, prize) values (?, ?, ?, ?, ?, ?, ?, ?)",
+            ).use { statement ->
+                statement.setDate(1, java.sql.Date.valueOf(week))
+                statement.setObject(2, result.playerId)
+                statement.setInt(3, result.tier)
+                statement.setInt(4, result.position)
+                statement.setLong(5, result.net)
+                statement.setInt(6, result.rounds)
+                statement.setString(7, result.outcome.name.lowercase())
+                statement.setLong(8, result.prize)
+                statement.executeUpdate()
+            }
+            if (result.nextTier != result.tier) {
+                connection.prepareStatement("update profiles set league_tier = ? where id = ?").use { statement ->
+                    statement.setInt(1, result.nextTier)
+                    statement.setObject(2, result.playerId)
+                    statement.executeUpdate()
+                }
+            }
+            if (result.prize > 0) connection.addEntry(result.playerId, result.prize, LedgerReason.LEAGUE_PRIZE, reference = week.toString())
+        }
+        true
+    }
+
+    override suspend fun leagueResult(id: UUID, week: LocalDate): LeagueResult? = query { connection ->
+        connection.prepareStatement(
+            "select tier, position, net, rounds, outcome, prize from league_results where profile_id = ? and week_start = ?",
+        ).use { statement ->
+            statement.setObject(1, id)
+            statement.setDate(2, java.sql.Date.valueOf(week))
+            statement.executeQuery().use { rows ->
+                if (!rows.next()) return@use null
+                LeagueResult(
+                    playerId = id,
+                    tier = rows.getInt("tier"),
+                    position = rows.getInt("position"),
+                    net = rows.getLong("net"),
+                    rounds = rows.getInt("rounds"),
+                    outcome = LeagueOutcome.valueOf(rows.getString("outcome").uppercase()),
+                    prize = rows.getLong("prize"),
+                )
+            }
+        }
+    }
+
     override suspend fun rounds(id: UUID, limit: Int): List<RoundRecord> = query { connection ->
         connection.prepareStatement(
             "select r.game, r.ended_at, rr.staked, rr.net_chips, rr.outcome, rr.detail " +
@@ -251,11 +351,12 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
         name = getString("display_name"),
         createdAt = getTimestamp("created_at").toInstant(),
         accountId = getString("auth_user_id"),
+        leagueTier = getInt("league_tier"),
     )
 
     companion object {
         /** The columns a player is read from. */
-        private const val PLAYER = "id, display_name, created_at, auth_user_id"
+        private const val PLAYER = "id, display_name, created_at, auth_user_id, league_tier"
 
         /**
          * Opens a pool from an address of the usual form,

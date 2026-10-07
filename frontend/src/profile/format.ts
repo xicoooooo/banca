@@ -49,6 +49,11 @@ export function until(at: string, now: Date = new Date()): string {
   if (minutes === 1) return 'under a minute'
   if (minutes < 60) return `${minutes}m`
   const hours = Math.floor(minutes / 60)
+  // Past a day, the minutes stop mattering and the days start to.
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24)
+    return hours % 24 === 0 ? `${days}d` : `${days}d ${hours % 24}h`
+  }
   const rest = minutes % 60
   return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`
 }

@@ -1,6 +1,7 @@
 package com.banca.players
 
 import java.time.Instant
+import java.time.LocalDate
 import java.util.UUID
 
 /**
@@ -47,6 +48,27 @@ interface PlayerStore {
 
     /** When the player was last given chips for [reason], newest first. */
     suspend fun grantsOf(id: UUID, reason: LedgerReason, limit: Int): List<Instant>
+
+    /**
+     * How every signed-in player did at the tables from [from] up to [until]:
+     * what they won and how many rounds they played, at [game] or at all of
+     * them. Players who did not play are there too, with noughts.
+     */
+    suspend fun standings(from: Instant, until: Instant, game: Game? = null): List<Standing>
+
+    /** The latest week that has been settled, named by its Monday, or null if none has. */
+    suspend fun lastSettledWeek(): LocalDate?
+
+    /**
+     * Settles the week beginning on [week], once. [decide] is given the week's
+     * standings and says what it came to for each player; their new leagues,
+     * their prizes and the record of it are then written together. Returns
+     * false, having done nothing, if the week had already been settled.
+     */
+    suspend fun settleWeek(week: LocalDate, from: Instant, until: Instant, decide: (List<Standing>) -> List<LeagueResult>): Boolean
+
+    /** What a settled week came to for one player, or null if they had no part in it. */
+    suspend fun leagueResult(id: UUID, week: LocalDate): LeagueResult?
 
     /** The player's rounds, newest first. */
     suspend fun rounds(id: UUID, limit: Int): List<RoundRecord>

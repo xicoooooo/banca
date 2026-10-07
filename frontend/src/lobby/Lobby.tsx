@@ -1,7 +1,11 @@
+import { useEffect, useState } from 'react'
 import { CasinoShell } from '../casino/CasinoShell'
 import { Header } from '../casino/Header'
 import { useDashboard } from '../player/useDashboard'
-import { chips } from '../profile/format'
+import { Crest } from '../leagues/Crest'
+import { fetchLeague } from '../player/api'
+import type { League } from '../player/types'
+import { chips, signed, toneOf } from '../profile/format'
 import { DailyReward } from './DailyReward'
 
 export type Game = 'poker' | 'blackjack' | 'roulette'
@@ -27,9 +31,32 @@ const GAMES: { id: Game; name: string; line: string; detail: string }[] = [
   },
 ]
 
+const ORDINAL = ['', '1st', '2nd', '3rd']
+const ordinal = (position: number) => ORDINAL[position] ?? `${position}th`
+
 /** Where a visit starts: who is playing, what they have, and the games on offer. */
-export function Lobby({ onChoose, onProfile }: { onChoose: (game: Game) => void; onProfile: () => void }) {
+export function Lobby({ onChoose, onProfile, onLeagues }: { onChoose: (game: Game) => void; onProfile: () => void; onLeagues: () => void }) {
   const { dashboard, refresh } = useDashboard()
+  const [league, setLeague] = useState<League | null>(null)
+
+  // The league is asked for once the player is known, so a first visit makes one guest and not two.
+  const known = dashboard !== null
+  useEffect(() => {
+    if (!known) return
+    let disposed = false
+    fetchLeague().then(
+      (loaded) => {
+        if (!disposed) setLeague(loaded)
+      },
+      // The lobby is complete without it.
+      () => undefined,
+    )
+    return () => {
+      disposed = true
+    }
+  }, [known])
+
+  const mine = league?.rows.find((row) => row.you)
 
   return (
     <CasinoShell>
@@ -57,6 +84,30 @@ export function Lobby({ onChoose, onProfile }: { onChoose: (game: Game) => void;
               <span className="figure block text-base font-semibold text-gold-bright">{chips(dashboard.bankroll.balance)}</span>
               <span className="label block tracking-[0.12em]!">chips</span>
             </span>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="flex-none text-muted">
+              <path d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        )}
+
+        {league && (
+          <button type="button" onClick={onLeagues} className="league-card rise-in" style={{ ['--rise-delay' as string]: '40ms' }} aria-label="Open the leagues">
+            <Crest league={league.tierName} size={34} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-base font-semibold tracking-tight">{league.signedIn ? `${league.tierName} League` : 'Weekly leagues'}</span>
+              <span className="label block tracking-[0.12em]!">
+                {!league.signedIn
+                  ? 'Sign in to take your place'
+                  : mine && mine.position > 0
+                    ? `${ordinal(mine.position)} this week${mine.zone === 'promotion' ? ' · going up' : mine.zone === 'demotion' ? ' · going down' : ''}`
+                    : 'Not played yet this week'}
+              </span>
+            </span>
+            {mine && mine.position > 0 && (
+              <span className="figure text-base font-semibold" data-tone={toneOf(mine.net)}>
+                {signed(mine.net)}
+              </span>
+            )}
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="flex-none text-muted">
               <path d="M9 5l7 7-7 7" />
             </svg>

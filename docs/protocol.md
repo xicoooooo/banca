@@ -66,6 +66,25 @@ A table belongs to the server, not to the wire. Each player has one table of the
 
 Tables are kept in the server's memory. If the server itself restarts, rounds in play are lost and nothing is charged for them.
 
+### Leagues
+
+Players who have signed in are in a weekly league. There are five, from Bronze up to Emerald, and everyone starts in the lowest. A week runs from Monday to Monday in UTC, and within a league players are ranked by what they won at the tables that week, at all the games together. Chips from rewards and prizes do not count.
+
+When a week ends:
+
+- the top three of each league go up one, if they played at least ten rounds and finished ahead, and are paid a prize that is larger in the higher leagues;
+- anyone above the lowest league who did not play all week goes down one;
+- in a league where at least ten players played, the bottom three go down as well.
+
+Nothing runs on a timer. A finished week is settled by the first request to look at a league after it ends, once, and everyone who looks after that sees the result.
+
+| Request | Answer |
+|---|---|
+| `GET /league` | The league the caller is in this week: its standings, where each player would end up if the week ended now, when it ends, how last week went for the caller, and the rules |
+| `GET /leaderboard?period=week\|all&game=poker\|blackjack\|roulette` | The biggest winners among signed-in players, this week (the default) or of all time, at one game or all of them |
+
+Both may be called by anyone. With a signed-in player's token the answer marks their own row with `you`; without one, or with a guest's, `/league` shows the lowest league with `signedIn` false. Guests are never listed.
+
 ### Saying hello
 
 The first frame on either WebSocket must be:

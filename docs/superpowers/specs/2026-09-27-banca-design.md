@@ -1,4 +1,4 @@
-# Banca — Design Spec
+# Banca - Design Spec
 
 Date: 27/09/2026
 Author: Francisco Aragão Dias

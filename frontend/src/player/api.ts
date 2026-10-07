@@ -1,6 +1,6 @@
 import { httpUrl } from '../casino/server'
 import { forgetPlayer, playerToken } from './identity'
-import type { Dashboard } from './types'
+import type { Dashboard, GameId, League, TopList } from './types'
 
 /** A request the server understood and refused, with its reason. */
 export class Refused extends Error {}
@@ -27,6 +27,16 @@ export async function request(path: string, init: RequestInit = {}, secondTry = 
 
 export async function fetchDashboard(): Promise<Dashboard> {
   return (await request('/players/me/dashboard')).json() as Promise<Dashboard>
+}
+
+export async function fetchLeague(): Promise<League> {
+  return (await request('/league')).json() as Promise<League>
+}
+
+/** The biggest winners among signed-in players: this week or of all time, at one game or all of them. */
+export async function fetchTop(period: 'week' | 'all', game: GameId | null): Promise<TopList> {
+  const query = new URLSearchParams({ period, ...(game ? { game } : {}) })
+  return (await request(`/leaderboard?${query}`)).json() as Promise<TopList>
 }
 
 /** Claims today's reward and returns what it was worth. */

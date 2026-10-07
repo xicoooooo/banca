@@ -86,3 +86,29 @@ export type Achievement = {
   progress: number
   target: number
 }
+
+/** Where a player would end up if the week finished now. */
+export type Zone = 'promotion' | 'safe' | 'demotion'
+
+/** One player's line in their league this week. `position` is 0 for someone who has not played yet. */
+export type LeagueRow = { position: number; name: string; net: number; rounds: number; you: boolean; zone: Zone }
+
+/** The league the player is in this week, or the lowest one for a guest to look at. */
+export type League = {
+  /** False for a guest, who can look at a league but is not in one. */
+  signedIn: boolean
+  tier: number
+  tierName: string
+  tiers: string[]
+  weekStart: string
+  endsAt: string
+  /** How many players are in this league, whether or not they have played this week. */
+  players: number
+  rows: LeagueRow[]
+  lastWeek: { tier: string; position: number; net: number; outcome: 'promoted' | 'stayed' | 'demoted'; prize: number } | null
+  rules: { promoted: number; demoted: number; demotionNeeds: number; minRounds: number; prizes: number[] }
+}
+
+export type TopRow = { position: number; name: string; league: string; net: number; rounds: number; you: boolean }
+
+export type TopList = { period: 'week' | 'all'; game: GameId | null; rows: TopRow[] }

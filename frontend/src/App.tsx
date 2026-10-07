@@ -4,6 +4,7 @@ import { BlackjackTable } from './blackjack/BlackjackTable'
 import { SharedBlackjackTable } from './blackjack/SharedBlackjackTable'
 import { CasinoShell } from './casino/CasinoShell'
 import { Loading } from './casino/Loading'
+import { Leaderboard } from './leagues/Leaderboard'
 import { Lobby, type Game } from './lobby/Lobby'
 import { confirmSignIn, returningFromSignIn } from './player/account'
 import { Profile } from './profile/Profile'
@@ -14,9 +15,9 @@ import { PokerPicker } from './table/PokerPicker'
 import { SharedTable } from './table/SharedTable'
 import { Table } from './table/Table'
 
-type Screen = Game | 'profile'
+type Screen = Game | 'profile' | 'leagues'
 
-const SCREENS: Screen[] = ['poker', 'blackjack', 'roulette', 'profile']
+const SCREENS: Screen[] = ['poker', 'blackjack', 'roulette', 'profile', 'leagues']
 
 /** Where the address points: a screen, and for a game with shared tables which one within it. */
 type Place = { screen: Screen; room: string | null }
@@ -119,7 +120,8 @@ function App() {
     )
   }
   if (screen === 'profile') return <Profile onLeave={leave} onPlay={open} signInFailed={arrival === 'failed'} />
-  return <Lobby onChoose={open} onProfile={() => open('profile')} />
+  if (screen === 'leagues') return <Leaderboard onLeave={leave} onSignIn={() => open('profile')} onPlay={leave} />
+  return <Lobby onChoose={open} onProfile={() => open('profile')} onLeagues={() => open('leagues')} />
 }
 
 export default App

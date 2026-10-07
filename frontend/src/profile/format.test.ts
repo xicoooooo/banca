@@ -34,6 +34,8 @@ describe('writing figures', () => {
     expect(until('2026-10-06T12:08:10Z', now)).toBe('9m')
     expect(until('2026-10-06T12:00:20Z', now)).toBe('under a minute')
     expect(until('2026-10-06T11:00:00Z', now)).toBe('now')
+    expect(until('2026-10-12T00:00:00Z', now)).toBe('5d 12h')
+    expect(until('2026-10-08T12:00:00Z', now)).toBe('2d')
   })
 
   it('measures progress through a level and stays within it', () => {
