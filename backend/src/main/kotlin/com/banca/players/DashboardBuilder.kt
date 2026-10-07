@@ -43,6 +43,7 @@ object DashboardBuilder {
         ledger: List<LedgerEntry>,
         now: Instant,
         rewards: RewardStatus = Rewards.status(emptyList(), null, now),
+        trophies: List<Trophy> = emptyList(),
     ): Dashboard {
         val xp = rounds.sumOf(::experienceFor)
         val level = Levels.levelAt(xp)
@@ -74,6 +75,21 @@ object DashboardBuilder {
                 )
             },
             rewards = rewards,
+            league = if (player.accountId != null) Leagues.TIERS[player.leagueTier.coerceIn(0, Leagues.TIERS.lastIndex)] else null,
+            trophies = trophies.map(::trophyView),
+        )
+    }
+
+    private val PLACES = listOf("Champion", "Runner-up", "Third place")
+
+    fun trophyView(trophy: Trophy): TrophyView {
+        val league = Leagues.TIERS[trophy.tier.coerceIn(0, Leagues.TIERS.lastIndex)]
+        return TrophyView(
+            league = league,
+            position = trophy.position,
+            title = "$league ${PLACES.getOrElse(trophy.position - 1) { "Finalist" }}",
+            week = trophy.week.toString(),
+            prize = trophy.prize,
         )
     }
 

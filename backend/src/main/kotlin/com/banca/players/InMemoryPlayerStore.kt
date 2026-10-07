@@ -121,6 +121,15 @@ class InMemoryPlayerStore(private val clock: Clock = Clock.systemUTC()) : Player
 
     override suspend fun leagueResult(id: UUID, week: LocalDate): LeagueResult? = lock.withLock { settled[week]?.get(id) }
 
+    override suspend fun trophies(id: UUID, limit: Int): List<Trophy> = lock.withLock {
+        settled.entries
+            .mapNotNull { (week, results) -> results[id]?.takeIf { it.prize > 0 }?.let { Trophy(week, it.tier, it.position, it.prize) } }
+            .sortedByDescending { it.week }
+            .take(limit)
+    }
+
+    override suspend fun findById(id: UUID): Player? = lock.withLock { accounts[id]?.player }
+
     override suspend fun rounds(id: UUID, limit: Int): List<RoundRecord> = lock.withLock {
         account(id).rounds.asReversed().take(limit)
     }

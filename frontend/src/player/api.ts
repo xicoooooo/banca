@@ -1,6 +1,6 @@
 import { httpUrl } from '../casino/server'
 import { forgetPlayer, playerToken } from './identity'
-import type { Dashboard, GameId, League, TopList } from './types'
+import type { Dashboard, GameId, League, PublicProfile, TopList } from './types'
 
 /** A request the server understood and refused, with its reason. */
 export class Refused extends Error {}
@@ -27,6 +27,11 @@ export async function request(path: string, init: RequestInit = {}, secondTry = 
 
 export async function fetchDashboard(): Promise<Dashboard> {
   return (await request('/players/me/dashboard')).json() as Promise<Dashboard>
+}
+
+/** What anyone may see of the signed-in player with this id. Fails if there is no such player. */
+export async function fetchPublicProfile(id: string): Promise<PublicProfile> {
+  return (await request(`/profiles/${encodeURIComponent(id)}`)).json() as Promise<PublicProfile>
 }
 
 export async function fetchLeague(): Promise<League> {

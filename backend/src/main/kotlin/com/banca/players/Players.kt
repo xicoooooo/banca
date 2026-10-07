@@ -143,7 +143,29 @@ class Players(private val store: PlayerStore, private val clock: Clock = Clock.s
         ledger = store.ledger(player.id, HISTORY_LIMIT),
         now = clock.instant(),
         rewards = rewards(player),
+        trophies = store.trophies(player.id, TROPHIES_SHOWN),
     )
+
+    /**
+     * What anyone may see of the player with this id, or null if there is no
+     * such player or they have not signed in. A guest has no public profile:
+     * they are on no leaderboard for anyone to have found them by.
+     */
+    suspend fun publicProfile(id: java.util.UUID): PublicProfile? {
+        val player = store.findById(id)?.takeIf { it.accountId != null } ?: return null
+        val full = dashboard(player)
+        return PublicProfile(
+            name = full.player.name,
+            memberSince = full.player.memberSince,
+            level = full.player.level,
+            title = full.player.title,
+            league = full.league ?: Leagues.TIERS.first(),
+            rounds = full.totals.rounds,
+            trophies = full.trophies,
+            achievements = full.achievements.count { it.earned },
+            achievementsInAll = full.achievements.size,
+        )
+    }
 
     private fun hash(token: String): String =
         MessageDigest.getInstance("SHA-256").digest(token.toByteArray()).joinToString("") { "%02x".format(it) }
@@ -153,6 +175,8 @@ class Players(private val store: PlayerStore, private val clock: Clock = Clock.s
 
         /** How far back the dashboard reads. Beyond this, totals describe recent play. */
         private const val HISTORY_LIMIT = 5_000
+
+        private const val TROPHIES_SHOWN = 60
 
         /** Enough daily claims to count a streak of a year. */
         private const val DAILY_CLAIMS_READ = 370

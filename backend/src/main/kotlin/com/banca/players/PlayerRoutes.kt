@@ -105,6 +105,17 @@ fun Application.configurePlayerRoutes(players: Players, signIn: SignInConfig? = 
             call.respond(players.leaderboards.top(thisWeek, game, players.authenticate(call.token())))
         }
 
+        // What anyone may see of a signed-in player: their name, level, league and trophies.
+        get("/profiles/{id}") {
+            val id = runCatching { java.util.UUID.fromString(call.parameters["id"]) }.getOrNull()
+            val profile = id?.let { players.publicProfile(it) }
+            if (profile == null) {
+                call.respond(HttpStatusCode.NotFound, Problem("There is no such player"))
+                return@get
+            }
+            call.respond(profile)
+        }
+
         get("/sign-in") {
             call.respond(SignInSettings(signIn?.url, signIn?.publicKey))
         }

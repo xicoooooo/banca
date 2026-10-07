@@ -14,6 +14,31 @@ data class Dashboard(
     val achievements: List<Achievement>,
     val recent: List<RecentRound>,
     val rewards: RewardStatus,
+    /** The league the player is in, or null for a guest, who is in none. */
+    val league: String?,
+    val trophies: List<TrophyView>,
+)
+
+/** A trophy as it is shown: "Bronze Champion", won in the week beginning on [week]. */
+@Serializable
+data class TrophyView(val league: String, val position: Int, val title: String, val week: String, val prize: Long)
+
+/**
+ * What anyone may see of a player who has signed in: who they are, how far
+ * they have come, and what they have won. Nothing about their chips or how
+ * they play.
+ */
+@Serializable
+data class PublicProfile(
+    val name: String,
+    val memberSince: String,
+    val level: Int,
+    val title: String,
+    val league: String,
+    val rounds: Int,
+    val trophies: List<TrophyView>,
+    val achievements: Int,
+    val achievementsInAll: Int,
 )
 
 @Serializable

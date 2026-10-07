@@ -278,6 +278,15 @@ abstract class PlayerStoreContract {
         assertEquals(1, kept.position)
         assertEquals(1_000, kept.prize)
         assertNull(store.leagueResult(ana.id, week.plusWeeks(1)))
+
+        val trophy = store.trophies(ana.id, 10).single()
+        assertEquals(week, trophy.week)
+        assertEquals(1, trophy.position)
+        assertEquals(1_000, trophy.prize)
+        assertTrue(store.trophies(rui.id, 10).isEmpty(), "a week that paid nothing leaves no trophy")
+
+        assertEquals(1, assertNotNull(store.findById(ana.id)).leagueTier)
+        assertNull(store.findById(UUID.randomUUID()))
         assertTrue(assertNotNull(store.lastSettledWeek()) >= week, "the latest settled week is no earlier than this one")
     }
 }

@@ -13,10 +13,12 @@ type CrestProps = {
   size?: number
   /** Drawn faintly, for a league the player is not in. */
   dim?: boolean
+  /** For a trophy: the place it was won for, shown on the shield where the star would be. */
+  place?: number
 }
 
 /** A league's crest: a shield in its metal. Decoration only; the league is always named in words beside it. */
-export function Crest({ league, size = 56, dim = false }: CrestProps) {
+export function Crest({ league, size = 56, dim = false, place }: CrestProps) {
   const metal = METAL[league] ?? METAL.Bronze
   const id = `crest-${league}`
 
@@ -30,7 +32,13 @@ export function Crest({ league, size = 56, dim = false }: CrestProps) {
       </defs>
       <path d="M24 2l19 6v19c0 12.5-8 21-19 27C13 48 5 39.500 5 27V8z" fill={`url(#${id})`} stroke="rgb(0 0 0 / 0.35)" strokeWidth="1" />
       <path d="M24 8l13 4.200V27c0 9-5.500 15.500-13 20-7.500-4.500-13-11-13-20V12.200z" fill="none" stroke="rgb(255 255 255 / 0.45)" strokeWidth="1" />
-      <path d="M24 17l3.100 6.400 7 1-5.050 4.950 1.200 7L24 33l-6.250 3.350 1.200-7L13.900 24.400l7-1z" fill="rgb(0 0 0 / 0.28)" />
+      {place ? (
+        <text x="24" y="35" textAnchor="middle" fontSize="20" fontWeight="800" fill="rgb(0 0 0 / 0.5)">
+          {place}
+        </text>
+      ) : (
+        <path d="M24 17l3.100 6.400 7 1-5.050 4.950 1.200 7L24 33l-6.250 3.350 1.200-7L13.900 24.400l7-1z" fill="rgb(0 0 0 / 0.28)" />
+      )}
     </svg>
   )
 }

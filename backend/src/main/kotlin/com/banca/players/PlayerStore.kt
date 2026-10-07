@@ -70,6 +70,11 @@ interface PlayerStore {
     /** What a settled week came to for one player, or null if they had no part in it. */
     suspend fun leagueResult(id: UUID, week: LocalDate): LeagueResult?
 
+    /** The player's trophies, newest first: every week they finished in a paid place. */
+    suspend fun trophies(id: UUID, limit: Int): List<Trophy>
+
+    suspend fun findById(id: UUID): Player?
+
     /** The player's rounds, newest first. */
     suspend fun rounds(id: UUID, limit: Int): List<RoundRecord>
 

@@ -268,6 +268,29 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
         }
     }
 
+    override suspend fun trophies(id: UUID, limit: Int): List<Trophy> = query { connection ->
+        connection.prepareStatement(
+            "select week_start, tier, position, prize from league_results where profile_id = ? and prize > 0 order by week_start desc limit ?",
+        ).use { statement ->
+            statement.setObject(1, id)
+            statement.setInt(2, limit)
+            statement.executeQuery().use { rows ->
+                buildList {
+                    while (rows.next()) {
+                        add(Trophy(rows.getDate("week_start").toLocalDate(), rows.getInt("tier"), rows.getInt("position"), rows.getLong("prize")))
+                    }
+                }
+            }
+        }
+    }
+
+    override suspend fun findById(id: UUID): Player? = query { connection ->
+        connection.prepareStatement("select $PLAYER from profiles where id = ?").use { statement ->
+            statement.setObject(1, id)
+            statement.executeQuery().use { rows -> if (rows.next()) rows.toPlayer() else null }
+        }
+    }
+
     override suspend fun rounds(id: UUID, limit: Int): List<RoundRecord> = query { connection ->
         connection.prepareStatement(
             "select r.game, r.ended_at, rr.staked, rr.net_chips, rr.outcome, rr.detail " +

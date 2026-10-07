@@ -32,7 +32,15 @@ function Panel({ title, aside, delay = 0, children }: { title: string; aside?: R
  * how last week went, and who is winning most. Everything here is worked out
  * by the server; this only draws it.
  */
-export function Leaderboard({ onLeave, onSignIn, onPlay }: { onLeave: () => void; onSignIn: () => void; onPlay: () => void }) {
+type LeaderboardProps = {
+  onLeave: () => void
+  onSignIn: () => void
+  onPlay: () => void
+  /** Opens another player's page, by their id. */
+  onPlayer: (id: string) => void
+}
+
+export function Leaderboard({ onLeave, onSignIn, onPlay, onPlayer }: LeaderboardProps) {
   const [league, setLeague] = useState<League | null>(null)
   const [failed, setFailed] = useState(false)
 
@@ -71,8 +79,8 @@ export function Leaderboard({ onLeave, onSignIn, onPlay }: { onLeave: () => void
       ) : (
         <div className="flex flex-col gap-4 py-4 sm:gap-5 sm:py-6">
           <Hero league={league} onSignIn={onSignIn} />
-          <Standings league={league} onPlay={onPlay} />
-          <Winners />
+          <Standings league={league} onPlay={onPlay} onPlayer={onPlayer} />
+          <Winners onPlayer={onPlayer} />
           <HowItWorks league={league} />
         </div>
       )}
@@ -139,7 +147,7 @@ function Hero({ league, onSignIn }: { league: League; onSignIn: () => void }) {
 
 const ZONE_NOTE = { promotion: 'Going up', safe: '', demotion: 'Going down' }
 
-function Standings({ league, onPlay }: { league: League; onPlay: () => void }) {
+function Standings({ league, onPlay, onPlayer }: { league: League; onPlay: () => void; onPlayer: (id: string) => void }) {
   const played = league.rows.filter((row) => row.position > 0)
   const waiting = league.rows.filter((row) => row.position === 0)
   const lastUp = played.findLast((row) => row.zone === 'promotion')
@@ -161,6 +169,7 @@ function Standings({ league, onPlay }: { league: League; onPlay: () => void }) {
               key={`${row.position}-${row.name}`}
               row={row}
               divider={row === lastUp ? 'up' : row === firstDown ? 'down' : null}
+              onOpen={() => onPlayer(row.id)}
               // In a paying place and ahead, but not yet played enough for it to count.
               roundsShort={row.position <= league.rules.promoted && row.net > 0 ? Math.max(0, league.rules.minRounds - row.rounds) : 0}
             />
@@ -179,7 +188,7 @@ function Standings({ league, onPlay }: { league: League; onPlay: () => void }) {
   )
 }
 
-function Row({ row, divider, roundsShort }: { row: LeagueRow; divider: 'up' | 'down' | null; roundsShort: number }) {
+function Row({ row, divider, roundsShort, onOpen }: { row: LeagueRow; divider: 'up' | 'down' | null; roundsShort: number; onOpen: () => void }) {
   return (
     <>
       {divider === 'down' && (
@@ -190,10 +199,10 @@ function Row({ row, divider, roundsShort }: { row: LeagueRow; divider: 'up' | 'd
       <li className="standings__row" data-you={row.you} data-zone={row.zone}>
         <span className="standings__position figure">{row.position}</span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-ivory">
-            {row.name}
+          <button type="button" className="standings__name" onClick={onOpen} aria-label={`Open ${row.name}'s page`}>
+            <span className="truncate">{row.name}</span>
             {row.you && <span className="label pl-2 text-gold-bright!">You</span>}
-          </span>
+          </button>
           <span className="label block tracking-[0.1em]!">
             {row.rounds} {row.rounds === 1 ? 'round' : 'rounds'}
             {roundsShort > 0 && (
@@ -227,7 +236,7 @@ function Row({ row, divider, roundsShort }: { row: LeagueRow; divider: 'up' | 'd
 
 const GAMES: (GameId | null)[] = [null, 'poker', 'blackjack', 'roulette']
 
-function Winners() {
+function Winners({ onPlayer }: { onPlayer: (id: string) => void }) {
   const [period, setPeriod] = useState<'week' | 'all'>('week')
   const [game, setGame] = useState<GameId | null>(null)
   const [list, setList] = useState<TopList | null>(null)
@@ -282,10 +291,10 @@ function Winners() {
               <span className="standings__position figure">{row.position}</span>
               <Crest league={row.league} size={22} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-ivory">
-                  {row.name}
+                <button type="button" className="standings__name" onClick={() => onPlayer(row.id)} aria-label={`Open ${row.name}'s page`}>
+                  <span className="truncate">{row.name}</span>
                   {row.you && <span className="label pl-2 text-gold-bright!">You</span>}
-                </span>
+                </button>
                 <span className="label block tracking-[0.1em]!">
                   {row.league} · {row.rounds} {row.rounds === 1 ? 'round' : 'rounds'}
                 </span>

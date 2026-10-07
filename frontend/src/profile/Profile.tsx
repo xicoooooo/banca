@@ -7,6 +7,7 @@ import { canSignIn, signInWithGoogle, signOut } from '../player/account'
 import { Refused, renamePlayer } from '../player/api'
 import type { Achievement, Dashboard, GameBreakdown, GameId } from '../player/types'
 import { useDashboard } from '../player/useDashboard'
+import { Trophies } from '../leagues/Trophies'
 import { ActivityChart, BankrollChart } from './charts'
 import { GAME_NAMES, ago, chips, levelProgress, monthAndYear, percent, signed, toneOf } from './format'
 
@@ -52,6 +53,13 @@ export function Profile({ onLeave, onPlay, signInFailed = false }: ProfileProps)
           )}
 
           <Progression dashboard={dashboard} />
+          <Section title="Trophies" aside={dashboard.league ? `${dashboard.league} League` : undefined} delay={5}>
+            {dashboard.league ? (
+              <Trophies trophies={dashboard.trophies} whose="yours" />
+            ) : (
+              <Empty>Trophies are won in the weekly leagues, which are for players who have signed in.</Empty>
+            )}
+          </Section>
           <Achievements achievements={dashboard.achievements} />
           {dashboard.recent.length > 0 && <Recent recent={dashboard.recent} />}
 

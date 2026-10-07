@@ -42,6 +42,25 @@ export type Dashboard = {
   achievements: Achievement[]
   recent: { game: GameId; at: string; net: number; outcome: Outcome; summary: string }[]
   rewards: Rewards
+  /** The league the player is in, or null for a guest, who is in none. */
+  league: string | null
+  trophies: Trophy[]
+}
+
+/** A top-three finish in a league, kept for good. `week` is the Monday the week it was won in began. */
+export type Trophy = { league: string; position: number; title: string; week: string; prize: number }
+
+/** What anyone may see of a player who has signed in. Nothing about their chips or how they play. */
+export type PublicProfile = {
+  name: string
+  memberSince: string
+  level: number
+  title: string
+  league: string
+  rounds: number
+  trophies: Trophy[]
+  achievements: number
+  achievementsInAll: number
 }
 
 /** The chips a player can come by without winning them, and when. */
@@ -91,7 +110,7 @@ export type Achievement = {
 export type Zone = 'promotion' | 'safe' | 'demotion'
 
 /** One player's line in their league this week. `position` is 0 for someone who has not played yet. */
-export type LeagueRow = { position: number; name: string; net: number; rounds: number; you: boolean; zone: Zone }
+export type LeagueRow = { id: string; position: number; name: string; net: number; rounds: number; you: boolean; zone: Zone }
 
 /** The league the player is in this week, or the lowest one for a guest to look at. */
 export type League = {
@@ -109,6 +128,6 @@ export type League = {
   rules: { promoted: number; demoted: number; demotionNeeds: number; minRounds: number; prizes: number[] }
 }
 
-export type TopRow = { position: number; name: string; league: string; net: number; rounds: number; you: boolean }
+export type TopRow = { id: string; position: number; name: string; league: string; net: number; rounds: number; you: boolean }
 
 export type TopList = { period: 'week' | 'all'; game: GameId | null; rows: TopRow[] }

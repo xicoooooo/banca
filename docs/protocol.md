@@ -83,7 +83,17 @@ Nothing runs on a timer. A finished week is settled by the first request to look
 | `GET /league` | The league the caller is in this week: its standings, where each player would end up if the week ended now, when it ends, how last week went for the caller, and the rules |
 | `GET /leaderboard?period=week\|all&game=poker\|blackjack\|roulette` | The biggest winners among signed-in players, this week (the default) or of all time, at one game or all of them |
 
-Both may be called by anyone. With a signed-in player's token the answer marks their own row with `you`; without one, or with a guest's, `/league` shows the lowest league with `signedIn` false. Guests are never listed.
+Both may be called by anyone. With a signed-in player's token the answer marks their own row with `you`; without one, or with a guest's, `/league` shows the lowest league with `signedIn` false. Guests are never listed. Every row carries the player's `id`, which is what their public page is asked for by.
+
+### Trophies and public pages
+
+Finishing a week first, second or third in a league, having played, earns a trophy as well as the prize. A trophy is kept for good and says which league, which place and which week: "Gold Champion", "Silver Runner-up", "Bronze Third place". A player's own are the `trophies` of their dashboard, newest first, each with its `league`, `position`, `title`, `week` (the Monday it began) and `prize`.
+
+| Request | Answer |
+|---|---|
+| `GET /profiles/{id}` | What anyone may see of a signed-in player: `name`, `memberSince`, `level`, `title`, `league`, `rounds`, `trophies`, and `achievements` out of `achievementsInAll`. `404` for a guest or an id nobody has |
+
+It needs no token. It never carries a balance, an email or a history.
 
 ### Saying hello
 
@@ -109,7 +119,7 @@ Each player has a private heads-up poker table: they sit in seat 0 against an ag
 
 The table is a cash game. Each hand the player sits down with their bankroll, up to 2,000 chips, against 2,000 for the agent, and what they win or lose in the hand is written to their bankroll as it ends.
 
-Shared tables are not part of this version.
+Tables shared with other players are described [further down](#poker-tables).
 
 ## Server to client
 

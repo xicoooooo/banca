@@ -37,6 +37,9 @@ data class LeagueResult(
         }
 }
 
+/** A top-three finish that was paid, kept for good: which league, which place, and the week it was won in. */
+data class Trophy(val week: LocalDate, val tier: Int, val position: Int, val prize: Long)
+
 /** Where a player stands in their league as the week goes on. */
 enum class Zone {
     /** On course to go up when the week ends. */

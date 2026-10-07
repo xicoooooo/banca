@@ -7,6 +7,8 @@ import java.time.Instant
 /** One player's line in their league this week. */
 @Serializable
 data class LeagueRow(
+    /** The player's id, by which their public profile is asked for. */
+    val id: String,
     /** Where they stand among those who have played this week, from 1, or 0 if they have not played yet. */
     val position: Int,
     val name: String,
@@ -49,7 +51,7 @@ data class LeagueView(
 )
 
 @Serializable
-data class TopRow(val position: Int, val name: String, val league: String, val net: Long, val rounds: Int, val you: Boolean)
+data class TopRow(val id: String, val position: Int, val name: String, val league: String, val net: Long, val rounds: Int, val you: Boolean)
 
 @Serializable
 data class TopView(val period: String, val game: String?, val rows: List<TopRow>)
@@ -100,6 +102,7 @@ class Leaderboards(private val store: PlayerStore, private val clock: Clock = Cl
         val rows = Leagues.zones(inTier)
             .mapIndexed { index, (standing, zone) ->
                 LeagueRow(
+                    id = standing.playerId.toString(),
                     position = if (standing.rounds > 0) index + 1 else 0,
                     name = standing.name,
                     net = standing.net,
@@ -155,6 +158,7 @@ class Leaderboards(private val store: PlayerStore, private val clock: Clock = Cl
             .take(MOST_ROWS)
             .mapIndexed { index, standing ->
                 TopRow(
+                    id = standing.playerId.toString(),
                     position = index + 1,
                     name = standing.name,
                     league = Leagues.TIERS[standing.tier.coerceIn(0, Leagues.TIERS.lastIndex)],

@@ -5,6 +5,7 @@ import { SharedBlackjackTable } from './blackjack/SharedBlackjackTable'
 import { CasinoShell } from './casino/CasinoShell'
 import { Loading } from './casino/Loading'
 import { Leaderboard } from './leagues/Leaderboard'
+import { PlayerPage } from './leagues/PlayerPage'
 import { Lobby, type Game } from './lobby/Lobby'
 import { confirmSignIn, returningFromSignIn } from './player/account'
 import { Profile } from './profile/Profile'
@@ -15,9 +16,9 @@ import { PokerPicker } from './table/PokerPicker'
 import { SharedTable } from './table/SharedTable'
 import { Table } from './table/Table'
 
-type Screen = Game | 'profile' | 'leagues'
+type Screen = Game | 'profile' | 'leagues' | 'player'
 
-const SCREENS: Screen[] = ['poker', 'blackjack', 'roulette', 'profile', 'leagues']
+const SCREENS: Screen[] = ['poker', 'blackjack', 'roulette', 'profile', 'leagues', 'player']
 
 /** Where the address points: a screen, and for a game with shared tables which one within it. */
 type Place = { screen: Screen; room: string | null }
@@ -25,8 +26,8 @@ type Place = { screen: Screen; room: string | null }
 function placeInAddress(): Place | null {
   const [name, room] = window.location.hash.replace(/^#\/?/, '').split('/')
   const screen = SCREENS.find((known) => known === name)
-  // A room is named by a short word; anything else in the address is not one.
-  return screen ? { screen, room: room && /^[a-z]{1,20}$/.test(room) ? room : null } : null
+  // A room is named by a short word and a player by their id; anything else in the address is neither.
+  return screen ? { screen, room: room && /^[a-z0-9-]{1,36}$/.test(room) ? room : null } : null
 }
 
 /**
@@ -120,7 +121,20 @@ function App() {
     )
   }
   if (screen === 'profile') return <Profile onLeave={leave} onPlay={open} signInFailed={arrival === 'failed'} />
-  if (screen === 'leagues') return <Leaderboard onLeave={leave} onSignIn={() => open('profile')} onPlay={leave} />
+  if (screen === 'leagues') {
+    return (
+      <Leaderboard
+        onLeave={leave}
+        onSignIn={() => open('profile')}
+        onPlay={leave}
+        onPlayer={(id) => {
+          window.location.hash = `/player/${id}`
+        }}
+      />
+    )
+  }
+  // A player's page is reached from the leagues, and goes back to them.
+  if (screen === 'player' && place?.room) return <PlayerPage key={place.room} id={place.room} onLeave={() => open('leagues')} />
   return <Lobby onChoose={open} onProfile={() => open('profile')} onLeagues={() => open('leagues')} />
 }
 

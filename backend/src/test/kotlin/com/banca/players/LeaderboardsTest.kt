@@ -213,6 +213,62 @@ class LeaderboardsTest {
         assertEquals("poker", poker.game)
     }
 
+    @Test
+    fun `finishing in a paid place wins a trophy, dated and kept for good`() = runBlocking {
+        val (ana, anaToken) = member("Ana")
+        val (rui, ruiToken) = member("Rui")
+        val (tiago, tiagoToken) = member("Tiago")
+        play(ana, 400, rounds = 12)
+        play(rui, 200, rounds = 12)
+        play(tiago, -100, rounds = 12)
+
+        nextWeek()
+        boards.catchUp()
+
+        val anas = players.dashboard(fresh(anaToken)).trophies.single()
+        assertEquals("Bronze Champion", anas.title)
+        assertEquals("2026-10-05", anas.week, "the week it was won in")
+        assertEquals(1, anas.position)
+        assertEquals(1_000, anas.prize)
+        assertEquals("Bronze Runner-up", players.dashboard(fresh(ruiToken)).trophies.single().title)
+        assertTrue(players.dashboard(fresh(tiagoToken)).trophies.isEmpty(), "nothing for finishing third while behind")
+
+        // Up in Silver, another week won. Both trophies are kept, the newest first.
+        play(fresh(anaToken), 300, rounds = 12)
+        nextWeek()
+        boards.catchUp()
+        // And weeks later, having played nothing since, they are still there.
+        clock.advance(Duration.ofDays(28))
+        boards.catchUp()
+
+        val kept = players.dashboard(fresh(anaToken))
+        assertEquals(listOf("Silver Champion", "Bronze Champion"), kept.trophies.map { it.title })
+        assertEquals(listOf("2026-10-12", "2026-10-05"), kept.trophies.map { it.week })
+        assertEquals("Bronze", kept.league, "the league was lost by staying away; the trophies were not")
+    }
+
+    @Test
+    fun `a signed-in player has a public profile, with their trophies and nothing about their chips`() = runBlocking {
+        val (ana, token) = member("Ana")
+        play(ana, 400, rounds = 12)
+        nextWeek()
+        boards.catchUp()
+
+        val profile = assertNotNull(players.publicProfile(ana.id))
+
+        assertEquals("Ana", profile.name)
+        assertEquals("Silver", profile.league)
+        assertEquals(12, profile.rounds)
+        assertEquals("Bronze Champion", profile.trophies.single().title)
+        assertTrue(profile.level >= 1 && profile.title.isNotBlank())
+        assertTrue(profile.achievements in 1..profile.achievementsInAll)
+        assertEquals(fresh(token).id, ana.id)
+
+        val (guest, _) = players.createGuest()
+        assertNull(players.publicProfile(guest.id), "a guest has none")
+        assertNull(players.publicProfile(UUID.randomUUID()))
+    }
+
     // ---------------------------------------------------------- over the wire
 
     private fun json(text: String) = Json.parseToJsonElement(text).jsonObject
@@ -241,5 +297,18 @@ class LeaderboardsTest {
         assertEquals("Bronze", row.getValue("league").jsonPrimitive.content)
 
         assertTrue(json(client.get("/leaderboard?game=poker").bodyAsText()).getValue("rows").jsonArray.isEmpty())
+
+        // A row names its player, and that name opens their public profile.
+        assertEquals(ana.id.toString(), row.getValue("id").jsonPrimitive.content)
+        val profile = client.get("/profiles/${ana.id}")
+        assertEquals(io.ktor.http.HttpStatusCode.OK, profile.status)
+        val shown = json(profile.bodyAsText())
+        assertEquals("Ana", shown.getValue("name").jsonPrimitive.content)
+        assertEquals("Bronze", shown.getValue("league").jsonPrimitive.content)
+        assertFalse("balance" in shown || "bankroll" in shown, "what a player has is their own business")
+
+        val (guest, _) = players.createGuest()
+        assertEquals(io.ktor.http.HttpStatusCode.NotFound, client.get("/profiles/${guest.id}").status)
+        assertEquals(io.ktor.http.HttpStatusCode.NotFound, client.get("/profiles/not-an-id").status)
     }
 }
