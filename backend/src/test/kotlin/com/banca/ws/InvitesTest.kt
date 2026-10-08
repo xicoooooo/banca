@@ -56,12 +56,12 @@ class InvitesTest {
     }
 
     @Test
-    fun `addresses are long, plain and never the same twice`() = runBlocking {
+    fun `codes are short, plain and never the same twice`() = runBlocking {
         val invites = register(most = 500)
         val ids = List(300) { invites.open("A table")!!.id }
 
         assertEquals(300, ids.toSet().size)
-        assertTrue(ids.all { Regex("[a-z2-9]{8}").matches(it) }, "eight characters that fit in an address")
+        assertTrue(ids.all { Regex("[a-z2-9]{6}").matches(it) }, "six characters, short enough to read out")
         assertTrue(ids.none { 'l' in it || 'o' in it || 'i' in it || '0' in it || '1' in it }, "and nothing easily misread")
     }
 

@@ -177,7 +177,9 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
             "select p.id, p.display_name, p.league_tier, coalesce(sum(played.net_chips), 0) as net, count(played.net_chips) as rounds " +
                 "from profiles p left join (" +
                 "select rr.profile_id, rr.net_chips from round_results rr join rounds r on r.id = rr.round_id " +
-                "where r.ended_at >= ? and r.ended_at < ? and (?::text is null or r.game = ?::game_kind)" +
+                "where r.ended_at >= ? and r.ended_at < ? and (?::text is null or r.game = ?::game_kind) " +
+                // Rounds at private tables count for everything but the leagues.
+                "and r.table_id not like '$PRIVATE_TABLE%'" +
                 ") played on played.profile_id = p.id " +
                 "where p.auth_user_id is not null group by p.id, p.display_name, p.league_tier",
         ).use { statement ->

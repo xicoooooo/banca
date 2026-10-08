@@ -64,7 +64,7 @@ private suspend fun Players.identity(player: Player) = Identity(player.name, bal
  * outermost proxy and cannot be forged by the caller. Without any of them the
  * connection's own address is the caller's.
  */
-private fun ApplicationCall.callerAddress(): String =
+internal fun ApplicationCall.callerAddress(): String =
     listOf("CF-Connecting-IP", "True-Client-IP")
         .firstNotNullOfOrNull { request.headers[it]?.trim()?.takeIf(String::isNotEmpty) }
         ?: request.headers["X-Forwarded-For"]?.substringBefore(',')?.trim()?.takeIf(String::isNotEmpty)

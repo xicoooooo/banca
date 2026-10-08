@@ -95,6 +95,8 @@ export type PokerRoomView = {
   host: string | null
   youHost: boolean
   started: boolean
+  /** True when the table is played with practice chips, which touch nobody's own. */
+  practice: boolean
   phase: 'waiting' | 'playing' | 'results'
   /** How long the table will wait for the player whose turn it is, or before the next hand. */
   msLeft: number
@@ -121,6 +123,7 @@ export type PokerRoomServerMessage =
 export type PokerRoomClientMessage =
   | { type: 'advise' }
   | { type: 'start' }
+  | { type: 'end' }
   | { type: 'act'; action: 'fold' | 'check' | 'call' }
   | { type: 'act'; action: 'bet' | 'raise'; amount: number }
   | { type: 'chat'; say: string }

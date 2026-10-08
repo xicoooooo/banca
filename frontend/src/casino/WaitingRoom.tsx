@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { InviteButton } from './Invite'
+import { CloseTable, InviteButton, TableCode } from './Invite'
 
 type WaitingRoomProps = {
   table: string
@@ -12,6 +12,11 @@ type WaitingRoomProps = {
   /** Why the game cannot begin yet, for the host. Null when it can. */
   notYet: string | null
   onStart: () => void
+  /** The table's code, for telling someone who cannot be sent a link. */
+  code: string
+  practice: boolean
+  /** Closes the table for everyone. Given only to the host. */
+  onEnd?: () => void
   /** The way into the table's chat. */
   children?: ReactNode
 }
@@ -20,7 +25,7 @@ type WaitingRoomProps = {
  * A private table before its game begins: who has arrived, the seats still
  * empty, the link to fill them, and for the host the button that starts it.
  */
-export function WaitingRoom({ table, seats, seatsInAll, host, youHost, notYet, onStart, children }: WaitingRoomProps) {
+export function WaitingRoom({ table, seats, seatsInAll, host, youHost, notYet, onStart, code, practice, onEnd, children }: WaitingRoomProps) {
   const empty = Math.max(0, seatsInAll - seats.length)
 
   return (
@@ -31,6 +36,10 @@ export function WaitingRoom({ table, seats, seatsInAll, host, youHost, notYet, o
         <p className="pt-2 text-sm leading-relaxed text-muted">
           {youHost ? 'Send the link to your friends. The game begins when you say.' : `Waiting for ${host ?? 'the host'} to start the game.`}
         </p>
+      </div>
+
+      <div className="flex justify-center">
+        <TableCode id={code} />
       </div>
 
       <ul className="waiting-seats" aria-label={`${seats.length} of ${seatsInAll} seats taken`}>
@@ -65,10 +74,15 @@ export function WaitingRoom({ table, seats, seatsInAll, host, youHost, notYet, o
       </div>
 
       <p className="label pt-1 text-center leading-relaxed">
-        This table is on no list
+        {practice ? 'Practice chips · nothing here touches anyone\u2019s own' : 'Played with your own chips · does not count for the leagues'}
         <br />
-        Only people with the link can find it
+        Only people with the link or the code can find this table
       </p>
+      {onEnd && (
+        <div className="flex justify-center">
+          <CloseTable onClose={onEnd} />
+        </div>
+      )}
     </div>
   )
 }

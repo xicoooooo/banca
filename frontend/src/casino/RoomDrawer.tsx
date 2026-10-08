@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { ChatLine, Phrase, RoomPlayer } from './room'
-import { InviteButton } from './Invite'
+import { CloseTable, InviteButton, TableCode } from './Invite'
 import { sound } from './sound'
 import { useDialog } from './useDialog'
 
@@ -18,6 +18,12 @@ type RoomDrawerProps = {
   onClose: () => void
   /** True for a table a player opened for their own company. It is on no list, so it says so. */
   byInvite?: boolean
+  /** A private table's code, shown for anyone who would rather be told it than sent a link. */
+  code?: string
+  /** True when the table is played with practice chips. */
+  practice?: boolean
+  /** Closes the table for everyone. Given only to the host of a private table. */
+  onEnd?: () => void
 }
 
 /** The most a message may be. The server holds to the same limit. */
@@ -32,7 +38,7 @@ function signed(amount: number): string {
  * one of the room's phrases with a single press. Nobody watches over a room,
  * so each player can mute anyone they would rather not hear from.
  */
-export function RoomDrawer({ name, players, chat, phrases, onSay, onType, muted, onMute, onClose, byInvite = false }: RoomDrawerProps) {
+export function RoomDrawer({ name, players, chat, phrases, onSay, onType, muted, onMute, onClose, byInvite = false, code, practice = false, onEnd }: RoomDrawerProps) {
   const [draft, setDraft] = useState('')
 
   const sendDraft = (event: FormEvent) => {
@@ -84,6 +90,13 @@ export function RoomDrawer({ name, players, chat, phrases, onSay, onType, muted,
             </p>
             <InviteButton table={name} prominent={byInvite && players.length <= 1} />
           </div>
+          {byInvite && code && (
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-3">
+              <TableCode id={code} />
+              {onEnd && <CloseTable onClose={onEnd} />}
+            </div>
+          )}
+          {practice && <p className="label pb-3 leading-relaxed text-gold/80!">Practice chips · nothing here touches anyone's own</p>}
 
           <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0 pb-3">
             {players.map((player, index) => (

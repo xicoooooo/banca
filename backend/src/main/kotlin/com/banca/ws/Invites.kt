@@ -36,7 +36,10 @@ class Invites<R : Any>(
         var id = newId()
         while (open.containsKey(id)) id = newId()
         val spec = RoomSpec(id, name, byInvite = true, options = options)
-        open[id] = Open(make(spec), now())
+        val entry = Open(make(spec), now())
+        open[id] = entry
+        // A table its host closes is let go at once, and its address leads nowhere from then on.
+        spec.whenClosed = { open.remove(id, entry) }
         return spec
     }
 
@@ -54,13 +57,14 @@ class Invites<R : Any>(
         }
     }
 
-    // Eight characters from an alphabet with nothing in it that is easily
-    // misread, which is some eleven hundred billion addresses: enough that a
-    // table cannot be found by guessing.
+    // Six characters from an alphabet with nothing in it that is easily
+    // misread: short enough to read out or type on a phone, and still some nine
+    // hundred million addresses, which with how often anyone may try one is
+    // enough that a table cannot be found by guessing.
     private fun newId(): String = buildString { repeat(ID_LENGTH) { append(ALPHABET[random.nextInt(ALPHABET.length)]) } }
 
     private companion object {
         const val ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
-        const val ID_LENGTH = 8
+        const val ID_LENGTH = 6
     }
 }

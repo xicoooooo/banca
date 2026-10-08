@@ -524,14 +524,14 @@ Every shared table described below comes in two kinds. Three of each game are li
 
 | Request | Answer |
 |---|---|
-| `POST /poker/tables` | `201` `{ "id": "k7x2m9qf", "name": "Ana's table" }` |
+| `POST /poker/tables` | `201` `{ "id": "k7x2m9", "name": "Ana's table" }` |
 | `POST /blackjack/tables` | The same |
 | `POST /roulette/rooms` | The same, called a room |
 
 Each needs `Authorization: Bearer <token>`, and may carry what the host wants of the table. Anything left out is the game's usual:
 
 ```json
-{ "seats": 4, "banca": false, "turns": "long" }
+{ "seats": 4, "banca": false, "turns": "long", "chips": "practice" }
 ```
 
 | Field | Meaning |
@@ -539,12 +539,23 @@ Each needs `Authorization: Bearer <token>`, and may carry what the host wants of
 | `seats` | How many the table takes: 2 to 6 at poker, with Banca's seat counted when Banca plays; 2 to 5 at blackjack; 2 to 8 at roulette |
 | `banca` | Poker only. False leaves Banca out, for a table of friends alone |
 | `turns` | `normal`, or `long` for three times as long over each decision |
+| `chips` | `real`, the usual, for a table played from each player's own bankroll; or `practice` for one where everyone is handed 2,000 chips that exist only at that table |
 
 The answer is `401` without a player the server knows, `400` for a table the game does not allow, `429` to a player who has opened more than five in ten minutes or thirty in a day, and `503` when the server is keeping as many as it will.
 
-The table is then played at the usual address for a shared table of that game, with its `id` in place of a listed table's: `ws://<host>/ws/blackjack/tables/k7x2m9qf`. Anyone who has the address may sit down, guest or signed in, until its seats are taken. Its `state` carries `byInvite: true`.
+The table is then played at the usual address for a shared table of that game, with its `id` in place of a listed table's: `ws://<host>/ws/blackjack/tables/k7x2m9`. Anyone who has the address may sit down, guest or signed in, until its seats are taken. Its `state` carries `byInvite: true`.
 
-An id is eight characters and cannot usefully be guessed. Private tables are kept in the server's memory and nowhere else: one that has stood empty for half an hour is cleared away, and none outlives a restart. Connecting to an address that leads nowhere is answered, after the `welcome`, with `{ "type": "error", "code": "no_table", "message": "..." }` and the connection is closed with code `4004`; a client should not try again.
+**Practice chips.** At a practice table nothing reaches a player's own chips, their record, their statistics or the leagues: no round is written down at all. A stack that runs short of the smallest bet is made up to 2,000 again, with the usual `staked` notice. The table's `state` carries `practice: true`, and every `stack` in it is the practice stack.
+
+**Real chips, and the leagues.** At a private table played with real chips every round is written to each player's record and moves their chips as at any table, with one difference: it does not count towards the [leagues](#leagues) or the weekly and all-time leaderboards. Friends at a table of their own could hand chips to one another, and a standing won that way would be worth nothing.
+
+**Its code.** The `id` is the table's code: six characters from an alphabet with nothing in it that is easily misread, short enough to read out. A client shows it in capitals in two groups, `K7X 2M9`, and a player who has been told one finds the table with it:
+
+| Request | Answer |
+|---|---|
+| `GET /tables/{code}` | `{ "game": "blackjack", "id": "k7x2m9", "name": "Ana's table" }`, whatever case and spacing the code was typed in. `404` when no table has that code, and `429` to an address that has tried more than twenty in ten minutes |
+
+It needs no token. A code cannot usefully be guessed: there are some nine hundred million, at most a few hundred in use, and only so many tries. Private tables are kept in the server's memory and nowhere else: one that has stood empty for half an hour is cleared away, and none outlives a restart. Connecting to an address that leads nowhere is answered, after the `welcome`, with `{ "type": "error", "code": "no_table", "message": "..." }` and the connection is closed with code `4004`; a client should not try again.
 
 ## The host sets the pace
 
@@ -562,7 +573,15 @@ The host moves the table on with one message, the same at every game:
 | Blackjack | Deals to whoever has bet. `betting` has no clock: `msLeft` is nought | Nobody has bet |
 | Roulette | Spins the wheel. `betting` has no clock | Nobody has chips down |
 
-It is refused from anyone but the host, and at a listed table. At blackjack the cards also follow by themselves once everyone at the table has bet, after three seconds in which a bet can still be changed; `msLeft` counts those down. Turn clocks stay at every table, so that one player who has put their phone down does not stop the rest.
+The host can also close the table for everyone:
+
+```json
+{ "type": "end" }
+```
+
+A hand or round being played is seen out and settled first. Then everyone at the table is sent `{ "type": "error", "code": "no_table", "message": "The host has closed this table" }`, the table is let go, and its code leads nowhere from then on.
+
+Both are refused from anyone but the host, and at a listed table. At blackjack the cards also follow by themselves once everyone at the table has bet, after three seconds in which a bet can still be changed; `msLeft` counts those down. Turn clocks stay at every table, so that one player who has put their phone down does not stop the rest.
 
 ---
 

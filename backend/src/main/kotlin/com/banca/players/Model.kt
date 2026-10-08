@@ -56,7 +56,12 @@ data class RoundRecord(
     val outcome: RoundOutcome,
     /** Whatever the game wants remembered about how the player played. */
     val detail: JsonObject,
+    /** False for a round at a private table, which counts for everything but the leagues. */
+    val ranked: Boolean = true,
 )
+
+/** How the table of a round is written down when it was a private one, opened by a player for their friends. */
+const val PRIVATE_TABLE = "invite:"
 
 /** A round that has just ended, ready to be written down. */
 data class FinishedRound(
@@ -66,6 +71,13 @@ data class FinishedRound(
     val net: Long,
     val outcome: RoundOutcome,
     val detail: JsonObject,
-)
+) {
+    /**
+     * Whether the round counts towards the leagues. One played at a private
+     * table does not: friends at a table of their own could hand chips to one
+     * another, and a standing won that way would be worth nothing.
+     */
+    val ranked: Boolean get() = !tableId.startsWith(PRIVATE_TABLE)
+}
 
 data class LedgerEntry(val amount: Long, val reason: LedgerReason, val at: Instant)

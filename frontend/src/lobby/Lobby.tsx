@@ -1,3 +1,4 @@
+import { JoinByCode } from './JoinByCode'
 import { OpenTablePanel } from '../casino/OpenTablePanel'
 import { InstallCard } from '../casino/AppNotes'
 import { useEffect, useState } from 'react'
@@ -140,6 +141,8 @@ export function Lobby({ onChoose, onProfile, onLeagues }: { onChoose: (game: Gam
           <span className="text-2xl font-semibold tracking-tight">Open a private table</span>
           <span className="text-sm leading-relaxed text-muted">Choose the game and the seats, send the link, and start when everyone is there.</span>
         </button>
+
+        <JoinByCode />
 
         <InstallCard />
 

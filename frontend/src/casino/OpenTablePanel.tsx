@@ -30,6 +30,7 @@ export function OpenTablePanel({ game: fixed, onClose }: OpenTablePanelProps) {
   const [seats, setSeats] = useState(GAMES[fixed ?? 'poker'].usual)
   const [banca, setBanca] = useState(true)
   const [longTurns, setLongTurns] = useState(false)
+  const [practice, setPractice] = useState(false)
   const [opening, setOpening] = useState(false)
   const [refused, setRefused] = useState<string | null>(null)
 
@@ -47,7 +48,12 @@ export function OpenTablePanel({ game: fixed, onClose }: OpenTablePanelProps) {
     sound.click()
     setOpening(true)
     setRefused(null)
-    const options: TableOptions = { seats, banca: game === 'poker' ? banca : true, turns: longTurns && game !== 'roulette' ? 'long' : 'normal' }
+    const options: TableOptions = {
+      seats,
+      banca: game === 'poker' ? banca : true,
+      turns: longTurns && game !== 'roulette' ? 'long' : 'normal',
+      chips: practice ? 'practice' : 'real',
+    }
     try {
       const table = await openTable(rules.openAt, options)
       window.location.hash = `/${game}/${table.id}`
@@ -136,6 +142,23 @@ export function OpenTablePanel({ game: fixed, onClose }: OpenTablePanelProps) {
               </p>
             </fieldset>
           )}
+
+          <fieldset className="setup">
+            <legend className="label">Chips</legend>
+            <div className="setup__choices">
+              <button type="button" className="btn btn--quiet" data-selected={!practice} aria-pressed={!practice} onClick={() => setPractice(false)}>
+                Your own
+              </button>
+              <button type="button" className="btn btn--quiet" data-selected={practice} aria-pressed={practice} onClick={() => setPractice(true)}>
+                Practice
+              </button>
+            </div>
+            <p className="pt-2 text-xs leading-relaxed text-muted">
+              {practice
+                ? 'Everyone starts with 2,000 practice chips that exist only at this table. Nobody wins or loses anything of their own, and nothing is added to anyone\u2019s record.'
+                : 'Everyone plays from their own bankroll, and what is won and lost is real. It counts for your statistics, but not for the leagues: only the open tables do.'}
+            </p>
+          </fieldset>
 
           <div>
             <button type="button" className="btn btn--raise w-full" onClick={open} disabled={opening} data-pending={opening}>

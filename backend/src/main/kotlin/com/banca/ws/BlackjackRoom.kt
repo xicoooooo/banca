@@ -94,6 +94,8 @@ data class BlackjackTableView(
     /** At a private table: who sets its pace, and whether that is this player. */
     val host: String? = null,
     val youHost: Boolean = false,
+    /** True when the table is played with practice chips, which are its own and touch nobody's bankroll. */
+    val practice: Boolean = false,
 )
 
 @Serializable
@@ -110,6 +112,11 @@ sealed interface BlackjackTableClientMessage {
     @Serializable
     @SerialName("start")
     data object Start : BlackjackTableClientMessage
+
+    /** At a private table, the host closing it for everyone, once whatever is being played is over. */
+    @Serializable
+    @SerialName("end")
+    data object End : BlackjackTableClientMessage
 
     @Serializable
     @SerialName("act")
@@ -200,6 +207,9 @@ class BlackjackRoom(
     /** Set when the host has asked for the cards. */
     private var dealAsked = false
 
+    /** Set once the host has asked for the table to be closed. */
+    private var closing = false
+
     private var running = false
     private var phase = TablePhase.BETTING
     private var phaseEndsAt = 0L
@@ -211,6 +221,10 @@ class BlackjackRoom(
     private fun now(): Long = System.nanoTime() / 1_000_000
 
     val id: String get() = spec.id
+    val name: String get() = spec.name
+
+    /** The chips a player plays with here: their own, or the table's practice chips. */
+    fun chipsFor(session: PlayerSession): PlayerSession = spec.chipsFor(session)
 
     suspend fun summary(): BlackjackTableSummary = lock.withLock {
         BlackjackTableSummary(spec.id, spec.name, players = members.values.count { it.connected }, seats = seats)
@@ -218,6 +232,7 @@ class BlackjackRoom(
 
     /** Seats a player, or brings them back to their seat, and shows them the table. */
     suspend fun join(session: PlayerSession, send: Send) = lock.withLock {
+        check(!closing) { "This table has closed" }
         val seated = members[session.player.id]
         check(seated != null || members.size < seats) { "This table is full" }
 
@@ -300,6 +315,23 @@ class BlackjackRoom(
         check(members.values.any { it.bet > 0 }) { "Nobody has bet yet" }
 
         dealAsked = true
+        acted.trySend(Unit)
+    }
+
+    /** At a private table, the host closes it. A round being played is finished first. */
+    suspend fun end(playerId: UUID) = lock.withLock {
+        check(hostPaced) { "This table stays open" }
+        check(hostId() == playerId) { "Only the host can close the table" }
+        closing = true
+        if (phase == TablePhase.BETTING) close()
+    }
+
+    /** Tells everyone the table has closed and lets it go. Bets not yet dealt to were never taken. */
+    private suspend fun close() {
+        val notice = closedNotice()
+        members.values.filter { it.connected }.forEach { it.send(notice) }
+        members.clear()
+        spec.whenClosed()
         acted.trySend(Unit)
     }
 
@@ -428,6 +460,11 @@ class BlackjackRoom(
 
                 lock.withLock { finish() }
                 delay(timings.results)
+                // The host asked for the table to be closed while the round was being played.
+                if (lock.withLock { closing.also { if (it) close() } }) {
+                    lock.withLock { running = false }
+                    return
+                }
             }
         } catch (failure: Exception) {
             if (failure is CancellationException) throw failure
@@ -554,7 +591,7 @@ class BlackjackRoom(
             member.round = settled
             if (!settled.isSettled) continue
             try {
-                member.session.settle(BlackjackHouse.finished(settled, tableId = "table:${spec.id}", member.tally))
+                member.session.settle(BlackjackHouse.finished(settled, tableId = spec.recordedAs("table"), member.tally))
                 member.net = settled.result?.net
                 member.refilled = member.session.fund(BlackjackHouse.MIN_BET) is Funding.Staked
             } catch (failure: Exception) {
@@ -657,6 +694,7 @@ class BlackjackRoom(
                 seatsInAll = seats,
                 host = host?.let { members[it]?.name },
                 youHost = host == member.id,
+                practice = spec.options.practice != null,
             )
             member.send(encode(BlackjackTableServerMessage.State(view)))
         }
@@ -701,6 +739,7 @@ class BlackjackSeat(
         when (val message = wireJson.decodeFromString<BlackjackTableClientMessage>(text)) {
             is BlackjackTableClientMessage.Bet -> room.setBet(session.player.id, message.amount)
             is BlackjackTableClientMessage.Start -> room.start(session.player.id)
+            is BlackjackTableClientMessage.End -> room.end(session.player.id)
             is BlackjackTableClientMessage.Act -> {
                 val action = BlackjackClientMessage.Act(message.action).toAction()
                 val before = room.viewOf(session.player.id)

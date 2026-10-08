@@ -50,7 +50,8 @@ interface PlayerStore {
     suspend fun grantsOf(id: UUID, reason: LedgerReason, limit: Int): List<Instant>
 
     /**
-     * How every signed-in player did at the tables from [from] up to [until]:
+     * How every signed-in player did at the tables from [from] up to [until],
+     * leaving out private tables, which do not count towards the leagues:
      * what they won and how many rounds they played, at [game] or at all of
      * them. Players who did not play are there too, with noughts.
      */

@@ -76,14 +76,15 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
     return () => clearTimeout(timer)
   }, [chat.length])
 
-  if (!view) {
+  // A room its host has closed is gone, whatever was on the felt a moment ago.
+  if (!view || connection === 'gone') {
     return (
       <CasinoShell>
         <Header detail="Roulette" onLeave={onLeave} />
         {full ? (
           <Loading failed message="This room is full. Ask the host for another, or open one of your own." />
         ) : connection === 'gone' ? (
-          <Loading failed message="This room has closed. Ask for a new link, or open a room of your own." />
+          <Loading failed message="This room has closed. Ask for a new code, or open a room of your own." />
         ) : connection === 'closed' || connection === 'replaced' ? (
           <Loading
             failed
@@ -300,6 +301,9 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
         <RoomDrawer
           name={view.name}
           byInvite={view.byInvite}
+          code={view.room}
+          practice={view.practice}
+          onEnd={view.byInvite && view.youHost ? () => send({ type: 'end' }) : undefined}
           players={view.players}
           chat={chat}
           phrases={phrases}

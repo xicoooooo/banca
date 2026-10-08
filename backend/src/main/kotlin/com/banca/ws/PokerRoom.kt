@@ -92,6 +92,8 @@ data class PokerRoomView(
     val host: String? = null,
     val youHost: Boolean = false,
     val started: Boolean = true,
+    /** True when the table is played with practice chips, which are its own and touch nobody's bankroll. */
+    val practice: Boolean = false,
 )
 
 @Serializable
@@ -116,6 +118,11 @@ sealed interface PokerRoomClientMessage {
     @Serializable
     @SerialName("start")
     data object Start : PokerRoomClientMessage
+
+    /** At a private table, the host closing it for everyone, once whatever is being played is over. */
+    @Serializable
+    @SerialName("end")
+    data object End : PokerRoomClientMessage
 }
 
 @Serializable
@@ -187,6 +194,9 @@ class PokerRoom(
     /** A private table deals nothing until its host says so. Every other table is always under way. */
     private var started = !spec.byInvite
 
+    /** Set once the host has asked for the table to be closed. */
+    private var closing = false
+
     private enum class TablePhase { WAITING, PLAYING, RESULTS }
 
     private class Member(val id: UUID, val seat: Int, val name: String, val session: PlayerSession, var send: Send) {
@@ -223,6 +233,10 @@ class PokerRoom(
     private fun now(): Long = System.nanoTime() / 1_000_000
 
     val id: String get() = spec.id
+    val name: String get() = spec.name
+
+    /** The chips a player plays with here: their own, or the table's practice chips. */
+    fun chipsFor(session: PlayerSession): PlayerSession = spec.chipsFor(session)
 
     suspend fun summary(): PokerTableSummary = lock.withLock {
         // Banca is always there, and takes one of the seats.
@@ -231,6 +245,7 @@ class PokerRoom(
 
     /** Seats a player, or brings them back to their seat, and shows them the table. */
     suspend fun join(session: PlayerSession, send: Send) = lock.withLock {
+        check(!closing) { "This table has closed" }
         val seated = members[session.player.id]
         val member = seated ?: run {
             // Seat 0 is Banca's, and is left empty at a table Banca is not at.
@@ -291,6 +306,7 @@ class PokerRoom(
     suspend fun start(playerId: UUID) = lock.withLock {
         check(spec.byInvite) { "This table deals by itself" }
         check(!started) { "The game is already under way" }
+        check(!closing) { "This table has closed" }
         check(hostId() == playerId) { "Only the host can start the game" }
         val here = members.values.count { it.connected } + if (withBanca) 1 else 0
         check(here >= 2) { "Poker needs two. Wait for someone to join" }
@@ -298,6 +314,25 @@ class PokerRoom(
         started = true
         acted.trySend(Unit)
         broadcast()
+    }
+
+    /** At a private table, the host closes it. A hand being played is finished first. */
+    suspend fun end(playerId: UUID) = lock.withLock {
+        check(spec.byInvite) { "This table stays open" }
+        check(hostId() == playerId) { "Only the host can close the table" }
+        closing = true
+        if (phase != TablePhase.PLAYING) close()
+    }
+
+    /** Tells everyone the table has closed and lets it go. */
+    private suspend fun close() {
+        val notice = closedNotice()
+        members.values.filter { it.connected }.forEach { it.send(notice) }
+        members.clear()
+        hand = null
+        phase = TablePhase.WAITING
+        spec.whenClosed()
+        acted.trySend(Unit)
     }
 
     private fun hostId(): UUID? = if (spec.byInvite) hostAmong(members, spec.options.host) { it.connected } else null
@@ -347,6 +382,8 @@ class PokerRoom(
 
                 lock.withLock { finish() }
                 delay(timings.results)
+                // The host asked for the table to be closed while the hand was being played.
+                if (lock.withLock { closing.also { if (it) { close(); running = false } } }) return
             }
         } catch (failure: Exception) {
             if (failure is CancellationException) throw failure
@@ -367,7 +404,7 @@ class PokerRoom(
      */
     private suspend fun deal(): Boolean? {
         val gone = members.values.removeAll { it.leaving || !it.connected }
-        if (members.isEmpty()) {
+        if (members.isEmpty() || closing) {
             running = false
             hand = null
             phase = TablePhase.WAITING
@@ -493,7 +530,7 @@ class PokerRoom(
                 member.session.settle(
                     FinishedRound(
                         game = Game.POKER,
-                        tableId = "table:${spec.id}",
+                        tableId = spec.recordedAs("table"),
                         staked = summary.staked,
                         net = summary.net,
                         outcome = when {
@@ -566,6 +603,7 @@ class PokerRoom(
                 host = host?.let { members[it]?.name },
                 youHost = host == member.id,
                 started = started,
+                practice = spec.options.practice != null,
             )
             member.send(encode(PokerRoomServerMessage.State(view)))
         }
@@ -619,6 +657,7 @@ class PokerSeat(
             is PokerRoomClientMessage.Chat -> room.say(session.player.id, message.say, message.text)
             is PokerRoomClientMessage.Advise -> advise()
             is PokerRoomClientMessage.Start -> room.start(session.player.id)
+            is PokerRoomClientMessage.End -> room.end(session.player.id)
         }
     }
 

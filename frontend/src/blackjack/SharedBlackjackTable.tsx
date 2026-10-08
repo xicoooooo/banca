@@ -83,14 +83,15 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
     return () => clearTimeout(timer)
   }, [chat.length])
 
-  if (!table || !view) {
+  // A table its host has closed is gone, whatever was on the felt a moment ago.
+  if (!table || !view || connection === 'gone') {
     return (
       <CasinoShell>
         <Header detail="Blackjack" onLeave={onLeave} />
         {full ? (
           <Loading failed message="This table is full. Try another, or come back in a moment." />
         ) : connection === 'gone' ? (
-          <Loading failed message="This table has closed. Ask for a new link, or open a table of your own." />
+          <Loading failed message="This table has closed. Ask for a new code, or open a table of your own." />
         ) : connection === 'closed' || connection === 'replaced' ? (
           <Loading
             failed
@@ -289,6 +290,9 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
         <RoomDrawer
           name={table.name}
           byInvite={table.byInvite}
+          code={table.room}
+          practice={table.practice}
+          onEnd={table.byInvite && table.youHost ? () => send({ type: 'end' }) : undefined}
           players={table.seats.map((seat) => ({ name: seat.name, staked: seat.bet, net: seat.net, you: seat.you }))}
           chat={chat}
           phrases={phrases}

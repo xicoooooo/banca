@@ -70,7 +70,7 @@ class InMemoryPlayerStore(private val clock: Clock = Clock.systemUTC()) : Player
     override suspend fun recordRound(id: UUID, round: FinishedRound): Long = lock.withLock {
         val account = account(id)
         val now = Instant.now(clock)
-        account.rounds += RoundRecord(round.game, now, round.staked, round.net, round.outcome, round.detail)
+        account.rounds += RoundRecord(round.game, now, round.staked, round.net, round.outcome, round.detail, round.ranked)
         account.ledger += LedgerEntry(round.net, LedgerReason.ROUND, now)
         account.ledger.sumOf { it.amount }
     }
@@ -96,7 +96,7 @@ class InMemoryPlayerStore(private val clock: Clock = Clock.systemUTC()) : Player
 
     private fun standingsIn(from: Instant, until: Instant, game: Game?): List<Standing> =
         accounts.values.filter { it.player.accountId != null }.map { entry ->
-            val played = entry.rounds.filter { !it.endedAt.isBefore(from) && it.endedAt.isBefore(until) && (game == null || it.game == game) }
+            val played = entry.rounds.filter { it.ranked && !it.endedAt.isBefore(from) && it.endedAt.isBefore(until) && (game == null || it.game == game) }
             Standing(entry.player.id, entry.player.name, entry.player.leagueTier, net = played.sumOf { it.net }, rounds = played.size)
         }
 

@@ -242,6 +242,21 @@ abstract class PlayerStoreContract {
     }
 
     @Test
+    fun `a round at a private table moves chips and is kept, but counts for nothing in the standings`() = with { store ->
+        val ana = member(store, "Ana-${token()}")
+        store.recordRound(ana.id, round(net = 100))
+        // Won from a friend at a table of their own: real chips, and no way to climb a league.
+        store.recordRound(ana.id, round(net = 5_000, game = Game.POKER).copy(tableId = "invite:k7x2m9"))
+
+        val mine = store.standings(Instant.now().minusSeconds(3_600), Instant.now().plusSeconds(3_600)).first { it.playerId == ana.id }
+
+        assertEquals(100, mine.net)
+        assertEquals(1, mine.rounds)
+        assertEquals(2_000 + 100 + 5_000, store.balance(ana.id), "the chips are theirs all the same")
+        assertEquals(2, store.rounds(ana.id, 10).size, "and the round is in their history")
+    }
+
+    @Test
     fun `settling a week moves leagues, pays prizes and keeps the result, once`() = with { store ->
         val ana = member(store, "Ana-${token()}")
         val rui = member(store, "Rui-${token()}")

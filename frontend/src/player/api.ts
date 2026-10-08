@@ -59,7 +59,7 @@ export async function renamePlayer(name: string): Promise<void> {
 }
 
 /** What a host chooses for a private table. Anything left out is the game's usual. */
-export type TableOptions = { seats?: number; banca?: boolean; turns?: 'normal' | 'long' }
+export type TableOptions = { seats?: number; banca?: boolean; turns?: 'normal' | 'long'; chips?: 'real' | 'practice' }
 
 /**
  * Opens a table for the player to invite others to, at the address the game
@@ -77,4 +77,17 @@ export async function openTable(listedAt: string, options: TableOptions = {}): P
     throw new Refused(problem?.message ?? 'The table could not be opened. Try again in a moment.')
   }
   return response.json() as Promise<{ id: string; name: string }>
+}
+
+/** A private table found by its code: which game it is and where. */
+export type FoundTable = { game: GameId; id: string; name: string }
+
+/** Looks a private table up by the code its host gave out. Refused, with the reason, when there is no such table. */
+export async function findTable(code: string): Promise<FoundTable> {
+  const response = await fetch(httpUrl(`/tables/${encodeURIComponent(code.trim())}`))
+  if (!response.ok) {
+    const problem = (await response.json().catch(() => null)) as { message?: string } | null
+    throw new Refused(problem?.message ?? 'That code could not be checked. Try again in a moment.')
+  }
+  return response.json() as Promise<FoundTable>
 }

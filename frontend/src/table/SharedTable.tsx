@@ -170,7 +170,7 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
   }, [chat.length])
 
   // A private table before its host has started the game: who is here, and the link to bring the rest.
-  if (room && room.byInvite && !room.started && !broke) {
+  if (room && room.byInvite && !room.started && !broke && connection !== 'gone') {
     const here = room.seats.length
     return (
       <CasinoShell>
@@ -189,6 +189,9 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
           youHost={room.youHost}
           notYet={here < 2 ? 'Poker needs two. Waiting for someone to join' : null}
           onStart={() => send({ type: 'start' })}
+          code={room.room}
+          practice={room.practice}
+          onEnd={room.youHost ? () => send({ type: 'end' }) : undefined}
         >
           <button
             type="button"
@@ -205,6 +208,9 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
           <RoomDrawer
             name={room.name}
             byInvite
+            code={room.room}
+            practice={room.practice}
+            onEnd={room.youHost ? () => send({ type: 'end' }) : undefined}
             players={room.seats.map((seat) => ({ name: seat.name, staked: 0, net: null, you: seat.you }))}
             chat={chat}
             phrases={phrases}
@@ -222,14 +228,15 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
     )
   }
 
-  if (!room || (!view && !broke)) {
+  // A table its host has closed is gone, whatever was on the felt a moment ago.
+  if (!room || (!view && !broke) || connection === 'gone') {
     return (
       <CasinoShell>
         <Header detail="Texas Hold'em" onLeave={onLeave} />
         {full ? (
           <Loading failed message="This table is full. Try another, or come back in a moment." />
         ) : connection === 'gone' ? (
-          <Loading failed message="This table has closed. Ask for a new link, or open a table of your own." />
+          <Loading failed message="This table has closed. Ask for a new code, or open a table of your own." />
         ) : connection === 'closed' || connection === 'replaced' ? (
           <Loading
             failed
@@ -391,6 +398,9 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
         <RoomDrawer
           name={room.name}
           byInvite={room.byInvite}
+          code={room.room}
+          practice={room.practice}
+          onEnd={room.byInvite && room.youHost ? () => send({ type: 'end' }) : undefined}
           players={room.seats.map((seat) => {
             const player = view.players.find((inHand) => inHand.seat === seat.seat)
             const won = view.result?.winnings[seat.seat]

@@ -7,7 +7,9 @@ import com.banca.games.roulette.Roulette
 import com.banca.games.roulette.Wager
 import com.banca.games.roulette.Wheel
 import com.banca.players.Funding
+import com.banca.players.PRIVATE_TABLE
 import com.banca.players.PlayerSession
+import com.banca.players.PracticePurse
 import com.banca.sessions.TraceEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -37,14 +39,33 @@ class RoomTimings(
  * [longTurns] gives everyone more time over a decision. [host] is the player
  * who opened it, who sets its pace for as long as they are there.
  */
-class TableOptions(val seats: Int? = null, val banca: Boolean = true, val longTurns: Boolean = false, val host: UUID? = null)
+class TableOptions(
+    val seats: Int? = null,
+    val banca: Boolean = true,
+    val longTurns: Boolean = false,
+    val host: UUID? = null,
+    /** Set for a table played with practice chips, which are the table's own and touch nobody's bankroll. */
+    val practice: PracticePurse? = null,
+)
 
 /**
  * A shared table: its address and its name. One opened [byInvite] is on no
  * list and reached only by its address, and it is paced by its host: nothing
  * is dealt or spun on a clock, only when the host says.
  */
-class RoomSpec(val id: String, val name: String, val byInvite: Boolean = false, val options: TableOptions = TableOptions())
+class RoomSpec(val id: String, val name: String, val byInvite: Boolean = false, val options: TableOptions = TableOptions()) {
+    /** Told when a private table's host has closed it, so whoever keeps the table can let it go. */
+    var whenClosed: () -> Unit = {}
+
+    /** How a round here is written down. A private table is marked, since its rounds do not count for the leagues. */
+    fun recordedAs(kind: String): String = if (byInvite) "$PRIVATE_TABLE$id" else "$kind:$id"
+
+    /** The chips a player plays with here: their own, or the table's practice chips. */
+    fun chipsFor(session: PlayerSession): PlayerSession = options.practice?.sessionFor(session) ?: session
+}
+
+/** What a player is told when the table they are at has been closed by its host. */
+internal fun closedNotice(): String = refusal("The host has closed this table", code = "no_table")
 
 /**
  * Who sets the pace of a private table: the player who opened it while they
@@ -104,6 +125,8 @@ data class RoomView(
     /** At a private room: who spins the wheel, and whether that is this player. */
     val host: String? = null,
     val youHost: Boolean = false,
+    /** True when the room is played with practice chips, which are its own and touch nobody's bankroll. */
+    val practice: Boolean = false,
 )
 
 /** A room as the lobby lists it. */
@@ -130,6 +153,11 @@ sealed interface RoomClientMessage {
     @Serializable
     @SerialName("start")
     data object Start : RoomClientMessage
+
+    /** At a private table, the host closing it for everyone, once whatever is being played is over. */
+    @Serializable
+    @SerialName("end")
+    data object End : RoomClientMessage
 }
 
 @Serializable
@@ -236,6 +264,9 @@ class RouletteRoom(
     private val nudged = Channel<Unit>(Channel.CONFLATED)
     private var spinAsked = false
 
+    /** Set once the host has asked for the room to be closed. */
+    private var closing = false
+
     private var running = false
     private var phase = Phase.BETTING
     private var phaseEndsAt = 0L
@@ -245,6 +276,10 @@ class RouletteRoom(
     private fun now(): Long = System.nanoTime() / 1_000_000
 
     val id: String get() = spec.id
+    val name: String get() = spec.name
+
+    /** The chips a player plays with here: their own, or the table's practice chips. */
+    fun chipsFor(session: PlayerSession): PlayerSession = spec.chipsFor(session)
 
     suspend fun summary(): RoomSummary = lock.withLock {
         RoomSummary(spec.id, spec.name, players = members.values.count { it.connected }, history = history.take(8))
@@ -252,6 +287,7 @@ class RouletteRoom(
 
     /** Brings a player into the room, or back into it, and shows them where things stand. */
     suspend fun join(session: PlayerSession, send: Send) = lock.withLock {
+        check(!closing) { "This room has closed" }
         check(seats == null || members.containsKey(session.player.id) || members.size < seats) { "This room is full" }
         val member = members.getOrPut(session.player.id) { Member(session.player.id, session.player.name, session, send) }
         member.connected = true
@@ -322,6 +358,23 @@ class RouletteRoom(
         nudged.trySend(Unit)
     }
 
+    /** At a private room, the host closes it. A spin under way is seen through first. */
+    suspend fun end(playerId: UUID) = lock.withLock {
+        check(hostPaced) { "This room stays open" }
+        check(hostId() == playerId) { "Only the host can close the room" }
+        closing = true
+        if (phase == Phase.BETTING) close()
+    }
+
+    /** Tells everyone the room has closed and lets it go. Chips not yet spun for were never taken. */
+    private suspend fun close() {
+        val notice = closedNotice()
+        members.values.filter { it.connected }.forEach { it.send(notice) }
+        members.clear()
+        spec.whenClosed()
+        nudged.trySend(Unit)
+    }
+
     private fun hostId(): UUID? = if (hostPaced) hostAmong(members, spec.options.host) { it.connected } else null
 
     /** Waits at a private room for the host to spin, or for the room to empty, which is put to rest by what follows. */
@@ -367,6 +420,11 @@ class RouletteRoom(
 
                 lock.withLock { showResults() }
                 delay(timings.results)
+                // The host asked for the room to be closed while the wheel was turning.
+                if (lock.withLock { closing.also { if (it) close() } }) {
+                    lock.withLock { running = false }
+                    return
+                }
             }
         } catch (failure: Exception) {
             if (failure is kotlinx.coroutines.CancellationException) throw failure
@@ -410,7 +468,7 @@ class RouletteRoom(
                     member.sent = emptyList()
                 } else {
                     val spin = Roulette.settle(member.wagers, landed)
-                    member.session.settle(RouletteHouse.finished(spin, tableId = "room:${spec.id}"))
+                    member.session.settle(RouletteHouse.finished(spin, tableId = spec.recordedAs("room")))
                     val after = member.session.fund(RouletteHouse.MIN_BET)
                     member.result = RouletteHouse.resultView(spin, member.sent, refilled = after is Funding.Staked)
                     member.net = spin.net
@@ -477,6 +535,7 @@ class RouletteRoom(
                 result = member.result,
                 host = host?.let { members[it]?.name },
                 youHost = host == member.id,
+                practice = spec.options.practice != null,
             )
             member.send(encode(RoomServerMessage.State(view)))
         }
@@ -517,6 +576,7 @@ class RoomSeat(
             is RoomClientMessage.Chat -> room.say(session.player.id, message.say, message.text)
             is RoomClientMessage.Analyse -> analyse(message.bets)
             is RoomClientMessage.Start -> room.start(session.player.id)
+            is RoomClientMessage.End -> room.end(session.player.id)
         }
     }
 

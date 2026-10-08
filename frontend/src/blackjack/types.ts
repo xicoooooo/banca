@@ -86,6 +86,8 @@ export type BlackjackTableView = {
   /** At a private table: who asks for the cards, and whether that is this player. */
   host: string | null
   youHost: boolean
+  /** True when the table is played with practice chips, which touch nobody's own. */
+  practice: boolean
   roundNumber: number
   phase: 'betting' | 'insurance' | 'playing' | 'results'
   /** How long the table will wait in this phase, or for the player whose turn it is. */
@@ -109,6 +111,7 @@ export type BlackjackTableServerMessage =
 export type BlackjackTableClientMessage =
   | { type: 'bet'; amount: number }
   | { type: 'start' }
+  | { type: 'end' }
   | { type: 'act'; action: BlackjackAction }
   | { type: 'advise' }
   | { type: 'chat'; say: string }
