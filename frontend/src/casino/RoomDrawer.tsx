@@ -82,14 +82,13 @@ export function RoomDrawer({ name, players, chat, phrases, onSay, onType, muted,
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col px-5" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
-          <div className="invite-row">
-            <p className="text-xs leading-relaxed text-muted">
-              {byInvite
-                ? 'This table is on no list. Only people you give the link to can find it.'
-                : 'Want company? Anyone you send the link to lands at this table.'}
-            </p>
-            <InviteButton table={name} prominent={byInvite && players.length <= 1} />
-          </div>
+          {/* Only a private table is invited to. One that anyone can walk into has a name to pass on instead. */}
+          {byInvite && (
+            <div className="invite-row">
+              <p className="text-xs leading-relaxed text-muted">This table is on no list. Only people with the link or the code can find it.</p>
+              <InviteButton table={name} prominent={players.length <= 1} />
+            </div>
+          )}
           {byInvite && code && (
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-3">
               <TableCode id={code} />
