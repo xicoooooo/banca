@@ -14,6 +14,8 @@ data class Dashboard(
     val achievements: List<Achievement>,
     val recent: List<RecentRound>,
     val rewards: RewardStatus,
+    /** Today's missions, and how far along the player is with each. */
+    val missions: MissionsStatus,
     /** The league the player is in, or null for a guest, who is in none. */
     val league: String?,
     val trophies: List<TrophyView>,

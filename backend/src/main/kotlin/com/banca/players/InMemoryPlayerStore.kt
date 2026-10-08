@@ -88,6 +88,17 @@ class InMemoryPlayerStore(private val clock: Clock = Clock.systemUTC()) : Player
         account.ledger.sumOf { it.amount }
     }
 
+    override suspend fun grantOnce(id: UUID, amount: Long, reason: LedgerReason, reference: String): Long? = lock.withLock {
+        val account = account(id)
+        if (account.ledger.any { it.reason == reason && it.reference == reference }) return@withLock null
+        account.ledger += LedgerEntry(amount, reason, Instant.now(clock), reference)
+        account.ledger.sumOf { it.amount }
+    }
+
+    override suspend fun referencesSince(id: UUID, reason: LedgerReason, since: Instant): List<String> = lock.withLock {
+        account(id).ledger.filter { it.reason == reason && !it.at.isBefore(since) }.mapNotNull { it.reference }
+    }
+
     override suspend fun grantsOf(id: UUID, reason: LedgerReason, limit: Int): List<Instant> = lock.withLock {
         account(id).ledger.filter { it.reason == reason }.map { it.at }.asReversed().take(limit)
     }

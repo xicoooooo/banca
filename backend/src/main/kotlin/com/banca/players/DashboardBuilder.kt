@@ -43,6 +43,8 @@ object DashboardBuilder {
         ledger: List<LedgerEntry>,
         now: Instant,
         rewards: RewardStatus = Rewards.status(emptyList(), null, now),
+        /** Where the player stands with today's missions. Left out, it is worked out from [rounds] with nothing yet claimed. */
+        missions: MissionsStatus? = null,
         trophies: List<Trophy> = emptyList(),
     ): Dashboard {
         val xp = rounds.sumOf(::experienceFor)
@@ -75,6 +77,7 @@ object DashboardBuilder {
                 )
             },
             rewards = rewards,
+            missions = missions ?: Missions.status(player.id, now, rounds.filter { !it.endedAt.isBefore(Rewards.startOfDay(Rewards.dayOf(now))) }, emptySet()),
             league = if (player.accountId != null) Leagues.TIERS[player.leagueTier.coerceIn(0, Leagues.TIERS.lastIndex)] else null,
             trophies = trophies.map(::trophyView),
         )

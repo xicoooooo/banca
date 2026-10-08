@@ -3291,3 +3291,62 @@ button {
   line-height: 1.5;
   color: rgb(245 241 232 / 0.9);
 }
+
+/* ------------------------------------------------------------ daily missions */
+
+.missions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.75rem 0 0;
+  list-style: none;
+}
+
+.mission {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.mission[data-state='claimed'] {
+  opacity: 0.55;
+}
+
+.mission__bar {
+  height: 4px;
+  margin-top: 0.4rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+}
+
+.mission__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #d9a441, #f1c75b);
+  transition: width var(--t-medium) var(--ease-soft);
+}
+
+.mission[data-state='ready'] .mission__bar span,
+.mission[data-state='claimed'] .mission__bar span {
+  background: #3fc996;
+}
+
+.mission__worth {
+  flex: none;
+  margin: 0;
+  min-width: 3.2rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: right;
+  color: var(--color-gold-bright);
+}
+
+.mission--bonus {
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--hairline);
+}

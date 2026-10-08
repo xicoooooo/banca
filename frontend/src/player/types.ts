@@ -42,9 +42,30 @@ export type Dashboard = {
   achievements: Achievement[]
   recent: { game: GameId; at: string; net: number; outcome: Outcome; summary: string }[]
   rewards: Rewards
+  /** Today's missions, and how far along the player is with each. */
+  missions: MissionsStatus
   /** The league the player is in, or null for a guest, who is in none. */
   league: string | null
   trophies: Trophy[]
+}
+
+/** One of the day's missions. `slot` is which of the three it is; `ready` means done and waiting to be claimed. */
+export type Mission = {
+  slot: number
+  title: string
+  detail: string
+  progress: number
+  target: number
+  reward: number
+  ready: boolean
+  claimed: boolean
+}
+
+/** The day's missions, the bonus for doing all of them, and when tomorrow's take their place. */
+export type MissionsStatus = {
+  missions: Mission[]
+  bonus: { reward: number; ready: boolean; claimed: boolean }
+  resetsAt: string
 }
 
 /** A top-three finish in a league, kept for good. `week` is the Monday the week it was won in began. */

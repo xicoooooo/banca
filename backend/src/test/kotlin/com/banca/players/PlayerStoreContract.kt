@@ -196,6 +196,33 @@ abstract class PlayerStoreContract {
     }
 
     @Test
+    fun `a payment named for one thing is made once, and the names of what was paid for can be read back`() = with { store ->
+        val player = store.create("Ana", token(), 2_000)
+        val since = Instant.now().minusSeconds(3_600)
+
+        assertEquals(2_075, store.grantOnce(player.id, 75, LedgerReason.MISSION_REWARD, "2026-10-08:0"))
+        assertNull(store.grantOnce(player.id, 75, LedgerReason.MISSION_REWARD, "2026-10-08:0"), "the same thing is not paid for twice")
+        assertEquals(2_175, store.grantOnce(player.id, 100, LedgerReason.MISSION_REWARD, "2026-10-08:1"), "another thing is")
+        assertEquals(2_175, store.balance(player.id))
+
+        assertEquals(setOf("2026-10-08:0", "2026-10-08:1"), store.referencesSince(player.id, LedgerReason.MISSION_REWARD, since).toSet())
+        assertTrue(store.referencesSince(player.id, LedgerReason.MISSION_REWARD, Instant.now().plusSeconds(60)).isEmpty(), "nothing from before the moment asked about")
+        assertTrue(store.referencesSince(player.id, LedgerReason.DAILY_REWARD, since).isEmpty(), "and each reason is its own")
+    }
+
+    @Test
+    fun `two claims for the same named payment arriving together are paid once`() = with { store ->
+        val player = store.create("Ana", token(), 2_000)
+
+        val paid = coroutineScope {
+            (1..8).map { async(Dispatchers.Default) { store.grantOnce(player.id, 250, LedgerReason.MISSION_REWARD, "2026-10-08:3") } }.awaitAll()
+        }
+
+        assertEquals(1, paid.count { it != null })
+        assertEquals(2_250, store.balance(player.id))
+    }
+
+    @Test
     fun `the moments a player was given chips for a reason are listed newest first`() = with { store ->
         val player = store.create("Ana", token(), 2_000)
         assertTrue(store.grantsOf(player.id, LedgerReason.DAILY_REWARD, 10).isEmpty())

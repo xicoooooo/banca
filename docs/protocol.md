@@ -19,11 +19,11 @@ All but the first need `Authorization: Bearer <token>`, and answer `401` to a to
 
 A browser keeps the guest it is given, so nobody needs many. New guests are limited to five an hour and twenty a day from one address, which is room for a household or a group of friends on one connection and not for filling the database.
 
-A new player is granted 2,000 chips, once. After that the balance changes as rounds are won and lost, and by the two [rewards](#rewards) below. Every change is a line in a ledger and the balance is their sum.
+A new player is granted 2,000 chips, once. After that the balance changes as rounds are won and lost, by the two [rewards](#rewards) below, by [missions](#missions) and by league prizes. Every change is a line in a ledger and the balance is their sum.
 
 ### Rewards
 
-Chips cannot be bought, so these are the only ways to come by chips without winning them. Both are worked out from the ledger; nothing else is stored.
+Chips cannot be bought, so these, with [missions](#missions) and league prizes, are the only ways to come by chips without winning them. Both are worked out from the ledger; nothing else is stored.
 
 - **The daily reward** is claimed once a day, with days counted in UTC. Each day claimed in a row is worth more, through a week of 200, 300, 400, 500, 750, 1,000 and 2,000, which then starts over. Missing a day starts it over too.
 - **The house's stake** is 500 chips, given when a player sits down to a round they cannot cover, and at most once every four hours.
@@ -33,6 +33,30 @@ Chips cannot be bought, so these are the only ways to come by chips without winn
 | `POST /players/me/rewards/daily` | `{ "granted": 200, "balance": 2200, "rewards": { ... } }`. `409` if today's has been claimed |
 
 What is on offer is the `rewards` part of the dashboard: for `daily`, whether it is `available`, its `amount`, the `day` of the week it is, the `streak`, and `nextAt`; for `rescue`, its `amount` and `nextAt`, null when the house would stake the player now.
+
+### Missions
+
+Each day a player has three missions: one to play, one to win and one feat, such as "Play 8 rounds of blackjack", "Win 3 hands of poker" or "Hit a single number at roulette". Which three follows from who the player is and what day it is, so they are the same all day and different tomorrow, and nothing about them is stored. How far along the player is follows from the rounds they have played since midnight UTC.
+
+They are the `missions` part of the dashboard:
+
+```json
+{
+  "missions": [
+    { "slot": 0, "title": "Hit me", "detail": "Play 8 rounds of blackjack", "progress": 2, "target": 8, "reward": 75, "ready": false, "claimed": false }
+  ],
+  "bonus": { "reward": 250, "ready": false, "claimed": false },
+  "resetsAt": "2026-10-09T00:00:00Z"
+}
+```
+
+A mission is worth 75, 100 or 150 chips by how hard it is, and doing all three is worth 250 more. `ready` means done and not yet collected. Nothing is paid until the player collects it:
+
+| Request | Answer |
+|---|---|
+| `POST /players/me/missions/{slot}` | `{ "granted": 75, "balance": 2275, "missions": { ... } }`. The bonus is the slot after the last mission. `409` when there is nothing there to collect: not done, already paid, or no such mission |
+
+Each is paid once: the payment is a line in the ledger marked with its day and its slot, and a second claim finds it there. Practice tables write no rounds, so nothing played at one counts.
 
 A table tells the player about their chips with two messages of its own, the same in every game:
 

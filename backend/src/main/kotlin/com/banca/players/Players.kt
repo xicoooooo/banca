@@ -136,15 +136,42 @@ class Players(private val store: PlayerStore, private val clock: Clock = Clock.s
         )
     }
 
-    suspend fun dashboard(player: Player): Dashboard = DashboardBuilder.build(
-        player = player,
-        balance = store.balance(player.id),
-        rounds = store.rounds(player.id, HISTORY_LIMIT),
-        ledger = store.ledger(player.id, HISTORY_LIMIT),
-        now = clock.instant(),
-        rewards = rewards(player),
-        trophies = store.trophies(player.id, TROPHIES_SHOWN),
-    )
+    suspend fun dashboard(player: Player): Dashboard {
+        val now = clock.instant()
+        val rounds = store.rounds(player.id, HISTORY_LIMIT)
+        return DashboardBuilder.build(
+            player = player,
+            balance = store.balance(player.id),
+            rounds = rounds,
+            ledger = store.ledger(player.id, HISTORY_LIMIT),
+            now = now,
+            rewards = rewards(player),
+            trophies = store.trophies(player.id, TROPHIES_SHOWN),
+            missions = missionsFrom(player, now, rounds),
+        )
+    }
+
+    /** Where the player stands with today's missions, from rounds already in hand. */
+    private suspend fun missionsFrom(player: Player, now: Instant, rounds: List<RoundRecord>): MissionsStatus {
+        val today = Rewards.startOfDay(Rewards.dayOf(now))
+        val claimed = Missions.claimedSlots(Rewards.dayOf(now), store.referencesSince(player.id, LedgerReason.MISSION_REWARD, today))
+        return Missions.status(player.id, now, rounds.filter { !it.endedAt.isBefore(today) }, claimed)
+    }
+
+    /** Where the player stands with today's missions. */
+    suspend fun missions(player: Player): MissionsStatus = missionsFrom(player, clock.instant(), store.rounds(player.id, ROUNDS_IN_A_DAY))
+
+    /**
+     * Pays for a mission the player has done, or the bonus for doing all
+     * three, and returns what it was worth. Null when there is nothing there
+     * to claim: not done yet, already paid, or no such mission.
+     */
+    suspend fun claimMission(player: Player, slot: Int): Long? {
+        val now = clock.instant()
+        val worth = Missions.worth(missions(player), slot) ?: return null
+        val paid = store.grantOnce(player.id, worth, LedgerReason.MISSION_REWARD, Missions.reference(Rewards.dayOf(now), slot))
+        return worth.takeIf { paid != null }
+    }
 
     /**
      * What anyone may see of the player with this id, or null if there is no
@@ -175,6 +202,9 @@ class Players(private val store: PlayerStore, private val clock: Clock = Clock.s
 
         /** How far back the dashboard reads. Beyond this, totals describe recent play. */
         private const val HISTORY_LIMIT = 5_000
+
+        /** More rounds than anyone plays in a day, which is as far back as missions look. */
+        private const val ROUNDS_IN_A_DAY = 2_000
 
         private const val TROPHIES_SHOWN = 60
 

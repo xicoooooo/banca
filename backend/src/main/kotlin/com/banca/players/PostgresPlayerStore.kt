@@ -156,6 +156,38 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
             connection.balanceOf(id)
         }
 
+    override suspend fun grantOnce(id: UUID, amount: Long, reason: LedgerReason, reference: String): Long? =
+        transaction { connection ->
+            // Holding the player's row makes two claims arriving together take turns.
+            connection.prepareStatement("select 1 from profiles where id = ? for update").use { statement ->
+                statement.setObject(1, id)
+                statement.executeQuery().use { rows -> check(rows.next()) { "No player $id" } }
+            }
+            val already = connection.prepareStatement(
+                "select 1 from wallet_entries where profile_id = ? and reason = ?::wallet_reason and ref_id = ? limit 1",
+            ).use { statement ->
+                statement.setObject(1, id)
+                statement.setString(2, reason.name.lowercase())
+                statement.setString(3, reference)
+                statement.executeQuery().use { rows -> rows.next() }
+            }
+            if (already) return@transaction null
+
+            connection.addEntry(id, amount, reason, reference)
+            connection.balanceOf(id)
+        }
+
+    override suspend fun referencesSince(id: UUID, reason: LedgerReason, since: Instant): List<String> = query { connection ->
+        connection.prepareStatement(
+            "select ref_id from wallet_entries where profile_id = ? and reason = ?::wallet_reason and created_at >= ? and ref_id is not null",
+        ).use { statement ->
+            statement.setObject(1, id)
+            statement.setString(2, reason.name.lowercase())
+            statement.setTimestamp(3, Timestamp.from(since))
+            statement.executeQuery().use { rows -> buildList { while (rows.next()) add(rows.getString(1)) } }
+        }
+    }
+
     override suspend fun grantsOf(id: UUID, reason: LedgerReason, limit: Int): List<Instant> = query { connection ->
         connection.prepareStatement(
             "select created_at from wallet_entries where profile_id = ? and reason = ?::wallet_reason order by id desc limit ?",

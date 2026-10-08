@@ -121,6 +121,8 @@ After day 7 the week starts over, and so does a streak with a missed day. Days a
 
 Neither is stored as state. The streak and both clocks are read from the ledger, which is also what makes a claim impossible to pay twice.
 
+**Daily missions.** Built, as the first of the stretch list. Each day a player has three: one to play ("Play 8 rounds of blackjack"), one to win ("Win 3 hands of poker") and one feat that shows off a part of the game ("Make 6 blackjack decisions that were the best play", "Win a poker hand at a showdown"). They are worth 75, 100 and 150 chips, collected in the lobby, with 250 more for all three: at most 575 a day, a little over a quarter of a starting bankroll, so they are a reason to come back and try something and never a substitute for playing well. Like the rest of this section nothing about them is stored. Which three a player has follows from who they are and the day, their progress from the rounds they have played since midnight, and the only thing written down is the payment, marked so that it is made once.
+
 ### 7.4 Onboarding tutorial
 Built. The first time a player opens a game's table for one, Banca walks them through a round of it: at poker, their cards, the pot, the actions, the opponent thinking and the coach; at blackjack, the bet, the hand, hit, stand and double, the coach and the review; at roulette, the chips, the layout, the read and the house edge. It can be skipped at any step and taken again from the profile.
 
@@ -171,7 +173,7 @@ Known limits: the shared tables run on clocks that cannot be extended, so a play
 
 - **Built:** identity, profile and stats, levels and achievements, daily rewards, bust protection, the coach before a decision at all three games, grading after a blackjack round, the tutorial, shared tables with chat, leagues, trophies and public pages.
 - **Left for v1 (through Phase 7):** demo video.
-- **Later:** unlocks by level, a friends list, daily missions, round replay with the agent's reasoning attached, spectator mode, tournaments.
+- **Later:** unlocks by level, a friends list, round replay with the agent's reasoning attached, spectator mode, tournaments.
 
 ## 8. Components
 
@@ -201,7 +203,7 @@ Live tables are held in memory. A table for one (`PokerTable`, `BlackjackTable`,
 A table belongs to the server, not to the connection. Dropping and returning within three minutes finds it as it was; opening it elsewhere takes it over; a table nobody returns to is cleared, and a round still in play is finished in the way that risks nothing more and then recorded, so leaving is never a way out of losing.
 
 ### 8.6 Players and the ledger (`players`)
-One chip balance per player, shared across every game. Every change is an append-only ledger entry with a reason (signup grant, round, daily reward, house stake, league prize), and the balance is their sum. `Rewards` decides what is owed and when; `DashboardBuilder` turns rounds and ledger into the profile; `Leagues` holds the league rules as pure functions and `Leaderboards` settles weeks and answers the boards. The store has two implementations behind one contract test: Postgres, and an in-memory one for running without a database.
+One chip balance per player, shared across every game. Every change is an append-only ledger entry with a reason (signup grant, round, daily reward, house stake, league prize, mission reward), and the balance is their sum. `Rewards` decides what is owed and when; `DashboardBuilder` turns rounds and ledger into the profile; `Leagues` holds the league rules as pure functions and `Leaderboards` settles weeks and answers the boards. The store has two implementations behind one contract test: Postgres, and an in-memory one for running without a database.
 
 ### 8.7 Identity (`players`)
 A player is known by a bearer token whose hash is all the server keeps. Accounts are held by Supabase Auth; the server confirms a sign-in by asking Supabase whose access token it was given, then issues its own token, so the rest of the system never needs to know how anyone signed in.
@@ -276,7 +278,7 @@ A lobby, a picker and table for each game in both forms, the profile, the league
 | 5. Platform | Lobby, shared wallet, guest identity and Google sign-in, tables that survive reconnects, shared tables and rooms at all three games, chat | Done |
 | 6. Player experience | Profile and stats, daily rewards, bust protection, coach at all three games, grading after a blackjack round, tutorial, leagues and trophies | Done |
 | 7. Polish and launch | PWA install, accessibility, session reminder, architecture diagram: done. Demo video: to do | In progress |
-| 8. Stretch | Private tables by invitation: done. Banca's moods at poker: done. Unlocks by level, a friends list, missions, replay, spectator, tournaments | Open |
+| 8. Stretch | Private tables by invitation: done. Banca's moods at poker, daily missions: done. Unlocks by level, a friends list, replay, spectator, tournaments | Open |
 
 Phases are taken in order. The first draft allowed 20 to 27 weeks; Phases 0 to 6 were done well inside that, with nothing cut from Phase 6.
 

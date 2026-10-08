@@ -46,6 +46,16 @@ interface PlayerStore {
      */
     suspend fun grantUnlessSince(id: UUID, amount: Long, reason: LedgerReason, since: Instant): Long?
 
+    /**
+     * Adds chips for [reason] unless the player has already been paid for
+     * exactly this, as [reference] names it, and returns the balance after it,
+     * or null if they had. Two requests arriving together must not both be paid.
+     */
+    suspend fun grantOnce(id: UUID, amount: Long, reason: LedgerReason, reference: String): Long?
+
+    /** What the player has been paid for under [reason] since [since], as each payment was named. */
+    suspend fun referencesSince(id: UUID, reason: LedgerReason, since: Instant): List<String>
+
     /** When the player was last given chips for [reason], newest first. */
     suspend fun grantsOf(id: UUID, reason: LedgerReason, limit: Int): List<Instant>
 

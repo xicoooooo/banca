@@ -1,3 +1,4 @@
+import { Missions } from './Missions'
 import { JoinByCode } from './JoinByCode'
 import { OpenTablePanel } from '../casino/OpenTablePanel'
 import { InstallCard } from '../casino/AppNotes'
@@ -121,6 +122,7 @@ export function Lobby({ onChoose, onProfile, onLeagues }: { onChoose: (game: Gam
         {dashboard && (
           <DailyReward rewards={dashboard.rewards} balance={dashboard.bankroll.balance} smallestBet={10} onClaimed={refresh} />
         )}
+        {dashboard && <Missions missions={dashboard.missions} onClaimed={refresh} />}
 
         {GAMES.map((game, index) => (
           <button

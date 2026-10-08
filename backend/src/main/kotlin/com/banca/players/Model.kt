@@ -24,6 +24,7 @@ enum class LedgerReason {
     BUST_TOP_UP,
     DAILY_REWARD,
     LEAGUE_PRIZE,
+    MISSION_REWARD,
 }
 
 /**
@@ -80,4 +81,5 @@ data class FinishedRound(
     val ranked: Boolean get() = !tableId.startsWith(PRIVATE_TABLE)
 }
 
-data class LedgerEntry(val amount: Long, val reason: LedgerReason, val at: Instant)
+/** [reference] is what the entry was for, where a reason alone does not say: which mission, on which day. */
+data class LedgerEntry(val amount: Long, val reason: LedgerReason, val at: Instant, val reference: String? = null)

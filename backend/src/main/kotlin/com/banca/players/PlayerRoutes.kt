@@ -32,6 +32,9 @@ data class Problem(val message: String)
 @Serializable
 data class DailyClaim(val granted: Long, val balance: Long, val rewards: RewardStatus)
 
+@Serializable
+data class MissionClaim(val granted: Long, val balance: Long, val missions: MissionsStatus)
+
 /** Where the browser sends a player to sign in, or nulls when signing in is not set up. */
 @Serializable
 data class SignInSettings(val url: String?, val publicKey: String?)
@@ -114,6 +117,17 @@ fun Application.configurePlayerRoutes(players: Players, signIn: SignInConfig? = 
                 return@post
             }
             call.respond(DailyClaim(granted, players.balance(player), players.rewards(player)))
+        }
+
+        // A mission that has been done, or the bonus for all three, paid for once.
+        post("/players/me/missions/{slot}") {
+            val player = call.player(players) ?: return@post
+            val granted = call.parameters["slot"]?.toIntOrNull()?.let { players.claimMission(player, it) }
+            if (granted == null) {
+                call.respond(HttpStatusCode.Conflict, Problem("There is nothing to claim there"))
+                return@post
+            }
+            call.respond(MissionClaim(granted, players.balance(player), players.missions(player)))
         }
 
         // The league the caller is in this week. Anyone may look: without a

@@ -50,6 +50,12 @@ export async function claimDailyReward(): Promise<number> {
   return ((await response.json()) as { granted: number }).granted
 }
 
+/** Collects the chips for a mission that has been done, or for all three, and returns what it was worth. */
+export async function claimMission(slot: number): Promise<number> {
+  const response = await request(`/players/me/missions/${slot}`, { method: 'POST' })
+  return ((await response.json()) as { granted: number }).granted
+}
+
 export async function renamePlayer(name: string): Promise<void> {
   await request('/players/me', {
     method: 'PATCH',
