@@ -26,6 +26,11 @@ class AgentConfig(
  * Plays a seat by letting a language model call poker tools over MCP until it
  * submits an action.
  *
+ * It does not always play the same way. It has moods, each a different reading
+ * of the same figures, and keeps to one for a few hands before changing, so
+ * that it cannot simply be worked out. Which mood it was in is told with the
+ * rest of its reasoning, once the hand is over.
+ *
  * The model is never trusted to finish: every turn has a budget of model calls
  * and a time limit, and running out of either, or any failure at all, ends in
  * the safest legal action instead of a stalled table.
@@ -38,13 +43,19 @@ class AgentDriver(
     private val log = LoggerFactory.getLogger(AgentDriver::class.java)
     private val conversation = ToolConversation(model, config.maxModelCalls)
 
+    /** How Banca is playing at this table for the time being. Each table has its own. */
+    private val moods = MoodSwings(config.random)
+
     override suspend fun decide(view: TableView, trace: suspend (TraceEvent) -> Unit): Action {
         val tools = PokerTools(view, config.random)
         val timing = Timing()
+        val (mood, firstOfHand) = moods.forHand(view.handNumber)
+        // Said once a hand, and kept back with the rest of its thinking until the hand is over.
+        if (firstOfHand) trace(TraceEvent(TraceEvent.THOUGHT, MOOD_STEP, mood.told))
         val task = ToolTask(
             server = tools.server(),
-            systemPrompt = SYSTEM_PROMPT,
-            opening = "It is your turn. Use the tools, then submit your action.",
+            systemPrompt = systemPrompt(mood),
+            opening = if (config.random.nextDouble() < mood.bluffs) BLUFF else NO_BLUFF,
             finishingTool = PokerTools.SUBMIT_ACTION,
             reminder = "Call submit_action now to commit your decision.",
             isFinished = { tools.decision != null },
@@ -102,30 +113,29 @@ class AgentDriver(
         else -> "Used $tool"
     }
 
-    private companion object {
-        val SYSTEM_PROMPT = """
-            You are Banca, playing no-limit Texas Hold'em for play chips, against one opponent or several. You play a tight-aggressive game: you bet and raise your good hands, and you give up your bad ones.
+    companion object {
+        /** What a hand's first step is called. It says nothing of the mood itself while the hand is live. */
+        const val MOOD_STEP = "Settled on how to play"
+
+        /** What Banca is told every hand, with how it is to play this one set into the middle. */
+        fun systemPrompt(mood: Mood): String = """
+            You are Banca, playing no-limit Texas Hold'em for play chips, against one opponent or several.
 
             Every turn, in this order:
             1. Call get_game_state, get_hand_equity, get_pot_odds and get_legal_actions together, in one step.
             2. Call submit_action exactly once. For a bet or raise, use one of the amounts get_legal_actions offers.
 
-            Your equity is measured against random hands, one for each opponent still in. An opponent who bets or raises usually holds better than random, so when you face a bet, treat your equity as about 0.10 lower than the tool says.
+            Your equity is measured against random hands, one for each opponent still in.
 
-            When you can check (nothing to call):
-            - Equity above 0.65: bet two thirds of the pot, or the whole pot with equity above 0.80.
-            - Equity 0.50 to 0.65: bet half the pot.
-            - Equity below 0.50: check. About one time in five, bet half the pot as a bluff instead.
-            - Before the flop, with equity above 0.55, raise rather than just check.
-
-            When you face a bet:
-            - Adjusted equity above 0.70: raise, to the half-pot or pot amount.
-            - Adjusted equity above the pot odds: call.
-            - Otherwise fold. Do not call just because the bet is small.
-
-            Never fold when you can check. Checking and calling every hand is losing poker: when the numbers say bet or raise, do it.
+        """.trimIndent() + "\n" + mood.rules.trimIndent() + "\n\n" + """
+            Never fold when you can check. Whether to bluff this turn is decided for you, and you are told at the start of the turn: follow it.
 
             Do not explain at length. If you write anything, keep it to one short sentence. Always finish by calling submit_action as a real tool call, never by writing it out as text.
         """.trimIndent()
+
+        // A model asked to do something one time in five does it every time or never. So the
+        // dice are thrown here, and the model is told how they fell.
+        const val BLUFF = "It is your turn. This turn you are bluffing: if your equity is below 0.50, bet half the pot if you can bet, or raise to the half-pot amount if the bet you face is no more than half the pot. With a stronger hand, play as usual. Use the tools, then submit your action."
+        const val NO_BLUFF = "It is your turn. No bluffing this turn: with a weak hand, check if you can and fold if you cannot. Use the tools, then submit your action."
     }
 }

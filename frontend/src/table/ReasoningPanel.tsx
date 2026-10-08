@@ -27,6 +27,9 @@ function MiniCards({ cards }: { cards: string[] }) {
   )
 }
 
+/** The step in which Banca settles how it will play a hand. What it settled on is its detail, revealed afterwards. */
+const MOOD_STEP = 'Settled on how to play'
+
 /** What a step shows: the finding, a line of context, and the tool it came from. */
 type Finding = { result?: ReactNode; note?: ReactNode; tool?: string; street?: string }
 
@@ -183,6 +186,8 @@ export function ReasoningPanel({ reasoning, name, thinking, onClose }: Reasoning
     }
   }, [close])
 
+  const mood = reasoning.revealed ? reasoning.events.find((event) => event.label === MOOD_STEP)?.detail : null
+
   const decisions = reasoning.events.filter((event) => event.kind === 'decision' || event.kind === 'fallback').length
 
   // Opened mid-thought, it closes a beat after the decision lands in the trace.
@@ -227,6 +232,14 @@ export function ReasoningPanel({ reasoning, name, thinking, onClose }: Reasoning
           className="overflow-y-auto px-5"
           style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
         >
+          {/* How Banca was playing, told only once the hand is over and it can give nothing away. */}
+          {mood && (
+            <p className="mood rise-in">
+              <span className="label text-gold!">Its mood this hand</span>
+              {mood}
+            </p>
+          )}
+
           {turns.length === 0 && !thinking && (
             <p className="py-10 text-center text-muted">{name} has not had to decide anything yet.</p>
           )}

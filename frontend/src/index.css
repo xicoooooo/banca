@@ -3276,3 +3276,18 @@ button {
 .join-code__field[aria-invalid='true'] {
   border-color: rgb(241 199 91 / 0.7);
 }
+
+/* How Banca was playing a hand, said at the top of its reasoning once the hand is over. */
+.mood {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgb(241 199 91 / 0.3);
+  border-radius: 14px;
+  background: rgb(241 199 91 / 0.06);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: rgb(245 241 232 / 0.9);
+}

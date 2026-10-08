@@ -50,7 +50,8 @@ class AgentDriverTest {
         view: com.banca.sessions.TableView = facingABet(),
     ): Pair<Action, List<TraceEvent>> = runBlocking {
         val trace = mutableListOf<TraceEvent>()
-        AgentDriver(model, config).decide(view) { trace += it } to trace
+        // The step that says what mood it is in comes first every hand, and has tests of its own in MoodsTest.
+        AgentDriver(model, config).decide(view) { trace += it } to trace.filter { it.label != AgentDriver.MOOD_STEP }
     }
 
     @Test

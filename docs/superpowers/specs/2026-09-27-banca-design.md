@@ -212,7 +212,11 @@ One WebSocket address per table. The first frame is a `hello` with the player's 
 ### 8.9 Agent runtime (`agents`)
 When Banca has something to decide or is asked something, the runtime hands the model its view and a list of tools, lets it call them until it answers, and enforces a limit on calls to the model and on time. It emits a trace of each step. At poker the trace is shown as it happens with the details held back, since they could give Banca's cards away, and revealed in full when the hand ends; for the coach and analyst, who see only what the player sees, nothing is held back.
 
-It talks to a `ModelProvider`: Ollama, any OpenAI-compatible host (Groq when deployed), a fallback that tries one after another, and a passive one that needs no model at all. Personalities (tight, aggressive, bluffer) remain a stretch.
+It talks to a `ModelProvider`: Ollama, any OpenAI-compatible host (Groq when deployed), a fallback that tries one after another, and a passive one that needs no model at all.
+
+**Moods.** At poker Banca does not always play the same way, or it could simply be worked out. It has four moods, each a different reading of the same figures: *steady*, which bets good hands and folds bad ones; *patient*, which waits for strong hands and gives bets a lot of respect; *pressing*, which bets and raises with more hands and makes it cost to stay in; and *sly*, which hides strong hands behind checks and calls. A mood holds for two to five hands at a table and then gives way to a different one, so a player who has read it has a little while to use that and no way of knowing when it stops being true. Each table has its own.
+
+Two things about how it is done. Which mood Banca is in is never shown while a hand is live: the step is called the same whatever the mood, and what it was is revealed with the rest of the reasoning once the hand is over. And the bluffing is not left to the model. A model told to bluff one time in five does it always or never, so the server throws the dice each turn, at the mood's own rate, and tells the model how they fell.
 
 ### 8.10 MCP tools (`agents`)
 One small MCP server per role, connected to the runtime over an in-process transport: the same protocol as a separate server, without a second process to host.
@@ -272,7 +276,7 @@ A lobby, a picker and table for each game in both forms, the profile, the league
 | 5. Platform | Lobby, shared wallet, guest identity and Google sign-in, tables that survive reconnects, shared tables and rooms at all three games, chat | Done |
 | 6. Player experience | Profile and stats, daily rewards, bust protection, coach at all three games, grading after a blackjack round, tutorial, leagues and trophies | Done |
 | 7. Polish and launch | PWA install, accessibility, session reminder, architecture diagram: done. Demo video: to do | In progress |
-| 8. Stretch | Private tables by invitation: done. Unlocks by level, a friends list, agent personalities, missions, replay, spectator, tournaments | Open |
+| 8. Stretch | Private tables by invitation: done. Banca's moods at poker: done. Unlocks by level, a friends list, missions, replay, spectator, tournaments | Open |
 
 Phases are taken in order. The first draft allowed 20 to 27 weeks; Phases 0 to 6 were done well inside that, with nothing cut from Phase 6.
 
