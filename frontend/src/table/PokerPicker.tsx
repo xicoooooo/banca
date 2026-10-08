@@ -8,6 +8,7 @@ export function PokerPicker({ onLeave, onChoose }: { onLeave: () => void; onChoo
   return (
     <TablePicker<PokerTableListing>
       game="Texas Hold'em"
+      gameId="poker"
       kicker="Banca has a seat at every table"
       heading="Choose a table"
       listedAt="/poker/tables"

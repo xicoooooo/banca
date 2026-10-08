@@ -91,6 +91,9 @@ data class BlackjackTableView(
     val you: BlackjackView,
     val seats: List<TableSeatView>,
     val seatsInAll: Int,
+    /** At a private table: who sets its pace, and whether that is this player. */
+    val host: String? = null,
+    val youHost: Boolean = false,
 )
 
 @Serializable
@@ -102,6 +105,11 @@ sealed interface BlackjackTableClientMessage {
     @Serializable
     @SerialName("bet")
     data class Bet(val amount: Long) : BlackjackTableClientMessage
+
+    /** At a private table, the host saying the cards may be dealt to whoever has bet. */
+    @Serializable
+    @SerialName("start")
+    data object Start : BlackjackTableClientMessage
 
     @Serializable
     @SerialName("act")
@@ -184,6 +192,14 @@ class BlackjackRoom(
     /** Told whenever a player has done something the clock may have been waiting for. */
     private val acted = Channel<Unit>(Channel.CONFLATED)
 
+    /** A private table takes as many players as its host chose, and deals when they say rather than on a clock. */
+    private val seats = spec.options.seats ?: config.seats
+    private val hostPaced = spec.byInvite
+    private val turnTime = if (spec.options.longTurns) timings.turn * LONG_TURN else timings.turn
+    private val insuranceTime = if (spec.options.longTurns) timings.insurance * 2 else timings.insurance
+    /** Set when the host has asked for the cards. */
+    private var dealAsked = false
+
     private var running = false
     private var phase = TablePhase.BETTING
     private var phaseEndsAt = 0L
@@ -197,13 +213,13 @@ class BlackjackRoom(
     val id: String get() = spec.id
 
     suspend fun summary(): BlackjackTableSummary = lock.withLock {
-        BlackjackTableSummary(spec.id, spec.name, players = members.values.count { it.connected }, seats = config.seats)
+        BlackjackTableSummary(spec.id, spec.name, players = members.values.count { it.connected }, seats = seats)
     }
 
     /** Seats a player, or brings them back to their seat, and shows them the table. */
     suspend fun join(session: PlayerSession, send: Send) = lock.withLock {
         val seated = members[session.player.id]
-        check(seated != null || members.size < config.seats) { "This table is full" }
+        check(seated != null || members.size < seats) { "This table is full" }
 
         val member = seated ?: Member(session.player.id, session.player.name, session, send, strategy).also { members[it.id] = it }
         member.connected = true
@@ -250,6 +266,7 @@ class BlackjackRoom(
         if (amount == 0L) {
             member.bet = 0
             member.stack = member.session.balance()
+            if (hostPaced) acted.trySend(Unit)
             broadcast()
             return@withLock
         }
@@ -270,7 +287,64 @@ class BlackjackRoom(
 
         member.bet = amount
         member.stack = funding.balance - amount
+        // A table paced by its host is waiting on bets, not on a clock.
+        if (hostPaced) acted.trySend(Unit)
         broadcast()
+    }
+
+    /** At a private table, the host asks for the cards. They go to whoever has bet. */
+    suspend fun start(playerId: UUID) = lock.withLock {
+        check(hostPaced) { "This table deals by itself" }
+        check(phase == TablePhase.BETTING) { "The round is already under way" }
+        check(hostId() == playerId) { "Only the host can deal" }
+        check(members.values.any { it.bet > 0 }) { "Nobody has bet yet" }
+
+        dealAsked = true
+        acted.trySend(Unit)
+    }
+
+    private fun hostId(): UUID? = if (hostPaced) hostAmong(members, spec.options.host) { it.connected } else null
+
+    /**
+     * Waits at a private table for the cards to be wanted: the host asks for
+     * them, or everyone who is here has bet, in which case they follow after a
+     * moment in which a bet can still be changed. An empty table stops waiting,
+     * and is put to rest by what follows.
+     */
+    private suspend fun awaitBets() {
+        while (true) {
+            val ready = lock.withLock {
+                val here = members.values.filter { it.connected }
+                when {
+                    here.isEmpty() -> true
+                    dealAsked && members.values.any { it.bet > 0 } -> true
+                    here.all { it.bet > 0 } -> null
+                    else -> false
+                }
+            }
+            when (ready) {
+                true -> break
+                false -> withTimeoutOrNull(IDLE_LOOK) { acted.receive() }
+                null -> {
+                    lock.withLock {
+                        phaseEndsAt = now() + ALL_IN_PAUSE.inWholeMilliseconds
+                        broadcast()
+                    }
+                    // Left alone for the length of the pause, the bets stand. Anything else and the wait starts over.
+                    val changed = withTimeoutOrNull(ALL_IN_PAUSE) { acted.receive() }
+                    val stillAll = lock.withLock {
+                        val here = members.values.filter { it.connected }
+                        (dealAsked || changed == null) && here.isNotEmpty() && here.all { it.bet > 0 }
+                    }
+                    if (stillAll) break
+                    lock.withLock {
+                        phaseEndsAt = 0
+                        broadcast()
+                    }
+                }
+            }
+        }
+        lock.withLock { dealAsked = false }
     }
 
     /**
@@ -318,7 +392,7 @@ class BlackjackRoom(
         try {
             while (true) {
                 lock.withLock { openBetting() }
-                delay(timings.betting)
+                if (hostPaced) awaitBets() else delay(timings.betting)
 
                 val dealt = lock.withLock {
                     when {
@@ -339,7 +413,7 @@ class BlackjackRoom(
                 if (!dealt) continue
 
                 if (lock.withLock { phase == TablePhase.INSURANCE }) {
-                    withTimeoutOrNull(timings.insurance) {
+                    withTimeoutOrNull(insuranceTime) {
                         while (lock.withLock { members.values.any { it.round?.phase == Phase.INSURANCE } }) acted.receive()
                     }
                     lock.withLock { declineForTheRest() }
@@ -368,7 +442,8 @@ class BlackjackRoom(
 
     private suspend fun openBetting() {
         phase = TablePhase.BETTING
-        phaseEndsAt = now() + timings.betting.inWholeMilliseconds
+        // A private table has no clock on its bets.
+        phaseEndsAt = if (hostPaced) 0 else now() + timings.betting.inWholeMilliseconds
         actor = null
         dealer = emptyList()
         // Those who have gone and have nothing staked give up their seats.
@@ -421,7 +496,7 @@ class BlackjackRoom(
 
         if (playing.any { it.round?.phase == Phase.INSURANCE }) {
             phase = TablePhase.INSURANCE
-            phaseEndsAt = now() + timings.insurance.inWholeMilliseconds
+            phaseEndsAt = now() + insuranceTime.inWholeMilliseconds
         } else {
             phase = TablePhase.PLAYING
         }
@@ -448,7 +523,7 @@ class BlackjackRoom(
             return null
         }
         actor = next.id
-        val waitFor = if (next.connected) timings.turn else timings.turnAway
+        val waitFor = if (next.connected) turnTime else timings.turnAway
         phaseEndsAt = now() + waitFor.inWholeMilliseconds
         broadcast()
         return waitFor
@@ -555,6 +630,7 @@ class BlackjackRoom(
     private suspend fun broadcast() {
         val msLeft = (phaseEndsAt - now()).coerceAtLeast(0)
         val actorName = members[actor]?.takeIf(::isActing)?.name
+        val host = hostId()
 
         for (member in members.values.filter { it.connected }) {
             val view = BlackjackTableView(
@@ -578,7 +654,9 @@ class BlackjackRoom(
                         net = other.net.takeIf { phase == TablePhase.RESULTS },
                     )
                 },
-                seatsInAll = config.seats,
+                seatsInAll = seats,
+                host = host?.let { members[it]?.name },
+                youHost = host == member.id,
             )
             member.send(encode(BlackjackTableServerMessage.State(view)))
         }
@@ -587,6 +665,15 @@ class BlackjackRoom(
     private fun encode(message: BlackjackTableServerMessage): String =
         wireJson.encodeToString(BlackjackTableServerMessage.serializer(), message)
 }
+
+/** How many times longer a decision may take at a table whose host asked for long turns. */
+private const val LONG_TURN = 3
+
+/** How long a private table waits, once everyone has bet, in case someone changes their mind. */
+private val ALL_IN_PAUSE = 3.seconds
+
+/** How often a private table with nothing happening looks to see whether anyone is still there. */
+private val IDLE_LOOK = 20.seconds
 
 /**
  * One player's seat at a shared blackjack table. The table is everybody's;
@@ -613,6 +700,7 @@ class BlackjackSeat(
     override suspend fun received(text: String) {
         when (val message = wireJson.decodeFromString<BlackjackTableClientMessage>(text)) {
             is BlackjackTableClientMessage.Bet -> room.setBet(session.player.id, message.amount)
+            is BlackjackTableClientMessage.Start -> room.start(session.player.id)
             is BlackjackTableClientMessage.Act -> {
                 val action = BlackjackClientMessage.Act(message.action).toAction()
                 val before = room.viewOf(session.player.id)

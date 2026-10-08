@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { AnimatedNumber } from '../casino/AnimatedNumber'
 import { Card } from '../casino/Card'
 import { CasinoShell } from '../casino/CasinoShell'
@@ -7,7 +7,7 @@ import { OutOfChips, StakedNote } from '../casino/ChipNotices'
 import { ConnectionNote } from '../casino/ConnectionNote'
 import { Header, type Status } from '../casino/Header'
 import { Loading } from '../casino/Loading'
-import { useInviteOffer } from '../casino/useInviteOffer'
+import { WaitingRoom } from '../casino/WaitingRoom'
 import { RoomDrawer } from '../casino/RoomDrawer'
 import { sound } from '../casino/sound'
 import { useSecondsUntil } from '../casino/useSecondsUntil'
@@ -149,8 +149,6 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
   const [showReasoning, setShowReasoning] = useState(false)
   const [showCoach, setShowCoach] = useState(false)
   const [showRoom, setShowRoom] = useState(false)
-  // Banca is always there, so alone means nobody but the player and Banca.
-  useInviteOffer(room?.byInvite === true && room.seats.length <= 2, useCallback(() => setShowRoom(true), []))
   const [heard, setHeard] = useState(0)
   // Who this player would rather not hear from. Kept on this device only, for this visit.
   const [muted, setMuted] = useState<Set<string>>(new Set())
@@ -170,6 +168,59 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
     const timer = setTimeout(() => setQuietAfter(chat.length), 4_000)
     return () => clearTimeout(timer)
   }, [chat.length])
+
+  // A private table before its host has started the game: who is here, and the link to bring the rest.
+  if (room && room.byInvite && !room.started && !broke) {
+    const here = room.seats.length
+    return (
+      <CasinoShell>
+        <Header detail="Texas Hold'em" status={{ text: 'Not started', tone: 'quiet' }} onLeave={onLeave} />
+        <ConnectionNote connection={connection} />
+        {error && (
+          <p role="alert" className="pt-3 text-center text-sm text-gold-bright">
+            {error}
+          </p>
+        )}
+        <WaitingRoom
+          table={room.name}
+          seats={room.seats.map((seat) => ({ name: seat.name, you: seat.you, host: seat.name === room.host, house: seat.seat === BANCA_SEAT }))}
+          seatsInAll={room.seatsInAll}
+          host={room.host}
+          youHost={room.youHost}
+          notYet={here < 2 ? 'Poker needs two. Waiting for someone to join' : null}
+          onStart={() => send({ type: 'start' })}
+        >
+          <button
+            type="button"
+            className="btn btn--quiet px-4! py-2! text-sm"
+            onClick={() => {
+              setHeard(chat.length)
+              setShowRoom(true)
+            }}
+          >
+            Chat{chat.length - heard > 0 ? ` · ${chat.length - heard}` : ''}
+          </button>
+        </WaitingRoom>
+        {showRoom && (
+          <RoomDrawer
+            name={room.name}
+            byInvite
+            players={room.seats.map((seat) => ({ name: seat.name, staked: 0, net: null, you: seat.you }))}
+            chat={chat}
+            phrases={phrases}
+            onSay={(say) => send({ type: 'chat', say })}
+            onType={(text) => send({ type: 'chat', text })}
+            muted={muted}
+            onMute={mute}
+            onClose={() => {
+              setHeard(chat.length)
+              setShowRoom(false)
+            }}
+          />
+        )}
+      </CasinoShell>
+    )
+  }
 
   if (!room || (!view && !broke)) {
     return (
@@ -248,12 +299,14 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
           )}
 
           <div className="flex flex-col items-center gap-1.5 short:flex-row short:gap-2">
-            <AgentThinking
-              reasoning={reasoning}
-              thinking={bancaThinking}
-              decided={view.result ? undefined : actions[BANCA_SEAT]}
-              onOpen={() => setShowReasoning(true)}
-            />
+            {room.seats.some((seat) => seat.seat === BANCA_SEAT) && (
+              <AgentThinking
+                reasoning={reasoning}
+                thinking={bancaThinking}
+                decided={view.result ? undefined : actions[BANCA_SEAT]}
+                onOpen={() => setShowReasoning(true)}
+              />
+            )}
             <Pot view={view} pulse={potPulse} />
           </div>
 
@@ -316,7 +369,9 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
         ) : (
           <p className="label pb-6 text-center leading-relaxed">
             {room.phase === 'waiting'
-              ? 'Waiting for the next hand'
+              ? room.seats.length < 2
+                ? 'Waiting for someone to play against'
+                : 'Waiting for the next hand'
               : !me
                 ? `${waiting.length > 1 ? `${waiting.length} players` : 'You'} waiting for the next hand`
                 : me.status === 'folded'

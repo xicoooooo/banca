@@ -24,6 +24,7 @@ export function useRoom(roomId: string) {
   /** How long the current phase had left when this device first heard of it, for a clock that runs down. */
   const [phaseMs, setPhaseMs] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [full, setFull] = useState(false)
   const [refusals, setRefusals] = useState(0)
   const [chat, setChat] = useState<ChatLine[]>([])
   const [phrases, setPhrases] = useState<Phrase[]>([])
@@ -69,6 +70,7 @@ export function useRoom(roomId: string) {
         setReading((current) => (current.status === 'idle' ? current : { ...current, status: 'ready', read: message.read }))
         break
       case 'error':
+        if ((message as { code?: string }).code === 'full') setFull(true)
         setError(message.message)
         setRefusals((count) => count + 1)
         setReading((current) => (current.status === 'thinking' ? NOT_READING : current))
@@ -99,6 +101,7 @@ export function useRoom(roomId: string) {
     phaseMs,
     connection,
     error,
+    full,
     // Sitting back down counts with refusals as a reason to show the room's bets rather than this device's.
     refusals: refusals + sittings,
     send,

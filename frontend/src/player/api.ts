@@ -58,13 +58,20 @@ export async function renamePlayer(name: string): Promise<void> {
   })
 }
 
+/** What a host chooses for a private table. Anything left out is the game's usual. */
+export type TableOptions = { seats?: number; banca?: boolean; turns?: 'normal' | 'long' }
+
 /**
  * Opens a table for the player to invite others to, at the address the game
  * lists its shared tables at, and returns where it is.
  */
-export async function openTable(listedAt: string): Promise<{ id: string; name: string }> {
+export async function openTable(listedAt: string, options: TableOptions = {}): Promise<{ id: string; name: string }> {
   const token = await playerToken()
-  const response = await fetch(httpUrl(listedAt), { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+  const response = await fetch(httpUrl(listedAt), {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(options),
+  })
   if (!response.ok) {
     const problem = (await response.json().catch(() => null)) as { message?: string } | null
     throw new Refused(problem?.message ?? 'The table could not be opened. Try again in a moment.')

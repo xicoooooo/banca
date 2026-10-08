@@ -8,6 +8,7 @@ export function BlackjackPicker({ onLeave, onChoose }: { onLeave: () => void; on
   return (
     <TablePicker<BlackjackTableListing>
       game="Blackjack"
+      gameId="blackjack"
       kicker="One dealer for the whole table"
       heading="Choose a table"
       listedAt="/blackjack/tables"

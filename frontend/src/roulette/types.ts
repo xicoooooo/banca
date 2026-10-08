@@ -70,6 +70,9 @@ export type RoomView = {
   name: string
   /** True for a room a player opened for their own company, which is on no list. */
   byInvite: boolean
+  /** At a private room: who spins the wheel, and whether that is this player. */
+  host: string | null
+  youHost: boolean
   roundNumber: number
   phase: 'betting' | 'spinning' | 'results'
   msLeft: number
@@ -102,5 +105,6 @@ export type RoomClientMessage =
   | { type: 'chat'; say: string }
   | { type: 'chat'; text: string }
   | { type: 'analyse'; bets: Wager[] }
+  | { type: 'start' }
 
 export type RouletteClientMessage = { type: 'spin'; bets: Wager[] } | { type: 'analyse'; bets: Wager[] }

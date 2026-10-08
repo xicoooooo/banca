@@ -1,3 +1,4 @@
+import { OpenTablePanel } from '../casino/OpenTablePanel'
 import { InstallCard } from '../casino/AppNotes'
 import { useEffect, useState } from 'react'
 import { CasinoShell } from '../casino/CasinoShell'
@@ -58,6 +59,7 @@ export function Lobby({ onChoose, onProfile, onLeagues }: { onChoose: (game: Gam
   }, [known])
 
   const mine = league?.rows.find((row) => row.you)
+  const [settingUp, setSettingUp] = useState(false)
 
   return (
     <CasinoShell>
@@ -133,6 +135,12 @@ export function Lobby({ onChoose, onProfile, onLeagues }: { onChoose: (game: Gam
           </button>
         ))}
 
+        <button type="button" onClick={() => setSettingUp(true)} className="game-tile game-tile--friends rise-in" style={{ ['--rise-delay' as string]: '270ms' }}>
+          <span className="label text-gold!">With friends</span>
+          <span className="text-2xl font-semibold tracking-tight">Open a private table</span>
+          <span className="text-sm leading-relaxed text-muted">Choose the game and the seats, send the link, and start when everyone is there.</span>
+        </button>
+
         <InstallCard />
 
         <p className="label pt-2 text-center leading-relaxed">
@@ -145,6 +153,7 @@ export function Lobby({ onChoose, onProfile, onLeagues }: { onChoose: (game: Gam
           </a>
         </p>
       </div>
+      {settingUp && <OpenTablePanel onClose={() => setSettingUp(false)} />}
     </CasinoShell>
   )
 }

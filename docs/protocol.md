@@ -528,11 +528,41 @@ Every shared table described below comes in two kinds. Three of each game are li
 | `POST /blackjack/tables` | The same |
 | `POST /roulette/rooms` | The same, called a room |
 
-Each needs `Authorization: Bearer <token>` and answers `401` without a player it knows, `429` to a player who has opened more than five in ten minutes or thirty in a day, and `503` when the server is keeping as many as it will.
+Each needs `Authorization: Bearer <token>`, and may carry what the host wants of the table. Anything left out is the game's usual:
 
-The table is then played at the usual address for a shared table of that game, with its `id` in place of a listed table's: `ws://<host>/ws/blackjack/tables/k7x2m9qf`. Anyone who has the address may sit down, guest or signed in, and it runs exactly as a listed table does. Its `state` carries `byInvite: true`.
+```json
+{ "seats": 4, "banca": false, "turns": "long" }
+```
 
-An id is eight characters and cannot usefully be guessed. A table that has stood empty for half an hour is cleared away. Connecting to an address that leads nowhere is answered, after the `welcome`, with `{ "type": "error", "code": "no_table", "message": "..." }` and the connection is closed with code `4004`; a client should not try again.
+| Field | Meaning |
+|---|---|
+| `seats` | How many the table takes: 2 to 6 at poker, with Banca's seat counted when Banca plays; 2 to 5 at blackjack; 2 to 8 at roulette |
+| `banca` | Poker only. False leaves Banca out, for a table of friends alone |
+| `turns` | `normal`, or `long` for three times as long over each decision |
+
+The answer is `401` without a player the server knows, `400` for a table the game does not allow, `429` to a player who has opened more than five in ten minutes or thirty in a day, and `503` when the server is keeping as many as it will.
+
+The table is then played at the usual address for a shared table of that game, with its `id` in place of a listed table's: `ws://<host>/ws/blackjack/tables/k7x2m9qf`. Anyone who has the address may sit down, guest or signed in, until its seats are taken. Its `state` carries `byInvite: true`.
+
+An id is eight characters and cannot usefully be guessed. Private tables are kept in the server's memory and nowhere else: one that has stood empty for half an hour is cleared away, and none outlives a restart. Connecting to an address that leads nowhere is answered, after the `welcome`, with `{ "type": "error", "code": "no_table", "message": "..." }` and the connection is closed with code `4004`; a client should not try again.
+
+## The host sets the pace
+
+A private table does not deal or spin on a clock. It has a host: the player who opened it for as long as they are there, and otherwise whoever has been at it longest. Every `state` at a private table names them in `host`, and `youHost` is true for the player it is. At a listed table `host` is null.
+
+The host moves the table on with one message, the same at every game:
+
+```json
+{ "type": "start" }
+```
+
+| Game | What `start` does | Refused when |
+|---|---|---|
+| Poker | Begins the game. Until then `started` is false, the phase is `waiting` and no hand is dealt; afterwards hands follow one another as at any table | There are not two to play, or the game has begun |
+| Blackjack | Deals to whoever has bet. `betting` has no clock: `msLeft` is nought | Nobody has bet |
+| Roulette | Spins the wheel. `betting` has no clock | Nobody has chips down |
+
+It is refused from anyone but the host, and at a listed table. At blackjack the cards also follow by themselves once everyone at the table has bet, after three seconds in which a bet can still be changed; `msLeft` counts those down. Turn clocks stay at every table, so that one player who has put their phone down does not stop the rest.
 
 ---
 

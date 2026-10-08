@@ -6,6 +6,8 @@ import com.banca.players.Players
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.request.receiveText
+import kotlinx.serialization.SerializationException
 import io.ktor.server.routing.post
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration.Companion.hours
@@ -59,7 +61,7 @@ fun Application.configureGameSockets(
         get("/roulette/rooms") {
             call.respond(listedRooms.values.map { it.summary() })
         }
-        post("/roulette/rooms") { call.openInvite(players, invites, invitedRooms, "room") }
+        post("/roulette/rooms") { call.openInvite(players, invites, invitedRooms, "room", seats = 2..8, usual = 8) }
 
         val listedBlackjack = blackjackTables.tables.map { spec -> BlackjackRoom(spec, blackjackTables, scope) }.associateBy { it.id }
         val invitedBlackjack = Invites({ spec -> BlackjackRoom(spec, blackjackTables, scope) }, { it.summary().players > 0 })
@@ -69,7 +71,7 @@ fun Application.configureGameSockets(
         get("/blackjack/tables") {
             call.respond(listedBlackjack.values.map { it.summary() })
         }
-        post("/blackjack/tables") { call.openInvite(players, invites, invitedBlackjack, "table") }
+        post("/blackjack/tables") { call.openInvite(players, invites, invitedBlackjack, "table", seats = 2..blackjackTables.seats, usual = blackjackTables.seats) }
 
         val listedPoker = pokerTables.tables.map { spec -> PokerRoom(spec, pokerTables, scope) }.associateBy { it.id }
         val invitedPoker = Invites({ spec -> PokerRoom(spec, pokerTables, scope) }, { it.summary().players > 0 })
@@ -79,7 +81,7 @@ fun Application.configureGameSockets(
         get("/poker/tables") {
             call.respond(listedPoker.values.map { it.summary() })
         }
-        post("/poker/tables") { call.openInvite(players, invites, invitedPoker, "table") }
+        post("/poker/tables") { call.openInvite(players, invites, invitedPoker, "table", seats = 2..pokerTables.seats, usual = pokerTables.seats, mayLeaveBancaOut = true) }
     }
 }
 
@@ -90,19 +92,45 @@ data class OpenedTable(val id: String, val name: String)
 @Serializable
 private data class NotOpened(val message: String)
 
+/** What a host may choose for the table they open. Anything left out is the usual. */
+@Serializable
+private data class Wanted(val seats: Int? = null, val banca: Boolean = true, val turns: String = "normal")
+
 /**
- * Opens a table for the caller to invite others to, named after them. The
- * caller must be a player the server knows, and may open only so many.
+ * Opens a table for the caller to invite others to, named after them and set
+ * up as they asked. The caller must be a player the server knows, and may open
+ * only so many. [seats] is how many the game allows at a table, Banca
+ * included where Banca sits.
  */
-private suspend fun ApplicationCall.openInvite(players: Players, allowance: Allowance, tables: Invites<*>, kind: String) {
+private suspend fun ApplicationCall.openInvite(
+    players: Players,
+    allowance: Allowance,
+    tables: Invites<*>,
+    kind: String,
+    seats: IntRange,
+    usual: Int,
+    mayLeaveBancaOut: Boolean = false,
+) {
     val token = request.headers[HttpHeaders.Authorization]?.removePrefix("Bearer ")?.trim().orEmpty()
     val player = players.authenticate(token)
         ?: return respond(HttpStatusCode.Unauthorized, NotOpened("This player is not known here"))
 
+    val body = receiveText()
+    val wanted = try {
+        if (body.isBlank()) Wanted() else wireJson.decodeFromString<Wanted>(body)
+    } catch (unreadable: SerializationException) {
+        return respond(HttpStatusCode.BadRequest, NotOpened("That table could not be understood"))
+    }
+    val size = wanted.seats ?: usual
+    if (size !in seats) return respond(HttpStatusCode.BadRequest, NotOpened("A $kind here seats between ${seats.first} and ${seats.last}"))
+    if (wanted.turns !in setOf("normal", "long")) return respond(HttpStatusCode.BadRequest, NotOpened("Turns are normal or long"))
+    if (!wanted.banca && !mayLeaveBancaOut) return respond(HttpStatusCode.BadRequest, NotOpened("Banca is only a player at poker"))
+
     if (!allowance.take(player.id.toString())) {
         return respond(HttpStatusCode.TooManyRequests, NotOpened("You have opened a lot of tables. Use one of those, or try again in a while."))
     }
-    val spec = tables.open("${player.name}'s $kind")
+    val options = TableOptions(seats = size, banca = wanted.banca, longTurns = wanted.turns == "long", host = player.id)
+    val spec = tables.open("${player.name}'s $kind", options)
         ?: return respond(HttpStatusCode.ServiceUnavailable, NotOpened("The house is full just now. Try again in a little while."))
 
     respond(HttpStatusCode.Created, OpenedTable(spec.id, spec.name))

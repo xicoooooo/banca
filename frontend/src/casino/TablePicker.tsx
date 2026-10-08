@@ -2,7 +2,8 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { CasinoShell } from './CasinoShell'
 import { Header } from './Header'
 import type { TableListing } from './room'
-import { Refused, openTable } from '../player/api'
+import type { GameId } from '../player/types'
+import { OpenTablePanel } from './OpenTablePanel'
 import { httpUrl } from './server'
 
 // Often enough that a table filling up is seen, seldom enough to cost nothing.
@@ -11,6 +12,8 @@ const REFRESH_EVERY_MS = 5_000
 type TablePickerProps<Listing extends TableListing> = {
   /** The game's name, for the header. */
   game: string
+  /** Which game it is, for opening a private table at it. */
+  gameId: GameId
   kicker: string
   heading: string
   /** Where the server lists this game's shared tables. */
@@ -32,23 +35,9 @@ type TablePickerProps<Listing extends TableListing> = {
  * for friends, or at a table to oneself. The same choice at every game.
  */
 export function TablePicker<Listing extends TableListing>(props: TablePickerProps<Listing>) {
-  const { game, kicker, heading, listedAt, occupancy, detail, alone, footnote, onLeave, onChoose } = props
+  const { game, gameId, kicker, heading, listedAt, occupancy, detail, alone, footnote, onLeave, onChoose } = props
   const [tables, setTables] = useState<Listing[] | null>(null)
-  const [opening, setOpening] = useState(false)
-  const [refused, setRefused] = useState<string | null>(null)
-
-  // A private table is opened on the server and then walked into like any other.
-  const openForFriends = async () => {
-    if (opening) return
-    setOpening(true)
-    setRefused(null)
-    try {
-      onChoose((await openTable(listedAt)).id)
-    } catch (problem) {
-      setRefused(problem instanceof Refused ? problem.message : 'The table could not be opened. Try again in a moment.')
-      setOpening(false)
-    }
-  }
+  const [settingUp, setSettingUp] = useState(false)
 
   useEffect(() => {
     let disposed = false
@@ -97,17 +86,12 @@ export function TablePicker<Listing extends TableListing>(props: TablePickerProp
           )
         })}
 
-        <button type="button" onClick={openForFriends} disabled={opening} className="game-tile rise-in" style={{ ['--rise-delay' as string]: '240ms' }}>
+        <button type="button" onClick={() => setSettingUp(true)} className="game-tile rise-in" style={{ ['--rise-delay' as string]: '240ms' }}>
           <span className="label text-gold!">With friends</span>
-          <span className="text-xl font-semibold tracking-tight">{opening ? 'Opening your table' : 'Open a private table'}</span>
+          <span className="text-xl font-semibold tracking-tight">Open a private table</span>
           <span className="text-sm leading-relaxed text-muted">
-            A table on no list. Send the link, and only the people you invite can sit down with you.
+            A table on no list, played at your pace. Send the link, and only the people you invite can sit down with you.
           </span>
-          {refused && (
-            <span role="alert" className="text-sm text-gold-bright">
-              {refused}
-            </span>
-          )}
         </button>
 
         <button type="button" onClick={() => onChoose('solo')} className="game-tile rise-in" style={{ ['--rise-delay' as string]: '310ms' }}>
@@ -118,6 +102,8 @@ export function TablePicker<Listing extends TableListing>(props: TablePickerProp
 
         <p className="label pt-2 text-center leading-relaxed">{footnote}</p>
       </div>
+
+      {settingUp && <OpenTablePanel game={gameId} onClose={() => setSettingUp(false)} />}
     </CasinoShell>
   )
 }

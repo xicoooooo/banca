@@ -91,6 +91,10 @@ export type PokerRoomView = {
   name: string
   /** True for a table a player opened for their own company, which is on no list. */
   byInvite: boolean
+  /** At a private table: who starts the game, whether that is this player, and whether they have. */
+  host: string | null
+  youHost: boolean
+  started: boolean
   phase: 'waiting' | 'playing' | 'results'
   /** How long the table will wait for the player whose turn it is, or before the next hand. */
   msLeft: number
@@ -116,6 +120,7 @@ export type PokerRoomServerMessage =
 
 export type PokerRoomClientMessage =
   | { type: 'advise' }
+  | { type: 'start' }
   | { type: 'act'; action: 'fold' | 'check' | 'call' }
   | { type: 'act'; action: 'bet' | 'raise'; amount: number }
   | { type: 'chat'; say: string }

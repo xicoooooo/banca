@@ -31,7 +31,7 @@ function statusOf(view: RoomView): Status {
  * room as it is made so that it stands if the connection drops.
  */
 export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () => void }) {
-  const { view, endsAt, phaseMs, connection, error, refusals, send, chat, phrases, reading, askAbout, forgetRead, broke, staked, retry } = useRoom(roomId)
+  const { view, endsAt, phaseMs, connection, error, full, refusals, send, chat, phrases, reading, askAbout, forgetRead, broke, staked, retry } = useRoom(roomId)
   const seconds = useSecondsUntil(endsAt)
   const [bets, setBets] = useState<Bets>(NO_BETS)
   const [previous, setPrevious] = useState<Bets>(NO_BETS)
@@ -80,7 +80,9 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
     return (
       <CasinoShell>
         <Header detail="Roulette" onLeave={onLeave} />
-        {connection === 'gone' ? (
+        {full ? (
+          <Loading failed message="This room is full. Ask the host for another, or open one of your own." />
+        ) : connection === 'gone' ? (
           <Loading failed message="This room has closed. Ask for a new link, or open a room of your own." />
         ) : connection === 'closed' || connection === 'replaced' ? (
           <Loading
@@ -123,6 +125,8 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
     change(next)
   }
 
+  // Whether anyone in the room has chips down, which is what a spin needs.
+  const anyoneBet = view.players.some((player) => player.staked > 0)
   const canRebet = betting && total === 0 && totalOf(previous) > 0 && totalOf(previous) <= limits.stack
   const unread = chat.length - heard
 
@@ -254,7 +258,21 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
               </p>
             )}
 
-            {/* The room's clock, where a private table has its spin button. */}
+            {/* A private room has no clock on its bets: the wheel is its host's to spin. */}
+            {view.byInvite && betting ? (
+              view.youHost ? (
+                <button type="button" className="btn btn--raise" onClick={() => send({ type: 'start' })} disabled={!anyoneBet}>
+                  {anyoneBet ? `Spin the wheel${total > 0 ? ` · ${total.toLocaleString('en-US')} down` : ''}` : 'Waiting for a bet'}
+                </button>
+              ) : (
+                <p className="round-clock" data-phase="waiting">
+                  <span className="relative">
+                    {total > 0 ? `${total.toLocaleString('en-US')} down · ` : ''}
+                    {view.host ?? 'The host'} spins when everyone is ready
+                  </span>
+                </p>
+              )
+            ) : (
             <div className="round-clock" data-phase={view.phase} role="timer" aria-live="off">
               <span
                 aria-hidden
@@ -272,6 +290,7 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
                     : `Next round in ${seconds}`}
               </span>
             </div>
+            )}
           </div>
         )}
       </footer>

@@ -23,7 +23,8 @@ import { useBlackjackTable } from './useBlackjackTable'
 function statusOf(table: BlackjackTableView, seconds: number): Status {
   switch (table.phase) {
     case 'betting':
-      return { text: `Bets · ${seconds}s`, tone: 'gold' }
+      // A private table has no clock on its bets, until everyone has bet and the cards are a moment away.
+      return { text: table.byInvite && table.msLeft === 0 ? 'Place your bets' : `Bets · ${seconds}s`, tone: 'gold' }
     case 'insurance':
       return { text: `Insurance · ${seconds}s`, tone: 'gold' }
     case 'playing':
@@ -236,12 +237,24 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
           betDown ? (
             <div className="rise-in flex flex-col items-center gap-3 pb-2">
               <p className="text-center text-sm text-ivory/85">
-                Your bet of <span className="figure font-semibold text-gold-bright">{me!.bet.toLocaleString('en-US')}</span> is down. Cards in{' '}
-                {seconds}s.
+                Your bet of <span className="figure font-semibold text-gold-bright">{me!.bet.toLocaleString('en-US')}</span> is down.{' '}
+                {!table.byInvite || table.msLeft > 0
+                  ? `Cards in ${seconds}s.`
+                  : table.youHost
+                    ? 'Deal when everyone is ready.'
+                    : `${table.host ?? 'The host'} deals when everyone is ready.`}
               </p>
-              <button type="button" className="btn btn--quiet px-5! text-sm" onClick={() => send({ type: 'bet', amount: 0 })}>
-                Take it back
-              </button>
+              <div className="flex items-center gap-2">
+                {/* At a private table the host asks for the cards. They go to whoever has bet. */}
+                {table.byInvite && table.youHost && table.msLeft === 0 && (
+                  <button type="button" className="btn btn--raise px-6! text-sm" onClick={() => send({ type: 'start' })}>
+                    Deal now
+                  </button>
+                )}
+                <button type="button" className="btn btn--quiet px-5! text-sm" onClick={() => send({ type: 'bet', amount: 0 })}>
+                  Take it back
+                </button>
+              </div>
             </div>
           ) : (
             <BetControls

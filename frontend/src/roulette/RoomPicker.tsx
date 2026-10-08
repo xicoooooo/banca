@@ -7,6 +7,7 @@ export function RoomPicker({ onLeave, onChoose }: { onLeave: () => void; onChoos
   return (
     <TablePicker<RoomSummary>
       game="Roulette"
+      gameId="roulette"
       kicker="One wheel for the whole room"
       heading="Choose a room"
       listedAt="/roulette/rooms"

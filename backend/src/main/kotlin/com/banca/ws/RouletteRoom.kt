@@ -10,6 +10,8 @@ import com.banca.players.Funding
 import com.banca.players.PlayerSession
 import com.banca.sessions.TraceEvent
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -29,8 +31,27 @@ class RoomTimings(
     val results: Duration = 5.seconds,
 )
 
-/** A shared table: its address and its name. One opened [byInvite] is on no list, and reached only by its address. */
-class RoomSpec(val id: String, val name: String, val byInvite: Boolean = false)
+/**
+ * What the player who opens a private table chooses for it. [seats] is how
+ * many players it takes, [banca] whether Banca sits in at poker, and
+ * [longTurns] gives everyone more time over a decision. [host] is the player
+ * who opened it, who sets its pace for as long as they are there.
+ */
+class TableOptions(val seats: Int? = null, val banca: Boolean = true, val longTurns: Boolean = false, val host: UUID? = null)
+
+/**
+ * A shared table: its address and its name. One opened [byInvite] is on no
+ * list and reached only by its address, and it is paced by its host: nothing
+ * is dealt or spun on a clock, only when the host says.
+ */
+class RoomSpec(val id: String, val name: String, val byInvite: Boolean = false, val options: TableOptions = TableOptions())
+
+/**
+ * Who sets the pace of a private table: the player who opened it while they
+ * are there, and otherwise whoever has been at it longest.
+ */
+internal fun <M> hostAmong(members: Map<UUID, M>, opener: UUID?, isHere: (M) -> Boolean): UUID? =
+    opener?.takeIf { id -> members[id]?.let(isHere) == true } ?: members.entries.firstOrNull { isHere(it.value) }?.key
 
 class RoomsConfig(
     val rooms: List<RoomSpec> = listOf(
@@ -80,6 +101,9 @@ data class RoomView(
     val players: List<RoomPlayerView>,
     /** What the spin came to for this player, if they had chips down. */
     val result: RouletteResultView?,
+    /** At a private room: who spins the wheel, and whether that is this player. */
+    val host: String? = null,
+    val youHost: Boolean = false,
 )
 
 /** A room as the lobby lists it. */
@@ -101,6 +125,11 @@ sealed interface RoomClientMessage {
     @Serializable
     @SerialName("analyse")
     data class Analyse(val bets: List<WagerMessage>) : RoomClientMessage
+
+    /** At a private room, the host spinning the wheel. */
+    @Serializable
+    @SerialName("start")
+    data object Start : RoomClientMessage
 }
 
 @Serializable
@@ -201,6 +230,12 @@ class RouletteRoom(
     private val history = ArrayDeque<Int>()
     private val chat = RoomChat()
 
+    /** A private room spins when its host says, not on a clock, and takes as many players as they chose. */
+    private val hostPaced = spec.byInvite
+    private val seats = spec.options.seats
+    private val nudged = Channel<Unit>(Channel.CONFLATED)
+    private var spinAsked = false
+
     private var running = false
     private var phase = Phase.BETTING
     private var phaseEndsAt = 0L
@@ -217,6 +252,7 @@ class RouletteRoom(
 
     /** Brings a player into the room, or back into it, and shows them where things stand. */
     suspend fun join(session: PlayerSession, send: Send) = lock.withLock {
+        check(seats == null || members.containsKey(session.player.id) || members.size < seats) { "This room is full" }
         val member = members.getOrPut(session.player.id) { Member(session.player.id, session.player.name, session, send) }
         member.connected = true
         // Coming back after a long while, they may be reaching the room by a new connection.
@@ -237,6 +273,8 @@ class RouletteRoom(
         scope.launch {
             lock.withLock {
                 members[playerId]?.connected = false
+                // A private room waiting on its host should notice if it has emptied, or if the host has changed.
+                nudged.trySend(Unit)
                 broadcast()
             }
         }
@@ -273,6 +311,31 @@ class RouletteRoom(
         broadcast()
     }
 
+    /** At a private room, the host spins the wheel. Someone must have chips down. */
+    suspend fun start(playerId: UUID) = lock.withLock {
+        check(hostPaced) { "This wheel spins by itself" }
+        check(phase == Phase.BETTING) { "The wheel is already turning" }
+        check(hostId() == playerId) { "Only the host can spin" }
+        check(members.values.any { it.wagers.isNotEmpty() }) { "Nobody has a bet down yet" }
+
+        spinAsked = true
+        nudged.trySend(Unit)
+    }
+
+    private fun hostId(): UUID? = if (hostPaced) hostAmong(members, spec.options.host) { it.connected } else null
+
+    /** Waits at a private room for the host to spin, or for the room to empty, which is put to rest by what follows. */
+    private suspend fun awaitTheHost() {
+        while (true) {
+            val ready = lock.withLock {
+                members.values.none { it.connected } || (spinAsked && members.values.any { it.wagers.isNotEmpty() })
+            }
+            if (ready) break
+            withTimeoutOrNull(IDLE_LOOK_FOR_ROOM) { nudged.receive() }
+        }
+        lock.withLock { spinAsked = false }
+    }
+
     /** Says something to the room: a set phrase by its id, or a typed message. */
     suspend fun say(playerId: UUID, phraseId: String?, typed: String?) = lock.withLock {
         val member = members[playerId] ?: error("You are not in this room")
@@ -286,7 +349,7 @@ class RouletteRoom(
         try {
             while (true) {
                 lock.withLock { openBetting() }
-                delay(timings.betting)
+                if (hostPaced) awaitTheHost() else delay(timings.betting)
 
                 val spun = lock.withLock {
                     if (members.values.none { it.connected } && members.values.all { it.wagers.isEmpty() }) {
@@ -316,7 +379,8 @@ class RouletteRoom(
     private suspend fun openBetting() {
         roundNumber++
         phase = Phase.BETTING
-        phaseEndsAt = now() + timings.betting.inWholeMilliseconds
+        // A private room has no clock on its bets.
+        phaseEndsAt = if (hostPaced) 0 else now() + timings.betting.inWholeMilliseconds
         pocket = null
         // Those who have gone and have nothing more riding are shown out.
         members.values.removeAll { !it.connected && it.wagers.isEmpty() }
@@ -383,6 +447,7 @@ class RouletteRoom(
                 CrowdSpot(wager.kind, wager.number, wager.other, amount = placed.sumOf { it.second }, players = placed.size)
             }
         val msLeft = (phaseEndsAt - now()).coerceAtLeast(0)
+        val host = hostId()
 
         for (member in members.values.filter { it.connected }) {
             val view = RoomView(
@@ -410,6 +475,8 @@ class RouletteRoom(
                     )
                 },
                 result = member.result,
+                host = host?.let { members[it]?.name },
+                youHost = host == member.id,
             )
             member.send(encode(RoomServerMessage.State(view)))
         }
@@ -418,6 +485,9 @@ class RouletteRoom(
     private fun encode(message: RoomServerMessage): String = wireJson.encodeToString(RoomServerMessage.serializer(), message)
 
 }
+
+/** How often a private room with nothing happening looks to see whether anyone is still there. */
+private val IDLE_LOOK_FOR_ROOM = 20.seconds
 
 /**
  * One player's place in a shared room. The room is everybody's; this is the
@@ -433,13 +503,20 @@ class RoomSeat(
     private val log = LoggerFactory.getLogger(RoomSeat::class.java)
     private val analysis = Consultation<LayoutRead>()
 
-    override suspend fun attached() = room.join(session, send)
+    override suspend fun attached() {
+        try {
+            room.join(session, send)
+        } catch (full: IllegalStateException) {
+            send(refusal(full.message ?: "This room is full", code = "full"))
+        }
+    }
 
     override suspend fun received(text: String) {
         when (val message = wireJson.decodeFromString<RoomClientMessage>(text)) {
             is RoomClientMessage.Bets -> room.setBets(session.player.id, message.bets)
             is RoomClientMessage.Chat -> room.say(session.player.id, message.say, message.text)
             is RoomClientMessage.Analyse -> analyse(message.bets)
+            is RoomClientMessage.Start -> room.start(session.player.id)
         }
     }
 

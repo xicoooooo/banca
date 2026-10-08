@@ -29,13 +29,13 @@ class Invites<R : Any>(
     private val random = SecureRandom()
 
     /** Opens a table called [name], or returns null when there are as many as the server will keep. */
-    suspend fun open(name: String): RoomSpec? {
+    suspend fun open(name: String, options: TableOptions = TableOptions()): RoomSpec? {
         clearTheEmpty()
         if (open.size >= most) return null
 
         var id = newId()
         while (open.containsKey(id)) id = newId()
-        val spec = RoomSpec(id, name, byInvite = true)
+        val spec = RoomSpec(id, name, byInvite = true, options = options)
         open[id] = Open(make(spec), now())
         return spec
     }

@@ -88,6 +88,10 @@ data class PokerRoomView(
     val table: TableView?,
     val seats: List<PokerSeatView>,
     val seatsInAll: Int,
+    /** At a private table: who sets its pace, whether that is this player, and whether they have started the game. */
+    val host: String? = null,
+    val youHost: Boolean = false,
+    val started: Boolean = true,
 )
 
 @Serializable
@@ -107,6 +111,11 @@ sealed interface PokerRoomClientMessage {
     @Serializable
     @SerialName("advise")
     data object Advise : PokerRoomClientMessage
+
+    /** At a private table, the host saying the game may begin. */
+    @Serializable
+    @SerialName("start")
+    data object Start : PokerRoomClientMessage
 }
 
 @Serializable
@@ -170,6 +179,14 @@ class PokerRoom(
     private val timings = config.timings
     private val banca = config.opponent()
 
+    /** A private table may be played without Banca, and with as many seats as its host chose. */
+    private val withBanca = spec.options.banca
+    private val playerSeats = (spec.options.seats ?: config.seats).let { if (withBanca) it - 1 else it }
+    private val turnTime = if (spec.options.longTurns) timings.turn * LONG_TURN else timings.turn
+
+    /** A private table deals nothing until its host says so. Every other table is always under way. */
+    private var started = !spec.byInvite
+
     private enum class TablePhase { WAITING, PLAYING, RESULTS }
 
     private class Member(val id: UUID, val seat: Int, val name: String, val session: PlayerSession, var send: Send) {
@@ -209,15 +226,16 @@ class PokerRoom(
 
     suspend fun summary(): PokerTableSummary = lock.withLock {
         // Banca is always there, and takes one of the seats.
-        PokerTableSummary(spec.id, spec.name, players = members.values.count { it.connected }, seats = config.seats - 1)
+        PokerTableSummary(spec.id, spec.name, players = members.values.count { it.connected }, seats = playerSeats)
     }
 
     /** Seats a player, or brings them back to their seat, and shows them the table. */
     suspend fun join(session: PlayerSession, send: Send) = lock.withLock {
         val seated = members[session.player.id]
         val member = seated ?: run {
-            val taken = members.values.map { it.seat }.toSet() + BANCA_SEAT
-            val free = (0 until config.seats).firstOrNull { it !in taken } ?: error("This table is full")
+            // Seat 0 is Banca's, and is left empty at a table Banca is not at.
+            val taken = members.values.map { it.seat }.toSet()
+            val free = (1..playerSeats).firstOrNull { it !in taken } ?: error("This table is full")
             Member(session.player.id, free, session.player.name, session, send).also { members[it.id] = it }
         }
         member.connected = true
@@ -225,11 +243,11 @@ class PokerRoom(
         member.send = send
 
         member.send(encode(PokerRoomServerMessage.ChatLog(chat.recent(), RoomPhrases.ALL)))
+        // Shown the table as it stands at once: a private table may deal nothing for a while yet.
+        broadcast()
         if (!running) {
             running = true
             scope.launch { run() }
-        } else {
-            broadcast()
         }
     }
 
@@ -269,6 +287,21 @@ class PokerRoom(
         broadcast()
     }
 
+    /** At a private table, the host says the game may begin. From then on hands follow one another. */
+    suspend fun start(playerId: UUID) = lock.withLock {
+        check(spec.byInvite) { "This table deals by itself" }
+        check(!started) { "The game is already under way" }
+        check(hostId() == playerId) { "Only the host can start the game" }
+        val here = members.values.count { it.connected } + if (withBanca) 1 else 0
+        check(here >= 2) { "Poker needs two. Wait for someone to join" }
+
+        started = true
+        acted.trySend(Unit)
+        broadcast()
+    }
+
+    private fun hostId(): UUID? = if (spec.byInvite) hostAmong(members, spec.options.host) { it.connected } else null
+
     /** The hand as this player sees it while it is their turn to act, or null when it is not. */
     suspend fun decisionOf(playerId: UUID): TableView? = lock.withLock {
         val member = members[playerId] ?: return@withLock null
@@ -292,8 +325,9 @@ class PokerRoom(
             while (true) {
                 val dealt = lock.withLock { deal() } ?: return
                 if (!dealt) {
-                    // Players are here but none can be dealt in. Look again shortly.
-                    delay(1.seconds)
+                    // Players are here but no hand can be dealt: the host has yet to start, or
+                    // there is nobody to play against. Look again shortly, or as soon as told.
+                    withTimeoutOrNull(1.seconds) { acted.receive() }
                     continue
                 }
 
@@ -332,12 +366,22 @@ class PokerRoom(
      * is nobody here at all, which stops the table.
      */
     private suspend fun deal(): Boolean? {
-        members.values.removeAll { it.leaving || !it.connected }
+        val gone = members.values.removeAll { it.leaving || !it.connected }
         if (members.isEmpty()) {
             running = false
             hand = null
             phase = TablePhase.WAITING
+            // An empty private table is a new game for whoever comes back to it.
+            started = !spec.byInvite
             return null
+        }
+        // Not begun, or nobody to play against: there is no hand, and no need to ask after anyone's chips.
+        if (!started || members.size + (if (withBanca) 1 else 0) < 2) {
+            if (phase != TablePhase.WAITING || gone) {
+                phase = TablePhase.WAITING
+                broadcast()
+            }
+            return false
         }
 
         val stacks = LinkedHashMap<Int, Long>()
@@ -352,17 +396,20 @@ class PokerRoom(
                 is Funding.Ready -> stacks[member.seat] = minOf(funding.balance, BUY_IN)
             }
         }
-        if (stacks.isEmpty()) {
-            phase = TablePhase.WAITING
-            broadcast()
+        if (withBanca && stacks.isNotEmpty()) stacks[BANCA_SEAT] = BUY_IN
+        // A hand needs two to play it.
+        if (stacks.size < 2) {
+            if (phase != TablePhase.WAITING || gone) {
+                phase = TablePhase.WAITING
+                broadcast()
+            }
             return false
         }
-        stacks[BANCA_SEAT] = BUY_IN
 
         // The button moves to the next seat in the hand, clockwise.
         val seats = stacks.keys.sorted()
         buttonSeat = seats.firstOrNull { it > buttonSeat } ?: seats.first()
-        names = members.values.associate { it.seat to it.name } + (BANCA_SEAT to "Banca")
+        names = members.values.associate { it.seat to it.name } + if (withBanca) mapOf(BANCA_SEAT to "Banca") else emptyMap()
         members.values.forEach { it.actions.clear() }
         reasoning.clear()
 
@@ -389,7 +436,7 @@ class PokerRoom(
             return Turn.Agent(tableViewOf(current, handNumber, names, BANCA_SEAT))
         }
         val member = members.values.firstOrNull { it.seat == seat }
-        val waitFor = if (member?.connected == true) timings.turn else timings.turnAway
+        val waitFor = if (member?.connected == true) turnTime else timings.turnAway
         phaseEndsAt = now() + waitFor.inWholeMilliseconds
         broadcast()
         return Turn.Human(waitFor)
@@ -495,6 +542,9 @@ class PokerRoom(
         val actorSeat = current?.actorSeat.takeIf { phase == TablePhase.PLAYING }
         val actorName = actorSeat?.let { names[it] }
 
+        val host = hostId()
+        val bancaSeat = if (withBanca) listOf(PokerSeatView(BANCA_SEAT, "Banca", you = false, inHand = current != null && phase != TablePhase.WAITING, away = false)) else emptyList()
+
         for (member in members.values.filter { it.connected }) {
             val dealtIn = inHand(member)
             val view = PokerRoomView(
@@ -508,11 +558,14 @@ class PokerRoom(
                 dealtIn = dealtIn,
                 // Someone waiting for the next hand watches this one, with nobody's cards shown to them.
                 table = current?.let { tableViewOf(it, handNumber, names, if (dealtIn) member.seat else null) },
-                seats = listOf(PokerSeatView(BANCA_SEAT, "Banca", you = false, inHand = current != null, away = false)) +
+                seats = bancaSeat +
                     members.values.sortedBy { it.seat }.map { other ->
                         PokerSeatView(other.seat, other.name, you = other.id == member.id, inHand = inHand(other), away = !other.connected)
                     },
-                seatsInAll = config.seats,
+                seatsInAll = playerSeats + if (withBanca) 1 else 0,
+                host = host?.let { members[it]?.name },
+                youHost = host == member.id,
+                started = started,
             )
             member.send(encode(PokerRoomServerMessage.State(view)))
         }
@@ -522,6 +575,9 @@ class PokerRoom(
 
     private companion object {
         const val BANCA_SEAT = 0
+
+        /** How many times longer a decision may take at a table whose host asked for long turns. */
+        const val LONG_TURN = 3
         const val SMALL_BLIND = 10L
         const val BIG_BLIND = 20L
 
@@ -562,6 +618,7 @@ class PokerSeat(
             }
             is PokerRoomClientMessage.Chat -> room.say(session.player.id, message.say, message.text)
             is PokerRoomClientMessage.Advise -> advise()
+            is PokerRoomClientMessage.Start -> room.start(session.player.id)
         }
     }
 
