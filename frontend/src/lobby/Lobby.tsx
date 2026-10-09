@@ -1,3 +1,4 @@
+import { FriendsCard } from '../friends/FriendsCard'
 import { Missions } from './Missions'
 import { JoinByCode } from './JoinByCode'
 import { OpenTablePanel } from '../casino/OpenTablePanel'
@@ -39,7 +40,9 @@ const ORDINAL = ['', '1st', '2nd', '3rd']
 const ordinal = (position: number) => ORDINAL[position] ?? `${position}th`
 
 /** Where a visit starts: who is playing, what they have, and the games on offer. */
-export function Lobby({ onChoose, onProfile, onLeagues }: { onChoose: (game: Game) => void; onProfile: () => void; onLeagues: () => void }) {
+type LobbyProps = { onChoose: (game: Game) => void; onProfile: () => void; onLeagues: () => void; onFriends: () => void }
+
+export function Lobby({ onChoose, onProfile, onLeagues, onFriends }: LobbyProps) {
   const { dashboard, refresh } = useDashboard()
   const [league, setLeague] = useState<League | null>(null)
 
@@ -118,6 +121,8 @@ export function Lobby({ onChoose, onProfile, onLeagues }: { onChoose: (game: Gam
             </svg>
           </button>
         )}
+
+        <FriendsCard onOpen={onFriends} />
 
         {dashboard && (
           <DailyReward rewards={dashboard.rewards} balance={dashboard.bankroll.balance} smallestBet={10} onClaimed={refresh} />

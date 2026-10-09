@@ -153,7 +153,9 @@ Partly built. This is the feature that separates Banca from an ordinary social c
 - **At the poker table, built.** Banca is the opponent there, so the coach is a second agent: built afresh for each question from the asking player's own view, reading the table through the same four tools the opponent uses, and sharing nothing with it. At a shared table its answer goes to the asker alone. Poker has no single right play, so the standard is looser than at blackjack: advice must be open to the player and must not go plainly against the figures (no folding for nothing, no paying far more than a hand is worth, no bluffs), and within that the coach chooses. The interface says as much: a read, not an answer. Grading a poker hand afterwards is still open (section 15).
 
 ### 7.8 Social
-Shared tables and rooms are built (section 6). Each has its own chat: a row of set phrases and emotes, and free text. The first draft allowed only the phrases, to avoid moderation; free text was added because a room where people cannot talk is not a room. What makes that affordable is that the server tidies every line (one line, 140 characters, links removed, the worst words starred), limits how often anyone speaks, keeps nothing once the server stops, and lets each player mute any other. Private tables by invitation are built (section 6): the player who opens one sets it up in a panel, reached from the lobby or from any game, and is then shown the link to send, through the phone's share sheet where there is one. A friends list, with who is online, remains a stretch.
+Shared tables and rooms are built (section 6). Each has its own chat: a row of set phrases and emotes, and free text. The first draft allowed only the phrases, to avoid moderation; free text was added because a room where people cannot talk is not a room. What makes that affordable is that the server tidies every line (one line, 140 characters, links removed, the worst words starred), limits how often anyone speaks, keeps nothing once the server stops, and lets each player mute any other. Private tables by invitation are built (section 6): the player who opens one sets it up in a panel, reached from the lobby or from any game, and is then shown the link to send, through the phone's share sheet where there is one. **Friends.** Built. A signed-in player has a code of eight characters to give out, and typing someone's code asks them to be a friend; they accept or decline, and either can end it later. A friend can also be asked from their public page. The list shows who is here now and what they are doing ("Playing poker at the Gold Table"), with a button to join them where the table is one anyone may walk into. A private table is never offered this way: it is by its host's invitation, and a friend of one player at it is not thereby a guest of its host.
+
+It is for signed-in players only, since a guest is one browser and could not be anyone's friend from another. Who is online is not stored anywhere. The server knows it from who is connected to a table and who has asked it for something in the last minute and a half, keeps that in memory, and forgets it on restart. A friend sees a name, a league and whether someone is here: never their chips, their history or how they play.
 
 ### 7.9 Responsible framing and accessibility
 A plain statement that chips are play money with no real value and no way to buy them, in the README, the lobby and the privacy page. A privacy page says what is kept and who can see it.
@@ -173,7 +175,7 @@ Known limits: the shared tables run on clocks that cannot be extended, so a play
 
 - **Built:** identity, profile and stats, levels and achievements, daily rewards, bust protection, the coach before a decision at all three games, grading after a blackjack round, the tutorial, shared tables with chat, leagues, trophies and public pages.
 - **Left for v1 (through Phase 7):** demo video.
-- **Later:** unlocks by level, a friends list, round replay with the agent's reasoning attached, spectator mode, tournaments.
+- **Later:** unlocks by level, round replay with the agent's reasoning attached, spectator mode, tournaments.
 
 ## 8. Components
 
@@ -231,7 +233,7 @@ One small MCP server per role, connected to the runtime over an in-process trans
 A tool never exposes what its seat is not entitled to. The analyst is given no history of the wheel, so it has nothing from which to say a number is due. Only the opponent can act: a coach has no tool that plays a hand, and what it submits is validated by the engine like anyone's action.
 
 ### 8.11 Persistence (`db/migrations`)
-Postgres: `profiles`, `player_tokens`, `wallet_entries`, `rounds`, `round_actions`, `round_results`, `league_weeks`, `league_results`. A round is written when it completes, with its result and the ledger entry in one transaction. Live tables are not persisted; a backend restart ends the rounds in play and charges nothing for them.
+Postgres: `profiles`, `player_tokens`, `wallet_entries`, `rounds`, `round_actions`, `round_results`, `league_weeks`, `league_results`, `friendships`. A round is written when it completes, with its result and the ledger entry in one transaction. Live tables are not persisted; a backend restart ends the rounds in play and charges nothing for them.
 
 ### 8.12 Frontend (`frontend/src`)
 A lobby, a picker and table for each game in both forms, the profile, the leagues and leaderboards, public player pages, and Banca's guide to each game, routed by the URL's hash. A shared **reasoning panel** shows Banca's tool calls and decision in every game. The server sends states, and the client works out what happened between two of them in order to animate it. The client renders and never decides rules.
@@ -278,7 +280,7 @@ A lobby, a picker and table for each game in both forms, the profile, the league
 | 5. Platform | Lobby, shared wallet, guest identity and Google sign-in, tables that survive reconnects, shared tables and rooms at all three games, chat | Done |
 | 6. Player experience | Profile and stats, daily rewards, bust protection, coach at all three games, grading after a blackjack round, tutorial, leagues and trophies | Done |
 | 7. Polish and launch | PWA install, accessibility, session reminder, architecture diagram: done. Demo video: to do | In progress |
-| 8. Stretch | Private tables by invitation: done. Banca's moods at poker, daily missions: done. Unlocks by level, a friends list, replay, spectator, tournaments | Open |
+| 8. Stretch | Private tables by invitation: done. Banca's moods at poker, daily missions, friends: done. Unlocks by level, replay, spectator, tournaments | Open |
 
 Phases are taken in order. The first draft allowed 20 to 27 weeks; Phases 0 to 6 were done well inside that, with nothing cut from Phase 6.
 

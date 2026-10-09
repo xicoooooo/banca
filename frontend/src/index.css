@@ -3428,3 +3428,120 @@ button {
     display: none;
   }
 }
+
+/* ------------------------------------------------------------------ friends */
+
+.friends {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.friend {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.friend__name {
+  display: block;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: left;
+  color: var(--color-ivory);
+  background: none;
+  cursor: pointer;
+}
+
+.friend > .friend__name {
+  flex: 1;
+  min-width: 0;
+}
+
+.friend__name:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Online is a lit dot and a brighter face, and said in words for a screen reader. */
+.friend__face {
+  position: relative;
+  opacity: 0.55;
+}
+
+.friend[data-online='true'] .friend__face {
+  opacity: 1;
+}
+
+.friend__dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 2px solid #052e26;
+  border-radius: 50%;
+  background: rgb(245 241 232 / 0.3);
+}
+
+.friend[data-online='true'] .friend__dot {
+  background: #3fc996;
+  box-shadow: 0 0 8px rgb(63 201 150 / 0.7);
+}
+
+.friend__remove {
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 0;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--color-muted);
+  background: none;
+  cursor: pointer;
+}
+
+.friend__remove:hover {
+  color: var(--color-ivory);
+  background: rgb(255 255 255 / 0.08);
+}
+
+.friends-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: 50%;
+  color: var(--color-muted);
+}
+
+.friends-mark[data-online='true'] {
+  border-color: rgb(63 201 150 / 0.6);
+  color: #6fe0b4;
+}
+
+.friends-badge {
+  display: grid;
+  flex: none;
+  place-items: center;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1d1503;
+  background: var(--color-gold-bright);
+}

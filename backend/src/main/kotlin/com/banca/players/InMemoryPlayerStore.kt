@@ -21,6 +21,9 @@ class InMemoryPlayerStore(private val clock: Clock = Clock.systemUTC()) : Player
     private val accounts = mutableMapOf<UUID, Entry>()
     private val tokens = mutableMapOf<String, UUID>()
     private val settled = mutableMapOf<LocalDate, Map<UUID, LeagueResult>>()
+    private val friendCodes = mutableMapOf<UUID, String>()
+    /** Who asked whom, and whether they were accepted. */
+    private val asked = mutableMapOf<Pair<UUID, UUID>, Boolean>()
     private val lock = Mutex()
 
     private fun account(id: UUID) = accounts[id] ?: error("No player $id")
@@ -110,6 +113,53 @@ class InMemoryPlayerStore(private val clock: Clock = Clock.systemUTC()) : Player
             val played = entry.rounds.filter { it.ranked && !it.endedAt.isBefore(from) && it.endedAt.isBefore(until) && (game == null || it.game == game) }
             Standing(entry.player.id, entry.player.name, entry.player.leagueTier, net = played.sumOf { it.net }, rounds = played.size)
         }
+
+    override suspend fun friendCode(id: UUID, make: () -> String): String = lock.withLock {
+        account(id)
+        friendCodes.getOrPut(id) {
+            var code = make()
+            while (code in friendCodes.values) code = make()
+            code
+        }
+    }
+
+    override suspend fun findByFriendCode(code: String): Player? = lock.withLock {
+        friendCodes.entries.firstOrNull { it.value == code }?.let { accounts[it.key]?.player }
+    }
+
+    override suspend fun befriend(from: UUID, to: UUID): FriendState = lock.withLock {
+        require(from != to) { "A player cannot befriend themselves" }
+        account(from)
+        account(to)
+        when {
+            asked[from to to] == true || asked[to to from] == true -> FriendState.FRIENDS
+            (to to from) in asked -> {
+                asked[to to from] = true
+                FriendState.FRIENDS
+            }
+            else -> {
+                asked[from to to] = false
+                FriendState.OUTGOING
+            }
+        }
+    }
+
+    override suspend fun unfriend(one: UUID, other: UUID): Boolean = lock.withLock {
+        (asked.remove(one to other) != null) or (asked.remove(other to one) != null)
+    }
+
+    override suspend fun friendLinks(id: UUID): List<FriendLink> = lock.withLock {
+        asked.entries.mapNotNull { (pair, accepted) ->
+            val (requester, addressee) = pair
+            val state = when {
+                requester != id && addressee != id -> return@mapNotNull null
+                accepted -> FriendState.FRIENDS
+                requester == id -> FriendState.OUTGOING
+                else -> FriendState.INCOMING
+            }
+            accounts[if (requester == id) addressee else requester]?.let { FriendLink(it.player, state) }
+        }
+    }
 
     override suspend fun lastSettledWeek(): LocalDate? = lock.withLock { settled.keys.maxOrNull() }
 

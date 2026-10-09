@@ -284,6 +284,77 @@ abstract class PlayerStoreContract {
     }
 
     @Test
+    fun `a player's friend code is made once, is theirs alone, and finds them`() = with { store ->
+        val ana = member(store, "Ana-${token()}")
+        val rui = member(store, "Rui-${token()}")
+        var made = 0
+        val codes = listOf("c${token().take(7)}", "c${token().take(7)}")
+
+        val code = store.friendCode(ana.id) { codes[made++] }
+        assertEquals(code, store.friendCode(ana.id) { error("already has one") })
+        assertEquals(ana.id, store.findByFriendCode(code)?.id)
+        assertNull(store.findByFriendCode("nobody-has-this"))
+
+        // Offered a code somebody has, it is passed over for the next.
+        var tries = 0
+        val other = store.friendCode(rui.id) { if (tries++ == 0) code else "d${token().take(7)}" }
+        assertTrue(other != code)
+        assertEquals(2, tries)
+    }
+
+    @Test
+    fun `a friendship is asked for and accepted, and seen from both sides`() = with { store ->
+        val ana = member(store, "Ana-${token()}")
+        val rui = member(store, "Rui-${token()}")
+        val eva = member(store, "Eva-${token()}")
+
+        assertEquals(FriendState.OUTGOING, store.befriend(ana.id, rui.id))
+        assertEquals(FriendState.OUTGOING, store.befriend(ana.id, rui.id), "asking twice changes nothing")
+        assertEquals(listOf(rui.id to FriendState.OUTGOING), store.friendLinks(ana.id).map { it.other.id to it.state })
+        assertEquals(listOf(ana.id to FriendState.INCOMING), store.friendLinks(rui.id).map { it.other.id to it.state })
+        assertTrue(store.friendLinks(eva.id).isEmpty(), "and it is nobody else's business")
+
+        assertEquals(FriendState.FRIENDS, store.befriend(rui.id, ana.id), "asking back is accepting")
+        assertEquals(FriendState.FRIENDS, store.friendLinks(ana.id).single().state)
+        assertEquals(FriendState.FRIENDS, store.friendLinks(rui.id).single().state)
+        assertEquals(FriendState.FRIENDS, store.befriend(ana.id, rui.id), "and friends stay friends however often either asks")
+        assertEquals(1, store.friendLinks(ana.id).size)
+    }
+
+    @Test
+    fun `either of two friends can end it, and a request can be turned down or taken back`() = with { store ->
+        val ana = member(store, "Ana-${token()}")
+        val rui = member(store, "Rui-${token()}")
+
+        store.befriend(ana.id, rui.id)
+        store.befriend(rui.id, ana.id)
+        assertTrue(store.unfriend(rui.id, ana.id), "the one who was asked ends it")
+        assertTrue(store.friendLinks(ana.id).isEmpty() && store.friendLinks(rui.id).isEmpty())
+        assertFalse(store.unfriend(rui.id, ana.id), "there is nothing left to end")
+
+        store.befriend(ana.id, rui.id)
+        assertTrue(store.unfriend(rui.id, ana.id), "turned down")
+        store.befriend(ana.id, rui.id)
+        assertTrue(store.unfriend(ana.id, rui.id), "taken back")
+        assertTrue(store.friendLinks(rui.id).isEmpty())
+    }
+
+    @Test
+    fun `two players asking each other at the same moment end up friends, once`() = with { store ->
+        val ana = member(store, "Ana-${token()}")
+        val rui = member(store, "Rui-${token()}")
+
+        coroutineScope {
+            (1..6).map { turn ->
+                async(Dispatchers.Default) { if (turn % 2 == 0) store.befriend(ana.id, rui.id) else store.befriend(rui.id, ana.id) }
+            }.awaitAll()
+        }
+
+        assertEquals(listOf(FriendState.FRIENDS), store.friendLinks(ana.id).map { it.state })
+        assertEquals(listOf(FriendState.FRIENDS), store.friendLinks(rui.id).map { it.state })
+    }
+
+    @Test
     fun `settling a week moves leagues, pays prizes and keeps the result, once`() = with { store ->
         val ana = member(store, "Ana-${token()}")
         val rui = member(store, "Rui-${token()}")

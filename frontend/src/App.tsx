@@ -3,6 +3,7 @@ import { BlackjackPicker } from './blackjack/BlackjackPicker'
 import { BlackjackTable } from './blackjack/BlackjackTable'
 import { SharedBlackjackTable } from './blackjack/SharedBlackjackTable'
 import { CasinoShell } from './casino/CasinoShell'
+import { Friends } from './friends/Friends'
 import { Loading } from './casino/Loading'
 import { Leaderboard } from './leagues/Leaderboard'
 import { PlayerPage } from './leagues/PlayerPage'
@@ -18,9 +19,9 @@ import { Table } from './table/Table'
 import { replayGuide } from './guide/useGuide'
 import type { GuidedGame } from './guide/steps'
 
-type Screen = Game | 'profile' | 'leagues' | 'player'
+type Screen = Game | 'profile' | 'leagues' | 'player' | 'friends'
 
-const SCREENS: Screen[] = ['poker', 'blackjack', 'roulette', 'profile', 'leagues', 'player']
+const SCREENS: Screen[] = ['poker', 'blackjack', 'roulette', 'profile', 'leagues', 'player', 'friends']
 
 const TITLES: Record<Screen, string> = {
   poker: "Texas Hold'em",
@@ -29,6 +30,7 @@ const TITLES: Record<Screen, string> = {
   profile: 'Your profile',
   leagues: 'Leagues',
   player: 'Player',
+  friends: 'Friends',
 }
 
 /** Where the address points: a screen, and for a game with shared tables which one within it. */
@@ -159,9 +161,20 @@ function App() {
       />
     )
   }
-  // A player's page is reached from the leagues, and goes back to them.
-  if (screen === 'player' && place?.room) return <PlayerPage key={place.room} id={place.room} onLeave={() => open('leagues')} />
-  return <Lobby onChoose={open} onProfile={() => open('profile')} onLeagues={() => open('leagues')} />
+  // A player's page is reached from the leagues or from a list of friends, and goes back the way it was come by.
+  if (screen === 'player' && place?.room) return <PlayerPage key={place.room} id={place.room} onLeave={() => (window.history.length > 1 ? window.history.back() : leave())} />
+  if (screen === 'friends') {
+    return (
+      <Friends
+        onLeave={leave}
+        onSignIn={() => open('profile')}
+        onPlayer={(id) => {
+          window.location.hash = `/player/${id}`
+        }}
+      />
+    )
+  }
+  return <Lobby onChoose={open} onProfile={() => open('profile')} onLeagues={() => open('leagues')} onFriends={() => open('friends')} />
 }
 
 export default App

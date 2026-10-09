@@ -1,3 +1,5 @@
+import { askFriend } from '../friends/api'
+import { useFriends } from '../friends/useFriends'
 import { useEffect, useState } from 'react'
 import { CasinoShell } from '../casino/CasinoShell'
 import { Header } from '../casino/Header'
@@ -52,6 +54,7 @@ export function PlayerPage({ id, onLeave }: { id: string; onLeave: () => void })
                 Level {profile.level} · {profile.title} · Since {monthAndYear(profile.memberSince)}
               </p>
             </div>
+            <AddFriend id={id} />
           </section>
 
           <section className="panel rise-in" style={{ ['--rise-delay' as string]: '60ms' }}>
@@ -86,5 +89,37 @@ export function PlayerPage({ id, onLeave }: { id: string; onLeave: () => void })
         </div>
       )}
     </CasinoShell>
+  )
+}
+
+/**
+ * Asks the player whose page this is to be a friend. It is shown only to
+ * someone who could: signed in, looking at somebody else, and not their friend
+ * already or waiting on a request either way.
+ */
+function AddFriend({ id }: { id: string }) {
+  const { state, take } = useFriends(60_000)
+  const [asking, setAsking] = useState(false)
+  if (state.status !== 'ready') return null
+
+  const { friends, incoming, outgoing } = state.view
+  if (friends.some((friend) => friend.id === id)) return <p className="label flex-none text-gold!">Your friend</p>
+  if (outgoing.some((request) => request.id === id)) return <p className="label flex-none">Request sent</p>
+  const theyAsked = incoming.some((request) => request.id === id)
+
+  const ask = async () => {
+    setAsking(true)
+    try {
+      take(await askFriend({ id }))
+    } catch {
+      // Their own page, or the request could not be sent. The button is simply still there.
+    }
+    setAsking(false)
+  }
+
+  return (
+    <button type="button" className="btn btn--call flex-none px-4! py-2! text-sm" onClick={ask} disabled={asking}>
+      {theyAsked ? 'Accept' : 'Add friend'}
+    </button>
   )
 }

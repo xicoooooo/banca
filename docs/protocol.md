@@ -121,6 +121,34 @@ Finishing a week first, second or third in a league, having played, earns a trop
 
 It needs no token. It never carries a balance, an email or a history.
 
+### Friends
+
+Players who have signed in can be friends. One asks, the other accepts, and either can end it. Every request needs `Authorization: Bearer <token>`, answers `403` to a guest, and answers with the caller's friends as they then stand:
+
+```json
+{
+  "code": "k7x2m9qf",
+  "friends": [
+    { "id": "…", "name": "Rui", "league": "Bronze", "online": true, "doing": "Playing poker at the Gold Table", "joinAt": "poker/gold" }
+  ],
+  "incoming": [{ "id": "…", "name": "Marta" }],
+  "outgoing": []
+}
+```
+
+| Request | What it does |
+|---|---|
+| `GET /friends` | Lists them. Asking is also how a player in the lobby is known to be about |
+| `POST /friends` with `{ "code": "K7X2 M9QF" }` or `{ "id": "…" }` | Asks someone to be a friend, by the code they gave out, however it is typed, or by their id from their public page. If they had already asked, this accepts. `400` for the caller's own code or one nobody has, `429` after twenty in an hour |
+| `POST /friends/{id}/accept` | Accepts a request. `400` if that player has not asked |
+| `DELETE /friends/{id}` | Ends a friendship, turns a request down, or takes one back |
+
+`code` is the caller's own: eight characters, made the first time it is asked for and theirs from then on. A guest cannot be found by a code or an id, by anyone.
+
+`online` is true while a friend is connected to a table, and for a minute and a half after they were last heard from. `doing` says where they are sitting, when they are. `joinAt` is the game and table to go to in order to sit down with them, and is given only for a table anyone may walk into: a private table is by its host's invitation, and its code is never passed on this way. Who is online is known from who is connected and is kept in memory alone; nothing about when anyone was here is stored.
+
+A friend is shown no more than anyone at a table with that player would see: a name, a league, and that they are here.
+
 ### Saying hello
 
 The first frame on either WebSocket must be:

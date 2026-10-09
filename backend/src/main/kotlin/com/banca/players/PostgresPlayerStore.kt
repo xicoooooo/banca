@@ -236,6 +236,111 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
             }
         }
 
+    override suspend fun friendCode(id: UUID, make: () -> String): String = transaction { connection ->
+        // Holding the player's row means two requests for the code agree on one.
+        val existing = connection.prepareStatement("select friend_code from profiles where id = ? for update").use { statement ->
+            statement.setObject(1, id)
+            statement.executeQuery().use { rows ->
+                check(rows.next()) { "No player $id" }
+                rows.getString(1)
+            }
+        }
+        if (existing != null) return@transaction existing
+
+        // A code somebody already has is passed over, which the unique column would refuse anyway.
+        var code = make()
+        while (connection.prepareStatement("select 1 from profiles where friend_code = ?").use { statement ->
+                statement.setString(1, code)
+                statement.executeQuery().use { it.next() }
+            }
+        ) code = make()
+
+        connection.prepareStatement("update profiles set friend_code = ? where id = ?").use { statement ->
+            statement.setString(1, code)
+            statement.setObject(2, id)
+            statement.executeUpdate()
+        }
+        code
+    }
+
+    override suspend fun findByFriendCode(code: String): Player? = query { connection ->
+        connection.prepareStatement("select $PLAYER from profiles where friend_code = ?").use { statement ->
+            statement.setString(1, code)
+            statement.executeQuery().use { rows -> if (rows.next()) rows.toPlayer() else null }
+        }
+    }
+
+    override suspend fun befriend(from: UUID, to: UUID): FriendState = transaction { connection ->
+        require(from != to) { "A player cannot befriend themselves" }
+        // The lower id is held first, so that two players asking each other at once take turns instead of deadlocking.
+        for (id in listOf(from, to).sorted()) {
+            connection.prepareStatement("select 1 from profiles where id = ? for update").use { statement ->
+                statement.setObject(1, id)
+                statement.executeQuery().use { rows -> check(rows.next()) { "No player $id" } }
+            }
+        }
+
+        val theyAsked = connection.prepareStatement(
+            "update friendships set accepted_at = coalesce(accepted_at, now()) where requester_id = ? and addressee_id = ?",
+        ).use { statement ->
+            statement.setObject(1, to)
+            statement.setObject(2, from)
+            statement.executeUpdate() > 0
+        }
+        if (theyAsked) return@transaction FriendState.FRIENDS
+
+        connection.prepareStatement(
+            "insert into friendships (requester_id, addressee_id) values (?, ?) on conflict do nothing",
+        ).use { statement ->
+            statement.setObject(1, from)
+            statement.setObject(2, to)
+            statement.executeUpdate()
+        }
+        val accepted = connection.prepareStatement(
+            "select accepted_at is not null from friendships where requester_id = ? and addressee_id = ?",
+        ).use { statement ->
+            statement.setObject(1, from)
+            statement.setObject(2, to)
+            statement.executeQuery().use { rows -> rows.next() && rows.getBoolean(1) }
+        }
+        if (accepted) FriendState.FRIENDS else FriendState.OUTGOING
+    }
+
+    override suspend fun unfriend(one: UUID, other: UUID): Boolean = transaction { connection ->
+        connection.prepareStatement(
+            "delete from friendships where (requester_id = ? and addressee_id = ?) or (requester_id = ? and addressee_id = ?)",
+        ).use { statement ->
+            statement.setObject(1, one)
+            statement.setObject(2, other)
+            statement.setObject(3, other)
+            statement.setObject(4, one)
+            statement.executeUpdate() > 0
+        }
+    }
+
+    override suspend fun friendLinks(id: UUID): List<FriendLink> = query { connection ->
+        connection.prepareStatement(
+            // Named in full, since a friendship has a created_at of its own.
+            "select ${PLAYER.split(", ").joinToString { "profiles.$it" }}, f.requester_id = ? as asked_by_me, f.accepted_at is not null as accepted " +
+                "from friendships f join profiles on profiles.id = case when f.requester_id = ? then f.addressee_id else f.requester_id end " +
+                "where f.requester_id = ? or f.addressee_id = ? order by profiles.display_name",
+        ).use { statement ->
+            repeat(4) { statement.setObject(it + 1, id) }
+            statement.executeQuery().use { rows ->
+                buildList {
+                    while (rows.next()) {
+                        val state = when {
+                            rows.getBoolean("accepted") -> FriendState.FRIENDS
+                            rows.getBoolean("asked_by_me") -> FriendState.OUTGOING
+                            else -> FriendState.INCOMING
+                        }
+                        add(FriendLink(rows.toPlayer(), state))
+                    }
+                }
+            }
+        }
+    }
+
     override suspend fun lastSettledWeek(): LocalDate? = query { connection ->
         connection.prepareStatement("select max(week_start) from league_weeks").use { statement ->
             statement.executeQuery().use { rows -> if (rows.next()) rows.getDate(1)?.toLocalDate() else null }

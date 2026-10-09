@@ -40,6 +40,18 @@ data class Player(
     val leagueTier: Int = 0,
 )
 
+/** How one player stands to another: friends, or a request one way or the other that has not been answered. */
+enum class FriendState {
+    FRIENDS,
+    /** They have asked this player. */
+    INCOMING,
+    /** This player has asked them. */
+    OUTGOING,
+}
+
+/** Another player, and how this one stands to them. */
+data class FriendLink(val other: Player, val state: FriendState)
+
 /** Someone the sign-in provider vouches for. */
 data class Account(val id: String, val name: String?)
 

@@ -32,6 +32,10 @@ data class Problem(val message: String)
 @Serializable
 data class DailyClaim(val granted: Long, val balance: Long, val rewards: RewardStatus)
 
+/** Who to ask to be a friend: by the code they gave out, or by their id. */
+@Serializable
+data class FriendRequest(val code: String? = null, val id: String? = null)
+
 @Serializable
 data class MissionClaim(val granted: Long, val balance: Long, val missions: MissionsStatus)
 
@@ -56,6 +60,8 @@ private fun ApplicationCall.token(): String =
 private suspend fun ApplicationCall.player(players: Players): Player? {
     val player = players.authenticate(token())
     if (player == null) respond(HttpStatusCode.Unauthorized, Problem("This player is not known here"))
+    // Anyone asking the server for something of their own is here, which is what their friends are told.
+    else players.presence.seen(player.id)
     return player
 }
 
@@ -76,7 +82,25 @@ internal fun ApplicationCall.callerAddress(): String =
 /** New guests from one address: a household's worth in an hour, a small crowd's in a day. */
 fun guestAllowance() = Allowance(Limit(5, 1.hours), Limit(20, 24.hours))
 
-fun Application.configurePlayerRoutes(players: Players, signIn: SignInConfig? = null, newGuests: Allowance = guestAllowance()) {
+/** Answers with the caller's friends as [work] leaves them, or with why not: a guest is told to sign in, and a bad request what was wrong with it. */
+private suspend fun ApplicationCall.friendsOr(work: suspend () -> FriendsView) {
+    try {
+        respond(work())
+    } catch (refused: IllegalArgumentException) {
+        val needsSignIn = refused.message == Friends.NEEDS_SIGN_IN
+        respond(if (needsSignIn) HttpStatusCode.Forbidden else HttpStatusCode.BadRequest, Problem(refused.message ?: "That was not possible"))
+    }
+}
+
+/** How many friends one player may ask in a while. */
+fun friendRequestAllowance() = Allowance(Limit(20, 1.hours))
+
+fun Application.configurePlayerRoutes(
+    players: Players,
+    signIn: SignInConfig? = null,
+    newGuests: Allowance = guestAllowance(),
+    friendRequests: Allowance = friendRequestAllowance(),
+) {
     routing {
         post("/players") {
             // A browser keeps the guest it is given, so nobody needs many. A caller
@@ -141,6 +165,47 @@ fun Application.configurePlayerRoutes(players: Players, signIn: SignInConfig? = 
             val game = call.request.queryParameters["game"]?.let { name -> Game.entries.firstOrNull { it.name.equals(name, ignoreCase = true) } }
             val thisWeek = call.request.queryParameters["period"] != "all"
             call.respond(players.leaderboards.top(thisWeek, game, players.authenticate(call.token())))
+        }
+
+        // Friends: who the caller has, who has asked them, and their own code to give out.
+        // Asking is also how a player in the lobby is known to be about.
+        get("/friends") {
+            val player = call.player(players) ?: return@get
+            call.friendsOr { players.friends.view(player) }
+        }
+
+        // Asks someone to be a friend, by the code they gave out or by their id.
+        post("/friends") {
+            val player = call.player(players) ?: return@post
+            if (!friendRequests.take(player.id.toString())) {
+                call.respond(HttpStatusCode.TooManyRequests, Problem("That is a lot of requests. Try again in a while."))
+                return@post
+            }
+            val wanted = runCatching { call.receive<FriendRequest>() }.getOrNull()
+            val id = wanted?.id?.let { runCatching { java.util.UUID.fromString(it) }.getOrNull() }
+            call.friendsOr {
+                players.friends.ask(player, wanted?.code, id)
+                players.friends.view(player)
+            }
+        }
+
+        post("/friends/{id}/accept") {
+            val player = call.player(players) ?: return@post
+            val from = runCatching { java.util.UUID.fromString(call.parameters["id"]) }.getOrNull()
+            call.friendsOr {
+                players.friends.accept(player, requireNotNull(from) { "There is no request from that player" })
+                players.friends.view(player)
+            }
+        }
+
+        // Ends a friendship, turns a request down, or takes one back.
+        delete("/friends/{id}") {
+            val player = call.player(players) ?: return@delete
+            val other = runCatching { java.util.UUID.fromString(call.parameters["id"]) }.getOrNull()
+            call.friendsOr {
+                if (other != null) players.friends.remove(player, other)
+                players.friends.view(player)
+            }
         }
 
         // What anyone may see of a signed-in player: their name, level, league and trophies.

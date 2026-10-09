@@ -2,6 +2,7 @@ package com.banca.ws
 
 import com.banca.players.Funding
 import com.banca.players.Identity
+import com.banca.players.Place
 import com.banca.players.PlayerSession
 import com.banca.players.Players
 import io.ktor.server.application.ApplicationCall
@@ -135,9 +136,13 @@ private fun Route.seatSocket(
         }
 
         val session = PlayerSession(player, players)
+        val connect = connectFor(call)
+        // A player at a table is a player who is here, which is what their friends are told.
+        // Noted before they are welcomed, so that by the time they know they are in, so does everyone else.
+        val place = Place.at(call.request.path()).takeIf { connect != null }
+        if (place != null) players.presence.sat(player.id, place)
         send(wireJson.encodeToString(Welcome.serializer(), Welcome(player = Identity(player.name, session.balance(), signedIn = player.accountId != null))))
 
-        val connect = connectFor(call)
         if (connect == null) {
             // Said after the welcome, so the client knows it is the table that is missing and not the player.
             send(refusal("This table is not open any more", code = "no_table"))
@@ -147,13 +152,19 @@ private fun Route.seatSocket(
 
         // The table is the player's at this game, whichever connection they reach it by.
         val connection = coroutineContext.job
-        val seat = tables.sit(
-            key = "${player.id}:${call.request.path()}",
-            connection = connection,
-            send = send,
-            // The close code says why, for a client that missed being told in words.
-            dismiss = { close(CloseReason(REPLACED, "replaced")) },
-        ) { toPlayer -> connect(toPlayer, session) }
+        val seat = try {
+            tables.sit(
+                key = "${player.id}:${call.request.path()}",
+                connection = connection,
+                send = send,
+                // The close code says why, for a client that missed being told in words.
+                dismiss = { close(CloseReason(REPLACED, "replaced")) },
+            ) { toPlayer -> connect(toPlayer, session) }
+        } catch (failure: Throwable) {
+            // Not seated after all, so not to be shown as sitting anywhere.
+            if (place != null) players.presence.left(player.id, place)
+            throw failure
+        }
         try {
             for (frame in incoming) {
                 if (frame !is Frame.Text) continue
@@ -169,6 +180,7 @@ private fun Route.seatSocket(
                 }
             }
         } finally {
+            if (place != null) players.presence.left(player.id, place)
             seat.leave(connection)
         }
     }

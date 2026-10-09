@@ -24,6 +24,12 @@ class Players(private val store: PlayerStore, private val clock: Clock = Clock.s
     /** The leagues and lists of winners, drawn from the same record. */
     val leaderboards = Leaderboards(store, clock)
 
+    /** Who is here at the moment, as far as the server can see. */
+    val presence = Presence(clock)
+
+    /** Who has chosen whom to keep track of. */
+    val friends = Friends(store, presence)
+
     private fun newToken(): String =
         ByteArray(32).also(random::nextBytes).let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
 

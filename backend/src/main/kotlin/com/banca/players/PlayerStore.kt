@@ -67,6 +67,28 @@ interface PlayerStore {
      */
     suspend fun standings(from: Instant, until: Instant, game: Game? = null): List<Standing>
 
+    /**
+     * The code a player gives out so that others can ask to be their friend.
+     * It is made the first time it is asked for, by [make], which is tried
+     * again if it comes up with one somebody already has.
+     */
+    suspend fun friendCode(id: UUID, make: () -> String): String
+
+    suspend fun findByFriendCode(code: String): Player?
+
+    /**
+     * [from] asks to be [to]'s friend, and what the two then are to each other
+     * is returned, as [from] sees it. If [to] had already asked [from], this
+     * accepts it. Asking twice changes nothing.
+     */
+    suspend fun befriend(from: UUID, to: UUID): FriendState
+
+    /** Ends whatever there is between the two, a friendship or a request either way. Returns whether there was anything. */
+    suspend fun unfriend(one: UUID, other: UUID): Boolean
+
+    /** Everyone a player is friends with, has asked, or has been asked by. */
+    suspend fun friendLinks(id: UUID): List<FriendLink>
+
     /** The latest week that has been settled, named by its Monday, or null if none has. */
     suspend fun lastSettledWeek(): LocalDate?
 
