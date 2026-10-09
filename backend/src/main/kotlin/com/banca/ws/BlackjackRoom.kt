@@ -66,6 +66,8 @@ data class TableSeatView(
     val you: Boolean,
     /** What they have staked this round, across all their hands. */
     val bet: Long,
+    /** The chips they have that are not on the table, as everyone at a real table can see. */
+    val stack: Long = 0,
     val hands: List<BlackjackHandView>,
     /** True while the table is waiting on them. */
     val acting: Boolean,
@@ -686,6 +688,7 @@ class BlackjackRoom(
                         name = other.name,
                         you = other.id == member.id,
                         bet = round?.let { it.hands.sumOf { hand -> hand.bet } } ?: other.bet,
+                        stack = other.stack,
                         hands = round?.hands.orEmpty().mapIndexed { index, hand -> handViewOf(round!!, index, hand) },
                         acting = isActing(other),
                         net = other.net.takeIf { phase == TablePhase.RESULTS },

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
-import { CardSlot } from '../casino/Card'
+import { Card, CardSlot } from '../casino/Card'
 import { CasinoShell } from '../casino/CasinoShell'
 import { OutOfChips, StakedNote } from '../casino/ChipNotices'
 import { ConnectionNote } from '../casino/ConnectionNote'
@@ -46,6 +46,41 @@ function standingOf(seat: TableSeat, table: BlackjackTableView): { text: string;
   }
   if (seat.bet > 0) return { text: `Bet ${seat.bet.toLocaleString('en-US')}` }
   return { text: table.phase === 'betting' ? 'Thinking' : 'Sitting out' }
+}
+
+/**
+ * Another player's place at the table, as it is at a real one: their cards
+ * face up, what they hold, and the chips beside them. Small, so that four of
+ * them sit in a row above the felt.
+ */
+function RailSeat({ seat, table }: { seat: TableSeat; table: BlackjackTableView }) {
+  const standing = standingOf(seat, table)
+  const cards = seat.hands.flatMap((hand) => hand.cards)
+  const said = cards.length > 0 ? `${cards.length} cards, ${standing.text}` : standing.text
+
+  return (
+    <li className="rail-seat" data-acting={seat.acting} aria-label={`${seat.name}: ${said}, ${seat.stack.toLocaleString('en-US')} chips`}>
+      <div className="rail-seat__cards" aria-hidden>
+        {seat.hands.length === 0 ? (
+          // No cards yet: their bet, or that they are still deciding on one.
+          <span className="label tracking-[0.08em]!">{standing.text}</span>
+        ) : (
+          seat.hands.map((hand, handIndex) => (
+            <div key={handIndex} className="fan" data-over={hand.status === 'bust'}>
+              {hand.cards.map((card, cardIndex) => (
+                <Card key={`${table.roundNumber}-${handIndex}-${cardIndex}-${card}`} card={card} seed={table.roundNumber * 50 + handIndex * 10 + cardIndex} />
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+      <p className="rail-seat__name truncate">{seat.name}</p>
+      <p className="rail-seat__figures figure">
+        <span>{seat.stack.toLocaleString('en-US')}</span>
+        {seat.hands.length > 0 && <span data-tone={standing.tone}>{standing.text}</span>}
+      </p>
+    </li>
+  )
 }
 
 /**
@@ -124,17 +159,9 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
       <div className="table-rail">
         <ul className="table-rail__seats" aria-label="Other players at the table">
           {others.length === 0 && <li className="label py-1.5">{spoken && latest ? '' : 'You have the table to yourself'}</li>}
-          {others.map((seat, index) => {
-            const standing = standingOf(seat, table)
-            return (
-              <li key={`${seat.name}-${index}`} className="rail-seat" data-acting={seat.acting}>
-                <span className="truncate">{seat.name}</span>
-                <span className="figure font-semibold" data-tone={standing.tone}>
-                  {standing.text}
-                </span>
-              </li>
-            )
-          })}
+          {others.map((seat, index) => (
+            <RailSeat key={`${seat.name}-${index}`} seat={seat} table={table} />
+          ))}
         </ul>
         <button
           type="button"

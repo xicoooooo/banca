@@ -75,7 +75,16 @@ export type BlackjackServerMessage =
   | { type: 'error'; message: string }
 
 /** Someone at a shared table, as the others see them. */
-export type TableSeat = { name: string; you: boolean; bet: number; hands: BlackjackHandView[]; acting: boolean; net: number | null }
+export type TableSeat = {
+  name: string
+  you: boolean
+  bet: number
+  /** The chips they have that are not on the table. */
+  stack: number
+  hands: BlackjackHandView[]
+  acting: boolean
+  net: number | null
+}
 
 /** A shared blackjack table as one player sees it. `you` is their own part in the round, in the shape a table alone has. */
 export type BlackjackTableView = {

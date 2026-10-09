@@ -750,8 +750,8 @@ The rules are those of the table for one. Each player's stake, result and record
     "actor": "Ana",
     "you": { "roundNumber": 4, "phase": "player", "stack": 1950, "hands": [], "dealer": {}, "legal": {}, "result": null },
     "seats": [
-      { "name": "Ana", "you": true, "bet": 50, "hands": [{ "cards": ["3h", "Ts"], "total": 13, "status": "playing" }], "acting": true, "net": null },
-      { "name": "Marta", "you": false, "bet": 25, "hands": [{ "cards": ["4c", "3d"], "total": 7, "status": "waiting" }], "acting": false, "net": null }
+      { "name": "Ana", "you": true, "bet": 50, "stack": 1950, "hands": [{ "cards": ["3h", "Ts"], "total": 13, "status": "playing" }], "acting": true, "net": null },
+      { "name": "Marta", "you": false, "bet": 25, "stack": 1410, "hands": [{ "cards": ["4c", "3d"], "total": 7, "status": "waiting" }], "acting": false, "net": null }
     ],
     "seatsInAll": 5
   }
@@ -764,7 +764,7 @@ The rules are those of the table for one. Each player's stake, result and record
 
 `you.dealer` is the same for every player at the table. The hole card is null until the table reaches `results`, however any one player's round stands, so that a player who has finished cannot tell the others what the dealer holds.
 
-`seats` is everyone at the table in the order they sat down, with their cards face up, as they are at a real table. `net` is set in `results`. `msLeft` is how long the table will wait in this phase, or for the player whose turn it is.
+`seats` is everyone at the table in the order they sat down, with their cards face up and their chips beside them, as they are at a real table. `stack` is what they have that is not on the felt. `net` is set in `results`. `msLeft` is how long the table will wait in this phase, or for the player whose turn it is.
 
 ### `chat_log`, `chat`, `trace`, `advice` and `error`
 

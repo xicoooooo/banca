@@ -94,7 +94,7 @@ Each game is played in three ways:
 
   Its host also chooses the chips. With **their own**, everyone plays from their bankroll and what is won and lost is real, but it does not count towards the leagues: friends at their own table could hand chips to one another, and promotion pays a prize. With **practice chips**, everyone is handed 2,000 that exist only at that table, and nothing played there touches anyone's chips, record or statistics.
 - **A table to yourself**, at your own pace: heads-up against Banca at poker, alone against the dealer or the wheel at the others.
-- **Shared tables**, three for each game (Emerald, Gold and Ivory), which keep their own time. A poker table seats Banca and up to five players, deals hand after hand, and gives each decision a limit. A blackjack table seats five against one dealer and one shoe, with a betting window and then a turn each. A roulette room is one wheel on a half-minute round, with everyone's chips on the same felt and the same history of where the ball has landed.
+- **Shared tables**, three for each game (Emerald, Gold and Ivory), which keep their own time. A poker table seats Banca and up to five players, deals hand after hand, and gives each decision a limit. A blackjack table seats five against one dealer and one shoe, with a betting window and then a turn each, and everyone's cards and chips in view of the rest, as at a real table. A roulette room is one wheel on a half-minute round, with everyone's chips on the same felt and the same history of where the ball has landed.
 
 ## 7. Player experience
 

@@ -2526,14 +2526,17 @@ button {
 }
 
 .rail-seat {
+  --w: clamp(18px, 5.6vw, 26px);
   display: flex;
   flex: none;
-  gap: 0.5rem;
-  align-items: baseline;
+  flex-direction: column;
+  gap: 1px;
+  align-items: center;
+  min-width: 4.4rem;
   max-width: 11rem;
-  padding: 0.35rem 0.75rem;
+  padding: 0.35rem 0.55rem 0.3rem;
   border: 1px solid var(--hairline);
-  border-radius: 999px;
+  border-radius: 14px;
   font-size: 0.8rem;
   color: rgb(245 241 232 / 0.85);
   background: var(--glass);
@@ -2546,9 +2549,57 @@ button {
   box-shadow: 0 0 14px rgb(241 199 91 / 0.3);
 }
 
-/* The rail takes a little of the height the cards would otherwise have. */
+/* Their cards, face up as at a real table. One row whatever they hold, a split
+   hand beside the other, so the rail keeps its height. */
+.rail-seat__cards {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--w) * 1.4);
+}
+
+.rail-seat__cards .fan > * + * {
+  margin-left: calc(var(--w) * -0.52);
+}
+
+.rail-seat__cards .fan[data-over='true'] {
+  opacity: 0.5;
+}
+
+.rail-seat__name {
+  max-width: 100%;
+  margin: 0;
+  padding-top: 2px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+}
+
+.rail-seat[data-acting='true'] .rail-seat__name {
+  color: var(--color-gold-bright);
+}
+
+.rail-seat__figures {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--color-ivory);
+}
+
+.rail-seat__figures > :last-child:not(:first-child):not([data-tone]) {
+  color: var(--color-gold-bright);
+}
+
+/* The rail, with everyone else's cards in it, takes some of the height the
+   player's own cards would otherwise have. */
 .bj-felt--shared {
-  --table-overhead: 604px;
+  --table-overhead: 642px;
   --card-rows: calc((100dvh - var(--table-overhead)) / 1.4);
   --card-opponent: clamp(34px, min(13.5vw, var(--card-rows) * 0.34), 84px);
   --card-board: clamp(40px, min(16.5vw, var(--card-rows) * 0.44), 104px);
@@ -2557,7 +2608,7 @@ button {
 
 @media (max-height: 740px) {
   .bj-felt--shared {
-    --table-overhead: 588px;
+    --table-overhead: 626px;
   }
 }
 
@@ -3349,4 +3400,31 @@ button {
   margin-top: 0.7rem;
   padding-top: 0.7rem;
   border-top: 1px solid var(--hairline);
+}
+
+/* On a short screen the rail gives a line back: each seat's cards a little
+   smaller, and its name and standing side by side. Their chips are left out
+   there, being the thing about them that matters least to the hand. */
+@media (max-height: 740px) {
+  .rail-seat {
+    --w: 16px;
+    display: grid;
+    grid-template-columns: auto auto;
+    column-gap: 0.35rem;
+    justify-content: center;
+    padding: 0.25rem 0.5rem 0.2rem;
+  }
+
+  .rail-seat__cards {
+    grid-column: 1 / -1;
+  }
+
+  .rail-seat__name {
+    padding-top: 1px;
+  }
+
+  .rail-seat__figures > :first-child:not(:last-child),
+  .rail-seat__figures > :only-child {
+    display: none;
+  }
 }
