@@ -24,6 +24,21 @@ class ToolTask(
     val server: Server,
     val systemPrompt: String,
     val opening: String,
+    /**
+     * What the model is told in place of [systemPrompt] until it has a tool's
+     * answer in front of it. Before then all it has to do is go and look, and
+     * telling it only that costs a fraction of the words. Null to tell it
+     * everything from the start.
+     */
+    val briefing: String? = null,
+    /**
+     * Tools that only look, and are always wanted together. Some models ask
+     * for them all in one reply and some for one at a time, each at the price
+     * of another round trip. So when the model reaches for any of these, the
+     * rest are fetched alongside, and it has everything in front of it for
+     * its next reply whichever kind of model it is.
+     */
+    val lookTogether: Set<String> = emptySet(),
     /** The tool that commits the model's answer. Its steps are not traced; the caller reports the outcome. */
     val finishingTool: String,
     /** Said to a model that answers in prose instead of finishing. */
@@ -99,12 +114,30 @@ class ToolConversation(private val model: ModelProvider, private val maxModelCal
                 ChatMessage.User(task.opening),
             )
 
+            val called = mutableSetOf<String>()
+
             repeat(maxModelCalls) {
-                val answer = timing.timed({ timing.model += it; timing.modelCalls++ }) { model.chat(messages, specs) }
+                // A free model is metered by the word, so each call carries only what it needs:
+                // the short briefing until something has been looked at, and from then on only
+                // the tools that have not been used yet, beside the one that finishes.
+                val looked = called.isNotEmpty()
+                val said = if (task.briefing != null && !looked) listOf(ChatMessage.System(task.briefing)) + messages.drop(1) else messages
+                val offered = if (looked) specs.filter { it.name == task.finishingTool || it.name !in called } else specs
+
+                val answer = timing.timed({ timing.model += it; timing.modelCalls++ }) { model.chat(said, offered) }
                 // Small models sometimes write a tool call out as text instead
                 // of making it. Reading it back costs nothing and saves the turn.
                 val written = if (answer.toolCalls.isEmpty()) writtenToolCalls(answer.text, specs, task) else emptyList()
-                val reply = if (written.isEmpty()) answer else ModelReply(text = "", toolCalls = written)
+                val asked = if (written.isEmpty()) answer else ModelReply(text = "", toolCalls = written)
+                // Having started to look, it is shown the rest of what there is to look at.
+                val alongside = if (asked.toolCalls.any { it.name in task.lookTogether }) {
+                    task.lookTogether
+                        .filter { name -> name !in called && asked.toolCalls.none { it.name == name } && specs.any { it.name == name } }
+                        .map { ToolCall(it, JsonObject(emptyMap())) }
+                } else {
+                    emptyList()
+                }
+                val reply = ModelReply(asked.text, asked.toolCalls + alongside)
                 messages += ChatMessage.Assistant(reply.text, reply.toolCalls)
 
                 if (reply.text.isNotBlank()) {
@@ -122,6 +155,7 @@ class ToolConversation(private val model: ModelProvider, private val maxModelCal
                     }
                     val text = result.content.filterIsInstance<TextContent>().joinToString("\n") { it.text }
                     messages += ChatMessage.ToolResult(call.name, text)
+                    called += call.name
 
                     if (call.name != task.finishingTool) {
                         trace(TraceEvent(TraceEvent.TOOL, task.labelFor(call.name), "${call.name} → $text"))

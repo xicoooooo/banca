@@ -243,7 +243,7 @@ A step the opponent took while deciding, sent as it happens.
 { "type": "trace", "handNumber": 1, "event": { "kind": "tool", "label": "Estimated its hand equity", "detail": null } }
 ```
 
-`kind` is `tool`, `thought`, `decision` or `fallback`. `label` is safe to show at once. The first step of each hand is a `thought` labelled "Settled on how to play": the opponent plays in one of several moods, which change every few hands, and which one it is in is that step's `detail`, held back like the rest. `detail` is always `null` here: what a step returned can give the opponent's cards away, so it is held back while the hand is live.
+`kind` is `tool`, `thought`, `decision` or `fallback`. `label` is safe to show at once. A `fallback` is a decision made without the model, when it failed or its free allowance for the minute was spent: the hand is then played by the opponent's own rule of thumb for the mood it is in, from the same figures, and the step says so. The first step of each hand is a `thought` labelled "Settled on how to play": the opponent plays in one of several moods, which change every few hands, and which one it is in is that step's `detail`, held back like the rest. `detail` is always `null` here: what a step returned can give the opponent's cards away, so it is held back while the hand is live.
 
 ### `reveal`
 

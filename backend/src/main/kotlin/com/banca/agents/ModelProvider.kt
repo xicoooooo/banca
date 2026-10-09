@@ -1,6 +1,7 @@
 package com.banca.agents
 
 import kotlinx.serialization.json.JsonObject
+import kotlin.time.Duration
 
 /**
  * A language model that can call tools. The agent only ever talks to this, so
@@ -23,3 +24,10 @@ sealed interface ChatMessage {
     data class Assistant(val text: String, val toolCalls: List<ToolCall>) : ChatMessage
     data class ToolResult(val toolName: String, val content: String) : ChatMessage
 }
+
+/**
+ * A model saying it has had enough for now, and for how long. Free tiers say
+ * this often, and say when to come back, which is worth remembering: asking
+ * again before then only costs a second to be refused.
+ */
+class RateLimited(val retryAfter: Duration, message: String) : IllegalStateException(message)

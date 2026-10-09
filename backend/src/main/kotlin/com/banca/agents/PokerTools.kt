@@ -116,6 +116,21 @@ class PokerTools(
         put("against", "$opponents random hand${if (opponents == 1) "" else "s"}")
     }
 
+    /** What a call must win, as a share, to pay for itself. Nought when there is nothing to call. */
+    val priceOfCalling: Double get() = PokerMath.potOdds(view.pot, legal.callCost)
+
+    /**
+     * A bet or a raise of [fraction] of the pot, whichever is open, as the
+     * engine wants it said and kept within what the table allows. Null when
+     * neither is open. A raise is sized on the pot as it stands once the bet
+     * is called, as the amounts the model is offered are.
+     */
+    fun sized(fraction: Double): Action? = when {
+        legal.canBet -> Action.Bet((view.pot * fraction).toLong().coerceIn(legal.minBet, legal.maxTo))
+        legal.canRaise -> Action.Raise((me.committed + legal.callCost + (view.pot + legal.callCost) * fraction).toLong().coerceIn(legal.minRaiseTo, legal.maxTo))
+        else -> null
+    }
+
     fun potOdds(): JsonObject = buildJsonObject {
         put("pot", view.pot)
         put("call_cost", legal.callCost)

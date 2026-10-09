@@ -64,6 +64,8 @@ class BlackjackCoach(
             server = tools.server(),
             systemPrompt = SYSTEM_PROMPT,
             opening = "The player has asked what you would do. Use the tools, then give your advice.",
+            briefing = "You are Banca, a blackjack coach. The player has asked what you would do. Call get_table_state, get_action_values and get_odds together, in one step. Do not give advice yet.",
+            lookTogether = setOf(BlackjackTools.GET_TABLE_STATE, BlackjackTools.GET_ACTION_VALUES, BlackjackTools.GET_ODDS),
             finishingTool = BlackjackTools.GIVE_ADVICE,
             reminder = "Call give_advice now with the best action and one sentence of reason.",
             isFinished = { tools.advice != null },

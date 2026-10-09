@@ -1,5 +1,6 @@
 package com.banca.agents
 
+import com.banca.games.poker.Action
 import kotlin.random.Random
 
 /**
@@ -11,7 +12,36 @@ import kotlin.random.Random
  * [told] is what the table is told once a hand is over, when it can no longer
  * give anything away. [rules] is what the model is told to do with the figures.
  */
-class Mood(val name: String, val told: String, val bluffs: Double, val rules: String)
+class Mood(
+    val name: String,
+    val told: String,
+    val bluffs: Double,
+    val rules: String,
+    /** The same lines as [rules], as numbers, for playing by them when no model can be asked. */
+    val lines: Lines,
+)
+
+/**
+ * Where a mood draws its lines through the figures.
+ *
+ * [discount] is how much equity is marked down against a bet. Checked to,
+ * the hand is bet for half the pot from [betFrom], two thirds from [betMore]
+ * and the whole pot from [betPot]. Facing a bet it is raised when what is left
+ * of its equity passes [raiseFrom], and called when it beats the price of
+ * calling by [callBy], which may be less than nought. [raisePot] raises by the
+ * pot instead of half of it, and [traps] plays the strongest hands slowly
+ * until the river.
+ */
+class Lines(
+    val discount: Double,
+    val betFrom: Double,
+    val betMore: Double,
+    val betPot: Double,
+    val raiseFrom: Double,
+    val callBy: Double,
+    val raisePot: Boolean = false,
+    val traps: Boolean = false,
+)
 
 object Moods {
     val STEADY = Mood(
@@ -32,6 +62,7 @@ object Moods {
             - Adjusted equity above the pot odds: call.
             - Otherwise fold. Do not call just because the bet is small.
         """,
+        lines = Lines(discount = 0.10, betFrom = 0.50, betMore = 0.65, betPot = 0.80, raiseFrom = 0.70, callBy = 0.0),
     )
 
     val PATIENT = Mood(
@@ -51,6 +82,7 @@ object Moods {
             - Adjusted equity at least 0.05 above the pot odds: call.
             - Otherwise fold, and do not mind folding often.
         """,
+        lines = Lines(discount = 0.14, betFrom = 0.72, betMore = 0.72, betPot = 2.0, raiseFrom = 0.78, callBy = 0.05),
     )
 
     val PRESSING = Mood(
@@ -72,6 +104,7 @@ object Moods {
             - Adjusted equity within 0.03 of the pot odds or better: call.
             - Otherwise fold.
         """,
+        lines = Lines(discount = 0.06, betFrom = 0.45, betMore = 0.55, betPot = 0.75, raiseFrom = 0.60, callBy = -0.03, raisePot = true),
     )
 
     val SLY = Mood(
@@ -93,6 +126,7 @@ object Moods {
             - Adjusted equity above the pot odds: call.
             - Otherwise fold.
         """,
+        lines = Lines(discount = 0.10, betFrom = 0.60, betMore = 2.0, betPot = 2.0, raiseFrom = 0.65, callBy = 0.0, traps = true),
     )
 
     /** Steady most often, so that the others are departures from something. */
@@ -132,5 +166,53 @@ class MoodSwings(private val random: Random, private val stay: IntRange = 2..5) 
         }
         hand = handNumber
         return mood to true
+    }
+}
+
+/**
+ * Banca playing by its lines alone, with no model to ask.
+ *
+ * A free model has only so much to give in a minute, and a table must not
+ * stall or go limp when that runs out. So every mood can also be played
+ * straight from its numbers. It is the same player making the same kind of
+ * decision from the same figures, with nobody to put it into words.
+ */
+object ByTheLines {
+    private const val TRAP_FROM = 0.80
+
+    /**
+     * What [mood] does with the hand [tools] describes. [bluffing] is whether
+     * this is a turn the dice said to bluff on, and [river] whether there are
+     * no more cards to come.
+     */
+    fun play(tools: PokerTools, legal: com.banca.sessions.LegalView, mood: Mood, bluffing: Boolean, river: Boolean): Action {
+        val lines = mood.lines
+        val equity = tools.equity
+        val half = tools.sized(0.5)
+
+        if (legal.canCheck) {
+            val bet = when {
+                // A trap is sprung on the river, and laid before it.
+                lines.traps && equity > TRAP_FROM -> if (river) tools.sized(1.0) else null
+                equity >= lines.betPot -> tools.sized(1.0)
+                equity >= lines.betMore -> tools.sized(2.0 / 3)
+                equity >= lines.betFrom -> half
+                bluffing -> half
+                else -> null
+            }
+            return bet ?: Action.Check
+        }
+
+        val left = equity - lines.discount
+        val price = tools.priceOfCalling
+        val raise = if (legal.canRaise) tools.sized(if (lines.raisePot) 1.0 else 0.5) else null
+        return when {
+            lines.traps && left > TRAP_FROM -> if (river && raise != null) tools.sized(1.0) ?: Action.Call else Action.Call
+            left > lines.raiseFrom && raise != null -> raise
+            left >= price + lines.callBy -> Action.Call
+            // A bluff is a raise into a bet that is not too big to push back at.
+            bluffing && raise != null && price <= 1.0 / 3 -> tools.sized(0.5) ?: Action.Fold
+            else -> Action.Fold
+        }
     }
 }

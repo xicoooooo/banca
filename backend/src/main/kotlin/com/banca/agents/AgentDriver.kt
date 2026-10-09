@@ -33,7 +33,7 @@ class AgentConfig(
  *
  * The model is never trusted to finish: every turn has a budget of model calls
  * and a time limit, and running out of either, or any failure at all, ends in
- * the safest legal action instead of a stalled table.
+ * the hand being played by the mood's own lines instead of a stalled table.
  */
 class AgentDriver(
     private val model: ModelProvider,
@@ -52,10 +52,19 @@ class AgentDriver(
         val (mood, firstOfHand) = moods.forHand(view.handNumber)
         // Said once a hand, and kept back with the rest of its thinking until the hand is over.
         if (firstOfHand) trace(TraceEvent(TraceEvent.THOUGHT, MOOD_STEP, mood.told))
+        val bluffing = config.random.nextDouble() < mood.bluffs
+        var looked = false
+        val trace: suspend (TraceEvent) -> Unit = { event ->
+            if (event.kind == TraceEvent.TOOL) looked = true
+            trace(event)
+        }
         val task = ToolTask(
             server = tools.server(),
             systemPrompt = systemPrompt(mood),
-            opening = if (config.random.nextDouble() < mood.bluffs) BLUFF else NO_BLUFF,
+            // Until it has looked at the table it needs to be told only to look, which costs far fewer words.
+            briefing = BRIEFING,
+            lookTogether = setOf(PokerTools.GET_GAME_STATE, PokerTools.GET_HAND_EQUITY, PokerTools.GET_POT_ODDS, PokerTools.GET_LEGAL_ACTIONS),
+            opening = if (bluffing) BLUFF else NO_BLUFF,
             finishingTool = PokerTools.SUBMIT_ACTION,
             reminder = "Call submit_action now to commit your decision.",
             isFinished = { tools.decision != null },
@@ -70,6 +79,10 @@ class AgentDriver(
             "it ran out of time"
         } catch (cancelled: CancellationException) {
             throw cancelled
+        } catch (busy: RateLimited) {
+            // The everyday case on a free tier, and not worth a stack trace.
+            log.info("Every model is busy for {}", busy.retryAfter)
+            "its free allowance for the minute was used up"
         } catch (failure: Exception) {
             log.warn("Agent turn failed", failure)
             "the model could not be reached"
@@ -82,15 +95,24 @@ class AgentDriver(
             return decided
         }
 
-        val safe = if (view.legal?.canCheck == true) Action.Check else Action.Fold
+        // With no model to ask, the hand is played by the mood's own lines: the same figures and the
+        // same decision, with nobody to put it into words. A table never goes limp because a free
+        // model has run out for the minute.
+        val legal = view.legal
+        val played = legal?.let { runCatching { ByTheLines.play(tools, it, mood, bluffing, river = view.board.size == 5) }.getOrNull() }
+            ?: if (legal?.canCheck == true) Action.Check else Action.Fold
+        if (!looked && legal != null) {
+            trace(TraceEvent(TraceEvent.TOOL, labelFor(PokerTools.GET_HAND_EQUITY), "${PokerTools.GET_HAND_EQUITY} → ${tools.handEquity()}"))
+            trace(TraceEvent(TraceEvent.TOOL, labelFor(PokerTools.GET_POT_ODDS), "${PokerTools.GET_POT_ODDS} → ${tools.potOdds()}"))
+        }
         trace(
             TraceEvent(
                 kind = TraceEvent.FALLBACK,
-                label = "Took the safe option and chose to ${PokerTools.describe(safe)}",
-                detail = "The agent's turn was ended because $problem.",
+                label = "Played by its rule of thumb and chose to ${PokerTools.describe(played)}",
+                detail = "Banca's model could not be asked this turn because $problem, so it played by the lines of the mood it was in.",
             ),
         )
-        return safe
+        return played
     }
 
     /** Reads the function-call spelling, `submit_action("raise", 300)`. */
@@ -135,6 +157,9 @@ class AgentDriver(
 
         // A model asked to do something one time in five does it every time or never. So the
         // dice are thrown here, and the model is told how they fell.
+        /** All the model needs to be told before it has seen anything: to go and look. */
+        const val BRIEFING = "You are Banca, playing no-limit Texas Hold'em. It is your turn. Call get_game_state, get_hand_equity, get_pot_odds and get_legal_actions together, in one step. Do not submit an action yet."
+
         const val BLUFF = "It is your turn. This turn you are bluffing: if your equity is below 0.50, bet half the pot if you can bet, or raise to the half-pot amount if the bet you face is no more than half the pot. With a stronger hand, play as usual. Use the tools, then submit your action."
         const val NO_BLUFF = "It is your turn. No bluffing this turn: with a weak hand, check if you can and fold if you cannot. Use the tools, then submit your action."
     }

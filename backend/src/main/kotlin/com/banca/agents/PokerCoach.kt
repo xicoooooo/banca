@@ -57,6 +57,8 @@ class PokerCoach(
             server = tools.server(),
             systemPrompt = SYSTEM_PROMPT,
             opening = "The player has asked what you would do. Use the tools, then give your advice.",
+            briefing = "You are Banca, a poker coach. The player has asked what you would do. Call get_game_state, get_hand_equity, get_pot_odds and get_legal_actions together, in one step. Do not give advice yet.",
+            lookTogether = setOf(PokerTools.GET_GAME_STATE, PokerTools.GET_HAND_EQUITY, PokerTools.GET_POT_ODDS, PokerTools.GET_LEGAL_ACTIONS),
             finishingTool = PokerCoachTools.GIVE_ADVICE,
             reminder = "Call give_advice now with an action and one sentence of reason.",
             isFinished = { tools.advice != null },

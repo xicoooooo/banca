@@ -62,7 +62,7 @@ class AgentDriverTest {
 
         assertEquals(Action.Raise(400), action)
         assertEquals(
-            listOf("Looked at the table", "Estimated its hand equity", "Worked out the pot odds", "Decided to raise to 400"),
+            listOf("Looked at the table", "Estimated its hand equity", "Worked out the pot odds", "Checked what it may do", "Decided to raise to 400"),
             trace.map { it.label },
         )
     }
@@ -84,9 +84,11 @@ class AgentDriverTest {
         play(model)
 
         val secondAsk = model.conversations[1]
-        val result = secondAsk.filterIsInstance<ChatMessage.ToolResult>().single()
-        assertEquals("get_pot_odds", result.toolName)
+        val results = secondAsk.filterIsInstance<ChatMessage.ToolResult>()
+        val result = results.first()
+        assertEquals("get_pot_odds", result.toolName, "what it asked for comes first")
         assertTrue("0.25" in result.content, result.content)
+        assertEquals(4, results.size, "and the rest of what there is to look at comes with it")
     }
 
     @Test
@@ -156,23 +158,25 @@ class AgentDriverTest {
     }
 
     @Test
-    fun `a model that never decides folds once its budget is spent`() {
+    fun `a model that never decides has the hand played for it once its budget is spent`() {
         val model = ScriptedModel(calls("get_game_state"))
 
         val (action, trace) = play(model, AgentConfig(maxModelCalls = 3))
 
-        assertEquals(Action.Fold, action)
+        // Aces, facing a bet: whatever the mood, they are not thrown away.
+        assertTrue(action == Action.Call || action is Action.Raise, "played by its lines, not given up: $action")
         assertEquals(3, model.conversations.size, "it is asked no more than the budget allows")
         assertEquals(TraceEvent.FALLBACK, trace.last().kind)
     }
 
     @Test
-    fun `the fallback checks rather than folds when checking is free`() {
+    fun `played for it, the hand is never folded when checking is free`() {
         val model = ScriptedModel(calls("get_game_state"))
 
-        val (action, _) = play(model, AgentConfig(maxModelCalls = 2), view = checkedTo())
-
-        assertEquals(Action.Check, action)
+        repeat(20) {
+            val (action, _) = play(model, AgentConfig(maxModelCalls = 2), view = checkedTo())
+            assertTrue(action == Action.Check || action is Action.Bet, "$action")
+        }
     }
 
     @Test
@@ -184,8 +188,13 @@ class AgentDriverTest {
 
         val (action, trace) = play(broken)
 
-        assertEquals(Action.Fold, action)
-        assertEquals(TraceEvent.FALLBACK, trace.single().kind)
+        assertTrue(action == Action.Call || action is Action.Raise, "the hand is played all the same: $action")
+        assertEquals(TraceEvent.FALLBACK, trace.last().kind)
+        assertEquals(
+            listOf("Estimated its hand equity", "Worked out the pot odds"),
+            trace.dropLast(1).map { it.label },
+            "and the figures it was played from are there to be seen afterwards",
+        )
     }
 
     @Test
@@ -199,8 +208,8 @@ class AgentDriverTest {
 
         val (action, trace) = play(slow, AgentConfig(timeout = 100.milliseconds))
 
-        assertEquals(Action.Fold, action)
-        assertTrue("time" in assertNotNull(trace.single().detail))
+        assertTrue(action == Action.Call || action is Action.Raise, "$action")
+        assertTrue("time" in assertNotNull(trace.last().detail))
     }
 
     @Test

@@ -45,6 +45,8 @@ class RouletteAnalyst(model: ModelProvider, private val config: CoachConfig = Co
             server = tools.server(),
             systemPrompt = SYSTEM_PROMPT,
             opening = "The player has asked what you make of the bets they have put down. Use the tools, then give your read.",
+            briefing = "You are Banca, at a roulette table. The player has asked what you make of their bets. Call get_layout, get_chances and get_cost together, in one step. Do not give your read yet.",
+            lookTogether = setOf(RouletteTools.GET_LAYOUT, RouletteTools.GET_CHANCES, RouletteTools.GET_COST),
             finishingTool = RouletteTools.GIVE_READ,
             reminder = "Call give_read now with one or two short sentences.",
             isFinished = { tools.read != null },

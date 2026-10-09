@@ -218,6 +218,15 @@ When Banca has something to decide or is asked something, the runtime hands the 
 
 It talks to a `ModelProvider`: Ollama, any OpenAI-compatible host (Groq when deployed), a fallback that tries one after another, and a passive one that needs no model at all.
 
+**Living within a free allowance.** The hosted model is free, and metered by the word: each model allows so many tokens a minute, and that is one allowance for every table and every player. Four things keep Banca inside it, and keep the game whole when it is spent.
+
+- *Each call carries only what it needs.* Until the model has looked at the table it is told only to look, in a sentence, and the instructions for deciding are kept for the call in which it decides. Once it has looked, it is offered only the tool that finishes.
+- *Looking is done once.* The tools that only look are always wanted together. Some models ask for all of them in one reply and some for one at a time, each at the price of another round trip, so when a model reaches for any of them the runtime fetches the rest alongside. Every decision is then two asks of the model, whichever model it is. The model still chooses to look and still makes the decision; what it is spared is asking four times for four things it always wants.
+- *A busy model is left alone.* One that says it has had enough also says for how long, and is not asked again until then. When all of them are resting that is known at once, with no request made to be refused.
+- *The game does not depend on it.* Every mood is also a set of numbers, and with no model to ask the hand is played by them: the same figures and the same kind of decision, with nobody to put it into words. This is what a player sees when the allowance runs out, and it is still a hand of poker. The trace says which decisions were played this way.
+
+Measured on the free tier, playing as fast as the server allows: the model made about eight decisions before running dry as first built, and about seventeen after these changes, and in both cases every decision after that was still played properly rather than checked or folded.
+
 **Moods.** At poker Banca does not always play the same way, or it could simply be worked out. It has four moods, each a different reading of the same figures: *steady*, which bets good hands and folds bad ones; *patient*, which waits for strong hands and gives bets a lot of respect; *pressing*, which bets and raises with more hands and makes it cost to stay in; and *sly*, which hides strong hands behind checks and calls. A mood holds for two to five hands at a table and then gives way to a different one, so a player who has read it has a little while to use that and no way of knowing when it stops being true. Each table has its own.
 
 Two things about how it is done. Which mood Banca is in is never shown while a hand is live: the step is called the same whatever the mood, and what it was is revealed with the rest of the reasoning once the hand is over. And the bluffing is not left to the model. A model told to bluff one time in five does it always or never, so the server throws the dice each turn, at the mood's own rate, and tells the model how they fell.
@@ -248,8 +257,8 @@ A lobby, a picker and table for each game in both forms, the profile, the league
 
 ## 10. Error handling
 
-- Illegal or missing agent action → safest legal fallback (check if free, otherwise fold; stand in blackjack; no bet in roulette). The trace shows the fallback.
-- Model failure, timeout, or a rate-limited free tier → same fallback, logged. A table never stalls because a provider is throttling.
+- An illegal action from the agent → the engine refuses it and the safest legal one is played instead (check if free, otherwise fold).
+- Model failure, timeout, or a rate-limited free tier → at poker the hand is played by the lines of the mood Banca is in, from the same figures (8.9); the coach and the analyst answer from the figures. The trace says so. A table never stalls, and never goes limp, because a provider is throttling.
 - Human disconnect → the table waits. At a table for one the round is as it was left for three minutes; at a shared one the turn timer plays the safe action when it runs out. Reconnecting restores the seat's view either way.
 - The same table opened twice → the newer connection takes it over and the older is told it has been replaced.
 - Cold start on the free hosting tier → the client shows an explicit "waking up the table" state rather than appearing broken.

@@ -8,6 +8,7 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.serialization.json.Json
@@ -22,6 +23,10 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import org.slf4j.LoggerFactory
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Any hosted model that speaks the OpenAI chat completions format, which
@@ -45,6 +50,9 @@ class OpenAiCompatibleProvider(
             setBody(request(messages, tools).toString())
         }
         val body = response.bodyAsText()
+        if (response.status == HttpStatusCode.TooManyRequests) {
+            throw RateLimited(retryAfter(response.headers["retry-after"], body), "The model answered ${response.status}: ${body.take(200)}")
+        }
         check(response.status.isSuccess()) { "The model answered ${response.status}: ${body.take(200)}" }
 
         val answer = Json.parseToJsonElement(body).jsonObject
@@ -151,6 +159,22 @@ class OpenAiCompatibleProvider(
     }
 
     companion object {
+        /** What is assumed when a model says it is busy without saying for how long. */
+        private val USUAL_WAIT = 10.seconds
+
+        /**
+         * How long a busy model asked to be left alone: from the header meant
+         * for it, or failing that from the sentence it wrote, such as
+         * "Please try again in 7.36s" or "in 1m12.5s".
+         */
+        fun retryAfter(header: String?, body: String): Duration {
+            header?.trim()?.toDoubleOrNull()?.let { return it.seconds }
+            val said = Regex("try again in (?:(\\d+)m)?([\\d.]+)(ms|s)").find(body) ?: return USUAL_WAIT
+            val (minutes, amount, unit) = said.destructured
+            val rest = amount.toDoubleOrNull() ?: return USUAL_WAIT
+            return (minutes.toIntOrNull() ?: 0).minutes + if (unit == "ms") rest.milliseconds else rest.seconds
+        }
+
         fun groq(apiKey: String, model: String) =
             OpenAiCompatibleProvider(baseUrl = "https://api.groq.com/openai/v1", apiKey = apiKey, model = model)
     }
