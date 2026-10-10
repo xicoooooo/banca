@@ -1,8 +1,12 @@
 package com.banca.ws
 
+import com.banca.games.poker.Action
 import com.banca.module
 import com.banca.players.Game
 import com.banca.players.RoundOutcome
+import com.banca.sessions.SeatDriver
+import com.banca.sessions.TableView
+import com.banca.sessions.TraceEvent
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocket
@@ -27,6 +31,7 @@ import java.util.UUID
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -278,6 +283,58 @@ class PokerRoomTest {
                 sayHello(otherToken)
                 assertEquals("full", nextOf("error").getValue("code").jsonPrimitive.content)
             }
+        }
+    }
+
+    @Test
+    fun `Banca has its say in the chat once a hand is over, marked as its own`() = testApplication {
+        val talkative = object : SeatDriver {
+            override suspend fun decide(view: TableView, trace: suspend (TraceEvent) -> Unit): Action =
+                if (view.legal!!.canCheck) Action.Check else Action.Call
+
+            override fun remark(view: TableView, net: Long): String? =
+                "Seat ${view.yourSeat}, hand ${view.handNumber}.".takeIf { view.result != null }
+        }
+        val guest = TestPlayers()
+        application {
+            module(
+                pokerTables = PokerTablesConfig(timings = quick, opponent = { talkative }, random = { Random(3) }),
+                players = guest.players,
+                keepTablesFor = 150.milliseconds,
+            )
+        }
+
+        sockets().webSocket("/ws/poker/tables/emerald") {
+            sayHello(guest.token)
+            assertTrue(nextOf("chat_log").getValue("lines").jsonArray.isEmpty())
+
+            var over = false
+            var line: JsonObject? = null
+            withTimeout(8_000) {
+                while (line == null) {
+                    val message = receiveJson()
+                    when (message.type) {
+                        "chat" -> {
+                            assertTrue(over, "nothing is said while the hand is live")
+                            line = message.getValue("line").jsonObject
+                        }
+                        "state" -> {
+                            val view = message.getValue("view").jsonObject
+                            if (view.getValue("table") is JsonNull) continue
+                            over = view.phase == "results"
+                            if (view.myTurn) say("""{"type":"act","action":"fold"}""")
+                        }
+                    }
+                }
+            }
+
+            assertEquals("Banca", line!!.getValue("from").jsonPrimitive.content)
+            assertEquals("Seat 0, hand 1.", line!!.getValue("text").jsonPrimitive.content)
+            assertTrue(line!!.getValue("banca").jsonPrimitive.boolean)
+
+            // A player's own lines are never marked as Banca's, whatever they call themselves.
+            say("""{"type":"chat","say":"good_luck"}""")
+            assertFalse(nextOf("chat").getValue("line").jsonObject.getValue("banca").jsonPrimitive.boolean)
         }
     }
 

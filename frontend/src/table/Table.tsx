@@ -7,6 +7,7 @@ import { Loading } from '../casino/Loading'
 import { prefersReducedMotion } from '../casino/motion'
 import { ActionBar } from './ActionBar'
 import { AgentThinking } from './AgentThinking'
+import { BancaSays } from './BancaSays'
 import { Board } from './Board'
 import { HandResult } from './HandResult'
 import { Pot } from './Pot'
@@ -31,7 +32,7 @@ function statusOf(view: TableView): Status {
 }
 
 export function Table({ onLeave }: { onLeave?: () => void }) {
-  const { view, reasoning, connection, error, refusals, send, broke, staked, coach, askCoach } = useTable()
+  const { view, reasoning, said, connection, error, refusals, send, broke, staked, coach, askCoach } = useTable()
   const { actions, showdown, potPulse } = usePresentation(view)
   const [showReasoning, setShowReasoning] = useState(false)
   const [showCoach, setShowCoach] = useState(false)
@@ -118,13 +119,16 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
         {broke ? (
           <OutOfChips broke={broke} onRetry={() => send({ type: 'next_hand' })} onLeave={onLeave} />
         ) : view.result ? (
-          <HandResult
-            view={view}
-            opponentName={opponent.name}
-            onNextHand={nextHand}
-            leaving={leaving}
-            onShowReasoning={reasoning.events.length > 0 ? () => setShowReasoning(true) : undefined}
-          />
+          <>
+            {said && <BancaSays key={view.handNumber} text={said} afterShowdown={Object.keys(view.result.showdown).length > 0} />}
+            <HandResult
+              view={view}
+              opponentName={opponent.name}
+              onNextHand={nextHand}
+              leaving={leaving}
+              onShowReasoning={reasoning.events.length > 0 ? () => setShowReasoning(true) : undefined}
+            />
+          </>
         ) : view.legal ? (
           <>
             <PokerCoachReason coach={coach} />

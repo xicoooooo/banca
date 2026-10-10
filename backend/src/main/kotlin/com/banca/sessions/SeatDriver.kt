@@ -29,6 +29,13 @@ data class TraceEvent(
 /** Whatever decides for a seat that no human is sitting in. */
 fun interface SeatDriver {
     suspend fun decide(view: TableView, trace: suspend (TraceEvent) -> Unit): Action
+
+    /**
+     * Something to say to the table now that a hand is over, or null to say
+     * nothing. [view] is the seat's own view of the finished hand, and [net]
+     * what the hand came to for it.
+     */
+    fun remark(view: TableView, net: Long): String? = null
 }
 
 /**

@@ -262,6 +262,16 @@ The opponent's full reasoning for a hand, sent once, straight after the `state` 
 
 Not sent for a hand in which the opponent never had to decide.
 
+### `remark`
+
+Something the opponent has to say about a hand, sent at most once, after the `state` that ends it and any `reveal`.
+
+```json
+{ "type": "remark", "handNumber": 1, "text": "Caught. It happens." }
+```
+
+Most hands pass without one. The line is one of a set written for how the hand ended and the mood the opponent was in; no model is asked for it. It is about the hand numbered, and is not worth showing once another has been dealt. At a shared table the same thing arrives as a line of `chat`.
+
 ### `coach_trace` and `advice`
 
 Sent only after the player asks the coach with `advise`.
@@ -720,6 +730,8 @@ Sent to everyone in the room whenever the phase changes or anyone's bets do, eac
 ```
 
 `chat_log` is sent on walking in: what has been said lately, and the phrases that can be said with one press. `chat` is a line as it is spoken, already tidied if it was typed.
+
+A line also carries `banca`, which is `true` only for a line the house wrote. At a poker table Banca sometimes has a word to say once a hand is over, and it arrives as a `chat` line from `Banca` with `banca` set. A player may call themselves anything, so it is this, and not the name, that says a line is Banca's own.
 
 ### `trace`, `read` and `error`
 

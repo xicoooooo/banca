@@ -71,6 +71,7 @@ class PokerConnection(
     /** What the player did this hand, by name, for the record of how they play. */
     private val actions = mutableMapOf<String, Int>()
     private var recordedHand = 0
+    private var remarkedHand = 0
 
     private var seated = false
 
@@ -191,6 +192,16 @@ class PokerConnection(
             emit(ServerMessage.Reveal(table.handNumber, reasoning.toList()))
             reasoning.clear()
         }
+        remark()
+    }
+
+    /** Passes on what the opponent has to say about a finished hand, if anything, and once only. */
+    private suspend fun remark() {
+        if (!table.isHandComplete || remarkedHand == table.handNumber) return
+        remarkedHand = table.handNumber
+        val net = table.summary(OPPONENT_SEAT)?.net ?: return
+        val text = runCatching { opponent.remark(table.view(OPPONENT_SEAT), net) }.getOrNull() ?: return
+        emit(ServerMessage.Remark(table.handNumber, text))
     }
 
     private suspend fun record() {

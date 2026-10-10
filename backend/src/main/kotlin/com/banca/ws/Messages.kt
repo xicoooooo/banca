@@ -57,6 +57,11 @@ sealed interface ServerMessage {
     @SerialName("reveal")
     data class Reveal(val handNumber: Int, val events: List<TraceEvent>) : ServerMessage
 
+    /** Something the opponent has to say about a hand, once it is over. */
+    @Serializable
+    @SerialName("remark")
+    data class Remark(val handNumber: Int, val text: String) : ServerMessage
+
     /** One step the coach took. Nothing is hidden: the coach sees only what the player sees. */
     @Serializable
     @SerialName("coach_trace")

@@ -38,6 +38,14 @@ class RoomChat {
         return line
     }
 
+    /** Takes a line from Banca, which has no clock to wait on: it speaks only when a hand ends. */
+    fun fromBanca(text: String): ChatLine {
+        val line = ChatLine(from = "Banca", text = text, emote = false, banca = true)
+        lines.addLast(line)
+        while (lines.size > KEPT) lines.removeFirst()
+        return line
+    }
+
     fun forget(playerId: UUID) {
         lastSpoke.remove(playerId)
     }

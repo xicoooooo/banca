@@ -109,6 +109,45 @@ class TableSocketTest {
     }
 
     @Test
+    fun `the opponent has its say once the hand is over, and only once`() = testApplication {
+        val talkative = object : SeatDriver {
+            override suspend fun decide(view: com.banca.sessions.TableView, trace: suspend (TraceEvent) -> Unit): Action =
+                if (view.legal!!.canCheck) Action.Check else Action.Call
+
+            override fun remark(view: com.banca.sessions.TableView, net: Long): String = "Hand ${view.handNumber} came to $net."
+        }
+        val guest = TestPlayers()
+        application {
+            module(TableSocketConfig(opponentDelay = Duration.ZERO, opponent = { talkative }, random = { Random(3) }), players = guest.players)
+        }
+
+        socketClient().webSocket("/ws/table") {
+            sayHello(guest.token)
+            var handOver = false
+            val remarks = mutableListOf<JsonObject>()
+
+            // The first hand is folded, and the second asked for, by which time anything said about the first has been heard.
+            while (true) {
+                val message = receiveMessage()
+                if (message.type == "remark") {
+                    assertTrue(handOver, "nothing is said while the hand is live")
+                    remarks += message
+                }
+                if (message.type != "state") continue
+                val view = message.getValue("view").jsonObject
+                if (view.getValue("handNumber").jsonPrimitive.int == 2) break
+                handOver = view["result"] !is JsonNull
+                if (handOver) send(Frame.Text("""{"type":"next_hand"}"""))
+                else if (view["actorSeat"]?.takeIf { it !is JsonNull }?.jsonPrimitive?.int == 0) send(Frame.Text("""{"type":"act","action":"fold"}"""))
+            }
+
+            assertEquals(1, remarks.size)
+            assertEquals(1, remarks.single().getValue("handNumber").jsonPrimitive.int)
+            assertTrue(remarks.single().getValue("text").jsonPrimitive.content.startsWith("Hand 1 came to "))
+        }
+    }
+
+    @Test
     fun `the opponent's reasoning is held back until the hand is over`() = testApplication {
         val chatty = SeatDriver { view, trace ->
             trace(TraceEvent(TraceEvent.TOOL, "Looked at the table", detail = "SECRET my cards are strong"))

@@ -2394,6 +2394,38 @@ button {
   color: var(--color-ivory);
 }
 
+/* Banca's word on a hand: its mark, and the line in quotes. */
+.banca-says {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  /* Kept to the room the controls leave spare, so the table does not shift when it speaks. */
+  padding-bottom: 0.125rem;
+  font-size: 0.9rem;
+  font-style: italic;
+  line-height: 1.15;
+  text-align: center;
+  text-wrap: balance;
+  color: var(--color-ivory);
+}
+
+.banca-says img {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+}
+
+.chat-line[data-banca='true'] .label {
+  color: var(--color-gold-bright);
+}
+
+.chat-line[data-banca='true'] > span:last-child {
+  font-style: italic;
+}
+
 .chat-log {
   flex: 1;
   min-height: 7rem;

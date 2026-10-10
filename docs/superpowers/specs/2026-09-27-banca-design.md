@@ -231,6 +231,8 @@ Measured on the free tier, playing as fast as the server allows: the model made 
 
 Two things about how it is done. Which mood Banca is in is never shown while a hand is live: the step is called the same whatever the mood, and what it was is revealed with the rest of the reasoning once the hand is over. And the bluffing is not left to the model. A model told to bluff one time in five does it always or never, so the server throws the dice each turn, at the mood's own rate, and tells the model how they fell.
 
+**What it says.** When a hand is over Banca sometimes has a word to say about it: a dry line on a pot it took, a bluff that was called, a hand it laid down. Most hands pass without one, and a big pot is likelier to draw one than a small. The lines are written down, chosen by how the hand ended and the mood it was in, and no model is asked for them: the free allowance is shared by every table, and is kept for deciding hands. Nothing is said while a hand is live, and a line after a fold says nothing of the cards folded. At a shared table it is a line in the chat, marked as Banca's own so that no player's name can pass for it.
+
 ### 8.10 MCP tools (`agents`)
 One small MCP server per role, connected to the runtime over an in-process transport: the same protocol as a separate server, without a second process to host.
 
@@ -289,7 +291,7 @@ A lobby, a picker and table for each game in both forms, the profile, the league
 | 5. Platform | Lobby, shared wallet, guest identity and Google sign-in, tables that survive reconnects, shared tables and rooms at all three games, chat | Done |
 | 6. Player experience | Profile and stats, daily rewards, bust protection, coach at all three games, grading after a blackjack round, tutorial, leagues and trophies | Done |
 | 7. Polish and launch | PWA install, accessibility, session reminder, architecture diagram: done. Demo video: to do | In progress |
-| 8. Stretch | Private tables by invitation: done. Banca's moods at poker, daily missions, friends: done. Unlocks by level, replay, spectator, tournaments | Open |
+| 8. Stretch | Private tables by invitation: done. Banca's moods at poker and what it says after a hand, daily missions, friends: done. Unlocks by level, replay, spectator, tournaments | Open |
 
 Phases are taken in order. The first draft allowed 20 to 27 weeks; Phases 0 to 6 were done well inside that, with nothing cut from Phase 6.
 

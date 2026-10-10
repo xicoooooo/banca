@@ -93,9 +93,12 @@ data class RoomPlayerView(val name: String, val staked: Long, val net: Long?, va
 @Serializable
 data class CrowdSpot(val kind: String, val number: Int?, val other: Int?, val amount: Long, val players: Int)
 
-/** Something said in the room: one of its set phrases, or a message a player typed. */
+/**
+ * Something said in the room: one of its set phrases, or a message a player
+ * typed. [banca] marks a line as Banca's own, which no player's name can do.
+ */
 @Serializable
-data class ChatLine(val from: String, val text: String, val emote: Boolean)
+data class ChatLine(val from: String, val text: String, val emote: Boolean, val banca: Boolean = false)
 
 @Serializable
 data class RoomView(

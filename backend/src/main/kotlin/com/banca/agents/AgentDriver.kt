@@ -20,6 +20,8 @@ class AgentConfig(
     val maxModelCalls: Int = 6,
     val timeout: Duration = 60.seconds,
     val random: Random = Random.Default,
+    /** Decides when Banca has something to say and what. Its own dice, so that talking never changes how a hand is played. */
+    val voice: Random = Random.Default,
 )
 
 /**
@@ -45,6 +47,10 @@ class AgentDriver(
 
     /** How Banca is playing at this table for the time being. Each table has its own. */
     private val moods = MoodSwings(config.random)
+
+    /** The hand it last bet or raised in on a turn the dice said to bluff, to be owned up to or not once it is over. */
+    private var bluffedIn = 0
+    private var lastRemark: String? = null
 
     override suspend fun decide(view: TableView, trace: suspend (TraceEvent) -> Unit): Action {
         val tools = PokerTools(view, config.random)
@@ -92,6 +98,7 @@ class AgentDriver(
 
         tools.decision?.let { decided ->
             trace(TraceEvent(TraceEvent.DECISION, "Decided to ${PokerTools.describe(decided)}"))
+            if (bluffing && decided.isPush) bluffedIn = view.handNumber
             return decided
         }
 
@@ -112,8 +119,16 @@ class AgentDriver(
                 detail = "Banca's model could not be asked this turn because $problem, so it played by the lines of the mood it was in.",
             ),
         )
+        if (bluffing && played.isPush) bluffedIn = view.handNumber
         return played
     }
+
+    /** A dry word about the hand just played, in the mood it was played in. Most hands pass without one. */
+    override fun remark(view: TableView, net: Long): String? =
+        Banter.after(view, net, moods.now, bluffed = bluffedIn == view.handNumber, random = config.voice, not = lastRemark)
+            ?.also { lastRemark = it }
+
+    private val Action.isPush: Boolean get() = this is Action.Bet || this is Action.Raise
 
     /** Reads the function-call spelling, `submit_action("raise", 300)`. */
     private fun positionalSubmission(afterName: String): JsonObject? {

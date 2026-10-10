@@ -565,6 +565,14 @@ class PokerRoom(
             val reveal = encode(PokerRoomServerMessage.Reveal(handNumber, reasoning.toList()))
             members.values.filter { it.connected }.forEach { it.send(reveal) }
         }
+
+        // And now and then Banca has a word to say about it.
+        if (withBanca && finished.players.any { it.seat == BANCA_SEAT }) {
+            val net = handSummaryOf(finished, BANCA_SEAT)?.net ?: return
+            val remark = runCatching { banca.remark(tableViewOf(finished, handNumber, names, BANCA_SEAT), net) }.getOrNull() ?: return
+            val said = encode(PokerRoomServerMessage.Said(chat.fromBanca(remark)))
+            members.values.filter { it.connected }.forEach { it.send(said) }
+        }
     }
 
     // ------------------------------------------------------------------ the views

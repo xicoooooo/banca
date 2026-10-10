@@ -13,6 +13,7 @@ import { sound } from '../casino/sound'
 import { useSecondsUntil } from '../casino/useSecondsUntil'
 import { ActionBar } from './ActionBar'
 import { AgentThinking } from './AgentThinking'
+import { BancaSays } from './BancaSays'
 import { Board } from './Board'
 import { Pot } from './Pot'
 import { PokerCoachPanel, PokerCoachPill, PokerCoachReason } from './PokerCoach'
@@ -163,11 +164,13 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
   const latest = chat.findLast((line) => !muted.has(line.from))
   const [quietAfter, setQuietAfter] = useState(0)
   const spoken = chat.length > quietAfter && latest === chat.at(-1)
+  // Banca waits for the cards to turn before it speaks, so it is given longer to be read.
+  const readFor = chat.at(-1)?.banca ? 6_500 : 4_000
   useEffect(() => {
     if (chat.length === 0) return
-    const timer = setTimeout(() => setQuietAfter(chat.length), 4_000)
+    const timer = setTimeout(() => setQuietAfter(chat.length), readFor)
     return () => clearTimeout(timer)
-  }, [chat.length])
+  }, [chat.length, readFor])
 
   // A private table before its host has started the game: who is here, and the link to bring the rest.
   if (room && room.byInvite && !room.started && !broke && connection !== 'gone') {
@@ -342,11 +345,14 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
           </p>
         )}
         <StakedNote amount={staked} />
-        {spoken && latest && !showRoom && (
-          <p className="chat-toast rise-in pb-2" key={chat.length}>
-            <span className="label tracking-[0.08em]!">{latest.from}</span> {latest.text}
-          </p>
-        )}
+        {spoken && latest && !showRoom &&
+          (latest.banca ? (
+            <BancaSays key={chat.length} text={latest.text} afterShowdown={Object.keys(view.result?.showdown ?? {}).length > 0} />
+          ) : (
+            <p className="chat-toast rise-in pb-2" key={chat.length}>
+              <span className="label tracking-[0.08em]!">{latest.from}</span> {latest.text}
+            </p>
+          ))}
 
         {/* How long the table will wait for whoever it is waiting on. */}
         {room.phase === 'playing' && view.actorSeat !== null && view.actorSeat !== BANCA_SEAT && (

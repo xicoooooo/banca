@@ -156,6 +156,9 @@ class MoodSwings(private val random: Random, private val stay: IntRange = 2..5) 
     private var hand = -1
     private var handsLeft = random.nextInt(stay.first, stay.last + 1)
 
+    /** The mood as it stands, without a hand being counted against it. */
+    val now: Mood get() = mood
+
     /** The mood for the hand numbered [handNumber], and whether this is the first it has been asked about that hand. */
     fun forHand(handNumber: Int): Pair<Mood, Boolean> {
         if (handNumber == hand) return mood to false

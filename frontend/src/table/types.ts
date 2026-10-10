@@ -69,6 +69,7 @@ export type ServerMessage =
   | { type: 'state'; view: TableView }
   | { type: 'trace'; handNumber: number; event: TraceEvent }
   | { type: 'reveal'; handNumber: number; events: TraceEvent[] }
+  | { type: 'remark'; handNumber: number; text: string }
   | { type: 'coach_trace'; handNumber: number; event: TraceEvent }
   | { type: 'advice'; handNumber: number; advice: PokerAdvice }
   | { type: 'error'; message: string }

@@ -18,6 +18,8 @@ const NO_REASONING: Reasoning = { handNumber: 0, events: [], revealed: false }
 export function useTable() {
   const [view, setView] = useState<TableView | null>(null)
   const [reasoning, setReasoning] = useState<Reasoning>(NO_REASONING)
+  /** What the opponent said about a hand once it was over, and which hand that was. */
+  const [remark, setRemark] = useState<{ handNumber: number; text: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   // Counts refusals, so the same error twice in a row is still seen as news.
   const [refusals, setRefusals] = useState(0)
@@ -52,6 +54,9 @@ export function useTable() {
       case 'reveal':
         setReasoning({ handNumber: message.handNumber, events: message.events, revealed: true })
         break
+      case 'remark':
+        setRemark({ handNumber: message.handNumber, text: message.text })
+        break
       case 'coach_trace':
         coaching.heardStep(message.event)
         break
@@ -72,5 +77,8 @@ export function useTable() {
 
   // Sitting back down after a drop gives the controls back, as a refusal does:
   // whatever was pressed as the line went down was never heard.
-  return { view, reasoning, connection, error, refusals: refusals + sittings, send, broke: chips.broke, staked: chips.staked, coach: coaching.coach, askCoach }
+  // Only the hand on the table is spoken of: a remark does not outlast the hand it was made about.
+  const said = view?.result && remark?.handNumber === view.handNumber ? remark.text : null
+
+  return { view, reasoning, said, connection, error, refusals: refusals + sittings, send, broke: chips.broke, staked: chips.staked, coach: coaching.coach, askCoach }
 }

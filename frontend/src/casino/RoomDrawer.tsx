@@ -126,7 +126,7 @@ export function RoomDrawer({ name, players, chat, phrases, onSay, onType, muted,
           <div className="chat-log" aria-live="polite" aria-label="What has been said">
             {heard.length === 0 && <p className="py-6 text-center text-sm text-muted">Nobody has said anything yet. Say hello.</p>}
             {heard.map((line, index) => (
-              <p key={index} className="chat-line">
+              <p key={index} className="chat-line" data-banca={line.banca === true}>
                 <span className="label tracking-[0.08em]!">{line.from}</span>
                 <span className={line.emote ? 'text-2xl leading-none' : 'text-sm text-ivory'}>{line.text}</span>
               </p>
