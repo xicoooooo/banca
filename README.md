@@ -19,6 +19,7 @@ A multi-game social casino played with virtual chips: Texas Hold'em, blackjack a
 - **One bankroll.** Chips, history and statistics belong to the player and follow them from table to table. Play as a guest at once, or sign in with Google to keep your profile and reach it from another device.
 - **Chips cannot be bought.** They are won at the tables, or come from a daily reward that grows with a streak, three small missions a day, league prizes, and a small stake from the house for a player who has run out.
 - **A profile built from real rounds.** Levels, achievements, a bankroll chart and statistics for each game, all worked out from the rounds actually played.
+- **Card backs and felts to collect.** Six backs and five felts, opened by levels, achievements, leagues and trophies, and never bought. Choose them on your profile and every table changes.
 - **Friends.** Give a friend your code, see when they are at a table, and join them there.
 - **Weekly leagues.** Signed-in players are ranked each week by what they won at the tables, in five leagues from Bronze to Emerald. The top three go up and are paid a prize, and keep a dated trophy for good, shown on a public page anyone can open from the leaderboard.
 

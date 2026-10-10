@@ -84,7 +84,7 @@ export function Card({ card, dealDelay, dealFrom, flipDelay = 0, liftable = fals
             </>
           )}
         </div>
-        <div className="pcard__face pcard__back">B</div>
+        <div className="pcard__face pcard__back card-back">B</div>
       </div>
     </div>
   )

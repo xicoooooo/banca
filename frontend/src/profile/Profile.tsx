@@ -1,3 +1,4 @@
+import { TableStylePicker } from '../style/StylePicker'
 import { REMINDER_CHOICES, useReminderSetting } from '../casino/session'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { AnimatedNumber } from '../casino/AnimatedNumber'
@@ -81,6 +82,12 @@ export function Profile({ onLeave, onPlay, onLearn, signInFailed = false }: Prof
                 </button>
               ))}
             </div>
+          </Section>
+          <Section title="Backs and felts" delay={6}>
+            <p className="pb-4 text-sm leading-relaxed text-ivory/80">
+              How your cards and tables look. Nothing here is bought: each one is opened by playing.
+            </p>
+            <TableStylePicker dashboard={dashboard} />
           </Section>
           <ReminderSetting />
           {dashboard.recent.length > 0 && <Recent recent={dashboard.recent} />}

@@ -291,7 +291,7 @@ A lobby, a picker and table for each game in both forms, the profile, the league
 | 5. Platform | Lobby, shared wallet, guest identity and Google sign-in, tables that survive reconnects, shared tables and rooms at all three games, chat | Done |
 | 6. Player experience | Profile and stats, daily rewards, bust protection, coach at all three games, grading after a blackjack round, tutorial, leagues and trophies | Done |
 | 7. Polish and launch | PWA install, accessibility, session reminder, architecture diagram: done. Demo video: to do | In progress |
-| 8. Stretch | Private tables by invitation: done. Banca's moods at poker and what it says after a hand, daily missions, friends: done. Unlocks by level, replay, spectator, tournaments | Open |
+| 8. Stretch | Private tables by invitation: done. Banca's moods at poker and what it says after a hand, daily missions, friends, card backs and felts opened by level, league and trophy: done. Replay, spectator, tournaments | Open |
 
 Phases are taken in order. The first draft allowed 20 to 27 weeks; Phases 0 to 6 were done well inside that, with nothing cut from Phase 6.
 
@@ -342,4 +342,4 @@ The first draft left three questions open and made some choices the build later 
 ## 15. Open questions
 
 - **Grading a poker hand.** Blackjack is graded exactly from the figures (7.7). Poker has no single right play, so its grading needs a standard that is fair without pretending to be exact. The bounds the poker coach is held to are a start: a decision could be marked only when it falls outside them.
-- **What levels unlock.** Higher-stake tables are the obvious answer, once there are enough players for more tables to be worth having.
+- **What else levels unlock.** They open card backs and felts now: six backs and five felts, by level, achievements, league and trophy. What a player has opened is worked out from their record, never stored, and a league reached stays open after a bad week sends them down. Which one is chosen is kept on the device, like the sound setting, since it changes only their own view. Higher-stake tables are the obvious next thing, once there are enough players for more tables to be worth having.

@@ -24,6 +24,82 @@
 
 :root {
   color-scheme: dark;
+}
+
+/* The room and the felt, as colours a player's chosen felt can replace. The
+   room runs from its lit centre to its dark edge; the felt and the lights are
+   given as bare numbers so that each use can set its own strength. */
+:root,
+.swatch__felt[data-style='emerald'] {
+  --room-1: #0b604b;
+  --room-2: #073d31;
+  --room-3: #052e26;
+  --room-4: #031e19;
+  --felt-1: 15 122 95;
+  --felt-2: 7 61 49;
+  --felt-3: 3 30 25;
+  --felt-glow: 11 96 75;
+  --light-a: 20 160 122;
+  --light-b: 18 138 107;
+}
+
+:root[data-felt='midnight'],
+.swatch__felt[data-style='midnight'] {
+  --room-1: #1d3a6e;
+  --room-2: #12264d;
+  --room-3: #0b1833;
+  --room-4: #060d1f;
+  --felt-1: 38 84 160;
+  --felt-2: 18 40 84;
+  --felt-3: 8 16 36;
+  --felt-glow: 30 64 130;
+  --light-a: 60 120 220;
+  --light-b: 46 100 190;
+}
+
+:root[data-felt='burgundy'],
+.swatch__felt[data-style='burgundy'] {
+  --room-1: #6e1d2c;
+  --room-2: #4a121d;
+  --room-3: #300b13;
+  --room-4: #1a060a;
+  --felt-1: 150 40 58;
+  --felt-2: 80 20 30;
+  --felt-3: 36 8 14;
+  --felt-glow: 120 30 46;
+  --light-a: 200 70 90;
+  --light-b: 170 50 70;
+}
+
+:root[data-felt='slate'],
+.swatch__felt[data-style='slate'] {
+  --room-1: #3d4650;
+  --room-2: #2a3138;
+  --room-3: #1c2126;
+  --room-4: #101316;
+  --felt-1: 96 110 124;
+  --felt-2: 52 60 68;
+  --felt-3: 22 26 30;
+  --felt-glow: 80 92 104;
+  --light-a: 150 165 180;
+  --light-b: 120 135 150;
+}
+
+:root[data-felt='royal'],
+.swatch__felt[data-style='royal'] {
+  --room-1: #4a2a7a;
+  --room-2: #321b55;
+  --room-3: #201138;
+  --room-4: #120920;
+  --felt-1: 110 64 180;
+  --felt-2: 58 32 100;
+  --felt-3: 26 14 46;
+  --felt-glow: 90 50 150;
+  --light-a: 160 100 230;
+  --light-b: 130 80 200;
+}
+
+:root {
 
   --glass: rgb(0 0 0 / 0.18);
   --glass-strong: rgb(0 0 0 / 0.3);
@@ -56,7 +132,7 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background: var(--color-felt-deepest);
+  background: var(--room-4);
   color: var(--color-ivory);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -96,10 +172,10 @@ button {
   pointer-events: none;
   background: radial-gradient(
     120% 85% at 50% 40%,
-    #0b604b 0%,
-    #073d31 36%,
-    #052e26 66%,
-    #031e19 100%
+    var(--room-1) 0%,
+    var(--room-2) 36%,
+    var(--room-3) 66%,
+    var(--room-4) 100%
   );
   transition: filter var(--t-major) var(--ease-soft);
 }
@@ -136,7 +212,7 @@ button {
 .casino-bg__light--emerald {
   right: -30vmax;
   bottom: -34vmax;
-  background: radial-gradient(circle, rgb(20 160 122 / 0.22), transparent 62%);
+  background: radial-gradient(circle, rgb(var(--light-a) / 0.22), transparent 62%);
   animation: drift-b 33s ease-in-out infinite alternate;
 }
 
@@ -146,7 +222,7 @@ button {
   width: 90vmin;
   height: 90vmin;
   margin: -45vmin 0 0 -45vmin;
-  background: radial-gradient(circle, rgb(18 138 107 / 0.28), transparent 65%);
+  background: radial-gradient(circle, rgb(var(--light-b) / 0.28), transparent 65%);
   animation: breathe 14s ease-in-out infinite alternate;
 }
 
@@ -229,15 +305,15 @@ button {
   border-radius: 44px;
   background: radial-gradient(
     115% 75% at 50% 42%,
-    rgb(15 122 95 / 0.5),
-    rgb(7 61 49 / 0.34) 55%,
-    rgb(3 30 25 / 0.2)
+    rgb(var(--felt-1) / 0.5),
+    rgb(var(--felt-2) / 0.34) 55%,
+    rgb(var(--felt-3) / 0.2)
   );
   box-shadow:
     inset 0 1px 1px rgb(255 255 255 / 0.06),
     inset 0 0 70px rgb(0 0 0 / 0.38),
     0 34px 80px rgb(0 0 0 / 0.45),
-    0 0 130px rgb(11 96 75 / 0.22);
+    0 0 130px rgb(var(--felt-glow) / 0.22);
 }
 
 /* The printed line of a real table, kept faint: depth, not a border. */
@@ -396,18 +472,79 @@ button {
 
 .pcard__back {
   transform: rotateY(180deg);
+}
+
+/* The back of a card: a lattice over a ground, a border and Banca's initial.
+   Each of the backs a player can collect is these five colours and no more. */
+.card-back {
+  --back-line: 217 164 65 / 0.16;
+  --back-hi: #0b604b;
+  --back-lo: #052e26;
+  --back-edge: #f5f1e8;
+  --back-ink: var(--color-gold);
+  --back-pitch: 7px;
+
   background:
-    repeating-linear-gradient(45deg, rgb(217 164 65 / 0.16) 0 1px, transparent 1px 7px),
-    repeating-linear-gradient(-45deg, rgb(217 164 65 / 0.16) 0 1px, transparent 1px 7px),
-    radial-gradient(circle at 50% 40%, #0b604b, #052e26);
-  border: calc(var(--w) * 0.05) solid #f5f1e8;
+    repeating-linear-gradient(45deg, rgb(var(--back-line)) 0 1px, transparent 1px var(--back-pitch)),
+    repeating-linear-gradient(-45deg, rgb(var(--back-line)) 0 1px, transparent 1px var(--back-pitch)),
+    radial-gradient(circle at 50% 40%, var(--back-hi), var(--back-lo));
+  border: calc(var(--w) * 0.05) solid var(--back-edge);
   display: grid;
   place-items: center;
   font-family: var(--font-serif);
   font-size: 1.5em;
   font-weight: 700;
-  color: var(--color-gold);
+  color: var(--back-ink);
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+}
+
+:root[data-cards='midnight'] .card-back:not([data-style]),
+.card-back[data-style='midnight'] {
+  --back-line: 200 214 235 / 0.18;
+  --back-hi: #24407c;
+  --back-lo: #0a1228;
+  --back-ink: #d5deee;
+}
+
+:root[data-cards='burgundy'] .card-back:not([data-style]),
+.card-back[data-style='burgundy'] {
+  --back-line: 241 199 91 / 0.2;
+  --back-hi: #8a2436;
+  --back-lo: #330a12;
+  --back-ink: var(--color-gold-bright);
+}
+
+:root[data-cards='ivory'] .card-back:not([data-style]),
+.card-back[data-style='ivory'] {
+  --back-line: 11 96 75 / 0.26;
+  --back-hi: #fbf7ec;
+  --back-lo: #e2d7bd;
+  --back-edge: #0b604b;
+  --back-ink: #0b604b;
+  text-shadow: none;
+}
+
+:root[data-cards='gilded'] .card-back:not([data-style]),
+.card-back[data-style='gilded'] {
+  --back-line: 241 199 91 / 0.42;
+  --back-hi: #2a2110;
+  --back-lo: #080604;
+  --back-edge: #d9a441;
+  --back-ink: var(--color-gold-bright);
+  --back-pitch: 5px;
+}
+
+/* The champion's back is cut square where the others are cut on the slant, and lit from its middle. */
+:root[data-cards='champion'] .card-back:not([data-style]),
+.card-back[data-style='champion'] {
+  --back-edge: #f1c75b;
+  --back-ink: #fff3c9;
+  background:
+    repeating-linear-gradient(0deg, rgb(241 199 91 / 0.2) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(90deg, rgb(241 199 91 / 0.2) 0 1px, transparent 1px 6px),
+    radial-gradient(circle at 50% 45%, rgb(241 199 91 / 0.55), transparent 62%),
+    #0a0a0e;
+  text-shadow: 0 0 6px rgb(241 199 91 / 0.9);
 }
 
 .card-slot {
@@ -2392,6 +2529,104 @@ button {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--color-ivory);
+}
+
+/* ------------------------------------------------------- backs and felts */
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.4rem, 1fr));
+  gap: 0.5rem;
+}
+
+.swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  align-items: center;
+  padding: 0.7rem 0.3rem 0.6rem;
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  font: inherit;
+  color: var(--color-ivory);
+  background: rgb(0 0 0 / 0.16);
+  transition:
+    border-color var(--t-micro) var(--ease-soft),
+    background var(--t-micro) var(--ease-soft);
+}
+
+.swatch:not(:disabled):hover {
+  background: rgb(0 0 0 / 0.28);
+}
+
+.swatch[data-selected='true'] {
+  border-color: rgb(241 199 91 / 0.7);
+  background: rgb(217 164 65 / 0.1);
+}
+
+.swatch:disabled {
+  cursor: default;
+}
+
+.swatch__card {
+  --w: 2.4rem;
+  width: var(--w);
+  aspect-ratio: 5 / 7;
+  margin-bottom: 0.4rem;
+  border-radius: 9% / 6.5%;
+  font-size: calc(var(--w) * 0.45);
+  box-shadow: 0 4px 10px rgb(0 0 0 / 0.4);
+}
+
+/* A felt in small: the table as it sits in its room. */
+.swatch__felt {
+  width: 4rem;
+  height: 3.36rem;
+  margin-bottom: 0.4rem;
+  border-radius: 12px;
+  background:
+    radial-gradient(70% 60% at 50% 50%, rgb(var(--felt-1) / 0.85), rgb(var(--felt-2) / 0.5) 62%, transparent 64%),
+    radial-gradient(120% 100% at 50% 40%, var(--room-1), var(--room-4));
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.08),
+    0 4px 10px rgb(0 0 0 / 0.4);
+}
+
+.swatch[data-locked='true'] .swatch__card,
+.swatch[data-locked='true'] .swatch__felt {
+  filter: saturate(0.6) brightness(0.72);
+}
+
+.swatch__name {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.swatch__ask {
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: var(--color-muted);
+}
+
+.swatch[data-selected='true'] .swatch__ask {
+  color: var(--color-gold-bright);
+}
+
+.swatch[data-locked='true'] .swatch__name {
+  color: var(--color-muted);
+}
+
+/* What a locked one asks for is the thing to read, so it is not dimmed with the rest. */
+.swatch[data-locked='true'] .swatch__ask::before {
+  content: '';
+  display: inline-block;
+  width: 0.62em;
+  height: 0.72em;
+  margin-right: 0.3em;
+  vertical-align: -0.06em;
+  background: currentColor;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 14'><path d='M3 6V4a3 3 0 016 0v2h1a1 1 0 011 1v6a1 1 0 01-1 1H2a1 1 0 01-1-1V7a1 1 0 011-1h1zm1.6 0h2.8V4a1.4 1.4 0 00-2.8 0v2z'/></svg>") center / contain no-repeat;
 }
 
 /* Banca's word on a hand: its mark, and the line in quotes. */
