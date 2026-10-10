@@ -291,7 +291,7 @@ A lobby, a picker and table for each game in both forms, the profile, the league
 | 5. Platform | Lobby, shared wallet, guest identity and Google sign-in, tables that survive reconnects, shared tables and rooms at all three games, chat | Done |
 | 6. Player experience | Profile and stats, daily rewards, bust protection, coach at all three games, grading after a blackjack round, tutorial, leagues and trophies | Done |
 | 7. Polish and launch | PWA install, accessibility, session reminder, architecture diagram: done. Demo video: to do | In progress |
-| 8. Stretch | Private tables by invitation: done. Banca's moods at poker and what it says after a hand, daily missions, friends, card backs and felts opened by level, league and trophy: done. Replay, spectator, tournaments | Open |
+| 8. Stretch | Private tables by invitation: done. Banca's moods at poker and what it says after a hand, daily missions, friends, card backs and felts opened by level, league and trophy, a poker hand as a picture to share: done. Replay, spectator, tournaments | Open |
 
 Phases are taken in order. The first draft allowed 20 to 27 weeks; Phases 0 to 6 were done well inside that, with nothing cut from Phase 6.
 

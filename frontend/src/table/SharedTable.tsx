@@ -19,6 +19,8 @@ import { Pot } from './Pot'
 import { PokerCoachPanel, PokerCoachPill, PokerCoachReason } from './PokerCoach'
 import { ReasoningPanel } from './ReasoningPanel'
 import { Seat } from './Seat'
+import { ShareHandButton, ShareHandPanel } from '../share/ShareHand'
+import { handCardOf, type HandCard } from '../share/handCard'
 import type { PlayerView, PokerRoomView, TableView } from './types'
 import { usePokerRoom } from './usePokerRoom'
 import { TIMING, usePresentation } from './usePresentation'
@@ -102,7 +104,7 @@ function SmallSeat({ player, view, action }: { player: PlayerView; view: TableVi
 }
 
 /** How a hand at a shared table ended, said for whoever is reading it. */
-function Outcome({ view, seconds, onShowReasoning }: { view: TableView; seconds: number; onShowReasoning?: () => void }) {
+function Outcome({ view, seconds, onShowReasoning, onShare }: { view: TableView; seconds: number; onShowReasoning?: () => void; onShare?: () => void }) {
   const result = view.result!
   const winners = Object.keys(result.winnings).map(Number)
   const nameOf = (seat: number) => (seat === view.yourSeat ? 'You' : (view.players.find((player) => player.seat === seat)?.name ?? 'Someone'))
@@ -130,6 +132,7 @@ function Outcome({ view, seconds, onShowReasoning }: { view: TableView; seconds:
             Banca's reasoning
           </button>
         )}
+        {onShare && <ShareHandButton onOpen={onShare} />}
         <p className="label flex-1 text-center">Next hand in {seconds}s</p>
       </div>
     </div>
@@ -142,13 +145,15 @@ function Outcome({ view, seconds, onShowReasoning }: { view: TableView; seconds:
  * controls are as at a table alone; everyone else sits in a row across the top.
  */
 export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: () => void }) {
-  const { room, endsAt, waitMs, reasoning, connection, error, full, refusals, send, chat, phrases, broke, staked, retry, coach, askCoach } =
+  const { room, endsAt, waitMs, reasoning, connection, error, full, refusals, send, chat, said, phrases, broke, staked, retry, coach, askCoach } =
     usePokerRoom(tableId)
   const view = room?.table ?? null
   const { actions, showdown, potPulse } = usePresentation(view)
   const seconds = useSecondsUntil(endsAt)
   const [showReasoning, setShowReasoning] = useState(false)
   const [showCoach, setShowCoach] = useState(false)
+  // The hand being shared, kept as it was when asked for: the table deals the next one without waiting.
+  const [sharing, setSharing] = useState<HandCard | null>(null)
   const [showRoom, setShowRoom] = useState(false)
   const [heard, setHeard] = useState(0)
   // Who this player would rather not hear from. Kept on this device only, for this visit.
@@ -272,6 +277,7 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
     .sort((a, b) => ((a.seat - mySeat + 99) % 99) - ((b.seat - mySeat + 99) % 99))
   const bancaThinking = room.phase === 'playing' && view.actorSeat === BANCA_SEAT
   const over = room.phase === 'results' && view.result !== null
+  const shareable = over ? handCardOf(view, said) : null
   const unread = chat.length - heard
   const waiting = room.seats.filter((seat) => !seat.inHand && seat.seat !== BANCA_SEAT)
 
@@ -364,7 +370,12 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
         {broke ? (
           <OutOfChips broke={broke} onRetry={retry} onLeave={onLeave} />
         ) : over ? (
-          <Outcome view={view} seconds={seconds} onShowReasoning={reasoning.events.length > 0 ? () => setShowReasoning(true) : undefined} />
+          <Outcome
+            view={view}
+            seconds={seconds}
+            onShowReasoning={reasoning.events.length > 0 ? () => setShowReasoning(true) : undefined}
+            onShare={shareable ? () => setSharing(shareable) : undefined}
+          />
         ) : room.yourTurn && view.legal && me ? (
           <>
             <PokerCoachReason coach={coach} />
@@ -399,6 +410,7 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
       {showCoach && room.yourTurn && view && coach.status !== 'idle' && (
         <PokerCoachPanel coach={coach} handNumber={view.handNumber} onClose={() => setShowCoach(false)} />
       )}
+      {sharing && <ShareHandPanel card={sharing} onClose={() => setSharing(null)} />}
       {showReasoning && <ReasoningPanel reasoning={reasoning} name="Banca" thinking={bancaThinking} onClose={() => setShowReasoning(false)} />}
       {showRoom && (
         <RoomDrawer

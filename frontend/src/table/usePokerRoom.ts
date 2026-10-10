@@ -29,6 +29,9 @@ export function usePokerRoom(tableId: string) {
   const [phrases, setPhrases] = useState<Phrase[]>([])
   const chips = useChipNotices()
   const lastWait = useRef('')
+  /** What Banca said about a hand once it was over, and which hand that was. */
+  const [remark, setRemark] = useState<{ handNumber: number; text: string } | null>(null)
+  const handNumber = useRef(0)
   // Only the player's own turn is a decision to be coached on.
   const coaching = usePokerCoaching(room?.yourTurn ? room.table : null)
 
@@ -50,6 +53,7 @@ export function usePokerRoom(tableId: string) {
         setRoom(next)
         setEndsAt(Date.now() + next.msLeft)
         const table = next.table
+        if (table) handNumber.current = table.handNumber
         // A new hand starts with a clean slate.
         if (table) {
           setReasoning((current) => (current.handNumber === table.handNumber ? current : { handNumber: table.handNumber, events: [], revealed: false }))
@@ -76,6 +80,8 @@ export function usePokerRoom(tableId: string) {
         break
       case 'chat':
         setChat((lines) => [...lines, message.line].slice(-CHAT_KEPT))
+        // Banca speaks only once a hand is over, so what it says is about the hand on the table.
+        if (message.line.banca) setRemark({ handNumber: handNumber.current, text: message.line.text })
         break
       case 'coach_trace':
         coaching.heardStep(message.event)
@@ -104,6 +110,7 @@ export function usePokerRoom(tableId: string) {
     refusals: refusals + sittings,
     send,
     chat,
+    said: room?.table?.result && remark?.handNumber === room.table.handNumber ? remark.text : null,
     phrases,
     broke: chips.broke,
     staked: chips.staked,

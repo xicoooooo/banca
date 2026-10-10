@@ -2531,6 +2531,34 @@ button {
   color: var(--color-ivory);
 }
 
+/* ------------------------------------------------------ a hand to share */
+
+/* The picture of a hand, sized so that it and its buttons fit the sheet it opens in. */
+.hand-card {
+  display: block;
+  width: auto;
+  height: min(40dvh, 30rem);
+  max-width: 100%;
+  aspect-ratio: 4 / 5;
+  border-radius: 18px;
+  object-fit: contain;
+  box-shadow: 0 14px 36px rgb(0 0 0 / 0.5);
+}
+
+.hand-card--waiting {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--hairline);
+  background: rgb(0 0 0 / 0.2);
+  box-shadow: none;
+}
+
+a.btn {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
+
 /* ------------------------------------------------------- backs and felts */
 
 .swatches {

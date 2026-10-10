@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { AnimatedNumber } from '../casino/AnimatedNumber'
 import { sound } from '../casino/sound'
+import { ShareHandButton } from '../share/ShareHand'
 import type { TableView } from './types'
 
 type HandResultProps = {
@@ -8,6 +9,8 @@ type HandResultProps = {
   opponentName: string
   onNextHand: () => void
   onShowReasoning?: () => void
+  /** Opens the hand as a picture to send on, when there is a hand worth sending. */
+  onShare?: () => void
   /** True once Next hand has been pressed and the table is being cleared. */
   leaving?: boolean
 }
@@ -16,7 +19,7 @@ type HandResultProps = {
  * How the hand ended. At a showdown it waits for the cards to turn before
  * saying who won, so the result is seen on the table first and read second.
  */
-export function HandResult({ view, opponentName, onNextHand, onShowReasoning, leaving = false }: HandResultProps) {
+export function HandResult({ view, opponentName, onNextHand, onShowReasoning, onShare, leaving = false }: HandResultProps) {
   const result = view.result!
   const winners = Object.keys(result.winnings).map(Number)
   const mine = result.winnings[view.yourSeat] ?? 0
@@ -59,6 +62,7 @@ export function HandResult({ view, opponentName, onNextHand, onShowReasoning, le
             Reasoning
           </button>
         )}
+        {onShare && <ShareHandButton onOpen={onShare} />}
         <button type="button" onClick={next} disabled={leaving} data-pending={leaving} className="btn btn--raise flex-1">
           Next hand
         </button>

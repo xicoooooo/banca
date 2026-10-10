@@ -18,6 +18,8 @@ import type { TableView } from './types'
 import { usePresentation } from './usePresentation'
 import { useTable } from './useTable'
 import { Guide } from '../guide/Guide'
+import { ShareHandPanel } from '../share/ShareHand'
+import { handCardOf, type HandCard } from '../share/handCard'
 import { useGuide } from '../guide/useGuide'
 
 /**
@@ -36,6 +38,8 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
   const { actions, showdown, potPulse } = usePresentation(view)
   const [showReasoning, setShowReasoning] = useState(false)
   const [showCoach, setShowCoach] = useState(false)
+  // The hand being shared, kept as it was when asked for, so the picture outlasts the hand.
+  const [sharing, setSharing] = useState<HandCard | null>(null)
   // The hand being cleared away, if Next hand has just been pressed.
   const [clearing, setClearing] = useState<number | null>(null)
   // Banca's walk through a first hand: while it is played, and once it is over.
@@ -66,6 +70,7 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
   const opponent = view.players.find((player) => player.seat !== view.yourSeat)!
   const opponentThinking = view.actorSeat === opponent.seat
   const leaving = clearing === view.handNumber
+  const shareable = handCardOf(view, said)
 
   // The cards and chips are gathered up before the next hand is asked for, so
   // one hand runs into the next without a cut. The wait is the player's own
@@ -127,6 +132,7 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
               onNextHand={nextHand}
               leaving={leaving}
               onShowReasoning={reasoning.events.length > 0 ? () => setShowReasoning(true) : undefined}
+              onShare={shareable ? () => setSharing(shareable) : undefined}
             />
           </>
         ) : view.legal ? (
@@ -150,6 +156,7 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
       </footer>
 
       <Guide guide={guide} />
+      {sharing && <ShareHandPanel card={sharing} onClose={() => setSharing(null)} />}
       {showCoach && view.legal && coach.status !== 'idle' && (
         <PokerCoachPanel coach={coach} handNumber={view.handNumber} onClose={() => setShowCoach(false)} />
       )}
