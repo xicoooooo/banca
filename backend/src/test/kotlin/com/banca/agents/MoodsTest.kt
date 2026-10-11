@@ -40,6 +40,8 @@ class MoodsTest {
         assertTrue(Moods.STEADY.bluffs < Moods.PRESSING.bluffs)
         assertEquals(Moods.ALL.size, Moods.ALL.map { it.rules.trimIndent() }.toSet().size)
         assertEquals(Moods.ALL.size, Moods.ALL.map { it.told }.toSet().size)
+        // A player's guess at the mood is checked against these first words.
+        assertTrue(Moods.ALL.all { it.told.startsWith("In a ${it.name} mood: ") })
     }
 
     @Test

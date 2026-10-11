@@ -16,6 +16,7 @@ import { ReasoningPanel } from './ReasoningPanel'
 import { Seat } from './Seat'
 import type { TableView } from './types'
 import { usePresentation } from './usePresentation'
+import { moodOf, useReadingBanca } from './reads'
 import { useTable } from './useTable'
 import { Guide } from '../guide/Guide'
 import { ShareHandPanel } from '../share/ShareHand'
@@ -38,6 +39,7 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
   const { actions, showdown, potPulse } = usePresentation(view)
   const [showReasoning, setShowReasoning] = useState(false)
   const [showCoach, setShowCoach] = useState(false)
+  const reading = useReadingBanca()
   // The hand being shared, kept as it was when asked for, so the picture outlasts the hand.
   const [sharing, setSharing] = useState<HandCard | null>(null)
   // The hand being cleared away, if Next hand has just been pressed.
@@ -71,6 +73,9 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
   const opponentThinking = view.actorSeat === opponent.seat
   const leaving = clearing === view.handNumber
   const shareable = handCardOf(view, said)
+  // A hand whose mood has been told and not yet guessed at is one to read.
+  const toRead =
+    reasoning.revealed && reading.answerFor(reasoning.handNumber) === null && reasoning.events.some((event) => moodOf(event.detail) !== null)
 
   // The cards and chips are gathered up before the next hand is asked for, so
   // one hand runs into the next without a cut. The wait is the player's own
@@ -133,6 +138,7 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
               leaving={leaving}
               onShowReasoning={reasoning.events.length > 0 ? () => setShowReasoning(true) : undefined}
               onShare={shareable ? () => setSharing(shareable) : undefined}
+              toRead={toRead}
             />
           </>
         ) : view.legal ? (
@@ -166,6 +172,7 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
           name={opponent.name}
           thinking={opponentThinking}
           onClose={() => setShowReasoning(false)}
+          reading={reading}
         />
       )}
     </CasinoShell>

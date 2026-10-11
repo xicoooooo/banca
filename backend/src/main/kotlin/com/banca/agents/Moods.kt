@@ -10,7 +10,8 @@ import kotlin.random.Random
  * often to bet with nothing.
  *
  * [told] is what the table is told once a hand is over, when it can no longer
- * give anything away. [rules] is what the model is told to do with the figures.
+ * give anything away. It names the mood in its first words, "In a sly mood",
+ * which is what a player's guess at it is checked against. [rules] is what the model is told to do with the figures.
  */
 class Mood(
     val name: String,
@@ -46,7 +47,7 @@ class Lines(
 object Moods {
     val STEADY = Mood(
         name = "steady",
-        told = "Playing it straight: betting good hands, folding bad ones, and bluffing now and then.",
+        told = "In a steady mood: playing it straight, betting good hands, folding bad ones, and bluffing now and then.",
         bluffs = 0.18,
         rules = """
             An opponent who bets or raises usually holds better than random, so when you face a bet, treat your equity as about 0.10 lower than the tool says.

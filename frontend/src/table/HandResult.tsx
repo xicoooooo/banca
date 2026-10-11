@@ -11,6 +11,8 @@ type HandResultProps = {
   onShowReasoning?: () => void
   /** Opens the hand as a picture to send on, when there is a hand worth sending. */
   onShare?: () => void
+  /** True when the opponent's mood this hand is there to be guessed at. */
+  toRead?: boolean
   /** True once Next hand has been pressed and the table is being cleared. */
   leaving?: boolean
 }
@@ -19,7 +21,7 @@ type HandResultProps = {
  * How the hand ended. At a showdown it waits for the cards to turn before
  * saying who won, so the result is seen on the table first and read second.
  */
-export function HandResult({ view, opponentName, onNextHand, onShowReasoning, onShare, leaving = false }: HandResultProps) {
+export function HandResult({ view, opponentName, onNextHand, onShowReasoning, onShare, toRead = false, leaving = false }: HandResultProps) {
   const result = view.result!
   const winners = Object.keys(result.winnings).map(Number)
   const mine = result.winnings[view.yourSeat] ?? 0
@@ -59,7 +61,7 @@ export function HandResult({ view, opponentName, onNextHand, onShowReasoning, on
       <div className="flex w-full gap-2.5">
         {onShowReasoning && (
           <button type="button" onClick={onShowReasoning} className="btn btn--fold flex-1">
-            Reasoning
+            {toRead ? 'Read Banca' : 'Reasoning'}
           </button>
         )}
         {onShare && <ShareHandButton onOpen={onShare} />}

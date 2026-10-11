@@ -1,4 +1,5 @@
 import type { Rivalry } from '../player/types'
+import { keptReads } from '../table/reads'
 import { chips, leadOf } from './format'
 
 function Line({ label, value }: { label: string; value: string }) {
@@ -20,6 +21,8 @@ const pot = (amount: number | null) => (amount === null ? '—' : chips(amount))
 export function RivalryRecord({ rivalry }: { rivalry: Rivalry }) {
   const lead = leadOf(rivalry.net)
   const { bluffs } = rivalry
+  // How often the player has guessed Banca's mood, which is counted on this device and not by the server.
+  const reads = keptReads()
 
   return (
     <>
@@ -58,6 +61,12 @@ export function RivalryRecord({ rivalry }: { rivalry: Rivalry }) {
             <Line label="Bluffs you caught" value={String(bluffs.caught)} />
             <Line label="Bluffs you folded to" value={String(bluffs.worked)} />
             <Line label="Biggest bluff it got away with" value={pot(bluffs.biggest)} />
+          </>
+        )}
+        {reads.total > 0 && (
+          <>
+            <Line label="Moods read right" value={`${reads.right} of ${reads.total}`} />
+            <Line label="Best run of reads" value={reads.best === 0 ? '—' : `${reads.best} in a row`} />
           </>
         )}
       </dl>

@@ -1,6 +1,8 @@
 import { keepTabInside } from '../casino/useDialog'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { prefersReducedMotion } from '../casino/motion'
+import { sound } from '../casino/sound'
+import { MOODS, moodOf, readsInWords, type ReadingBanca } from './reads'
 import type { TraceEvent } from './types'
 import type { Reasoning } from './useTable'
 
@@ -105,7 +107,7 @@ function turnsOf(events: TraceEvent[]): Turn[] {
   return turns
 }
 
-function Step({ event, state }: { event: TraceEvent; state: 'done' | 'active' }) {
+function Step({ event, state, hidden = false }: { event: TraceEvent; state: 'done' | 'active'; hidden?: boolean }) {
   if (event.kind === 'decision') {
     return (
       <li className="timeline__step" data-kind="decision" data-state={state}>
@@ -116,7 +118,8 @@ function Step({ event, state }: { event: TraceEvent; state: 'done' | 'active' })
     )
   }
 
-  const finding = findingOf(event)
+  // A step whose finding is being kept back says only that it was taken.
+  const finding = hidden ? {} : findingOf(event)
 
   return (
     <li className="timeline__step" data-kind={event.kind} data-state={state}>
@@ -135,6 +138,8 @@ type ReasoningPanelProps = {
   /** Whether the agent is working on a decision right now. */
   thinking: boolean
   onClose: () => void
+  /** The player's guesses at Banca's mood. With it, the mood is asked for before it is told. */
+  reading?: ReadingBanca
 }
 
 /**
@@ -145,7 +150,7 @@ type ReasoningPanelProps = {
  * Opened to watch the agent think, it steps aside when the agent decides, so
  * the choice is seen in the trace and then carried out on the table.
  */
-export function ReasoningPanel({ reasoning, name, thinking, onClose }: ReasoningPanelProps) {
+export function ReasoningPanel({ reasoning, name, thinking, onClose, reading }: ReasoningPanelProps) {
   const [closing, setClosing] = useState(false)
   const closeButton = useRef<HTMLButtonElement>(null)
   const end = useRef<HTMLDivElement>(null)
@@ -187,6 +192,11 @@ export function ReasoningPanel({ reasoning, name, thinking, onClose }: Reasoning
   }, [close])
 
   const mood = reasoning.revealed ? reasoning.events.find((event) => event.label === MOOD_STEP)?.detail : null
+
+  // The mood is asked for before it is told, where there is a mood to ask about and someone keeping count.
+  const was = moodOf(mood)
+  const answer = reading?.answerFor(reasoning.handNumber) ?? null
+  const asking = reading !== undefined && was !== null && answer === null
 
   const decisions = reasoning.events.filter((event) => event.kind === 'decision' || event.kind === 'fallback').length
 
@@ -233,11 +243,48 @@ export function ReasoningPanel({ reasoning, name, thinking, onClose }: Reasoning
           style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
         >
           {/* How Banca was playing, told only once the hand is over and it can give nothing away. */}
-          {mood && (
-            <p className="mood rise-in">
-              <span className="label text-gold!">Its mood this hand</span>
-              {mood}
-            </p>
+          {mood && asking && (
+            <div className="mood rise-in">
+              <span className="label text-gold!">Read Banca</span>
+              <p className="m-0">Before you are told: which mood was it in this hand?</p>
+              <div className="mood__choices" role="group" aria-label="Banca's mood this hand">
+                {MOODS.map((choice) => (
+                  <button
+                    key={choice.name}
+                    type="button"
+                    className="mood__choice"
+                    onClick={() => {
+                      const right = choice.name === was
+                      if (right) sound.chipClink()
+                      else sound.click()
+                      reading.guess(reasoning.handNumber, choice.name, was)
+                    }}
+                  >
+                    <strong>{choice.title}</strong>
+                    <span>{choice.tell}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="label tracking-[0.1em]!">{readsInWords(reading.reads)}</span>
+                <button type="button" className="mood__skip" onClick={() => reading.show(reasoning.handNumber)}>
+                  Just tell me
+                </button>
+              </div>
+            </div>
+          )}
+          {mood && !asking && (
+            <div className="mood rise-in" data-read={answer === null || answer === 'shown' ? undefined : answer === was ? 'right' : 'wrong'} aria-live="polite">
+              <span className="label text-gold!">
+                {answer === null || answer === 'shown'
+                  ? 'Its mood this hand'
+                  : answer === was
+                    ? 'You read it right'
+                    : `Not this time · you said ${MOODS.find((choice) => choice.name === answer)?.title.toLowerCase()}`}
+              </span>
+              <p className="m-0">{mood}</p>
+              {reading && answer !== null && answer !== 'shown' && <span className="label tracking-[0.1em]!">{readsInWords(reading.reads)}</span>}
+            </div>
           )}
 
           {turns.length === 0 && !thinking && (
@@ -252,7 +299,7 @@ export function ReasoningPanel({ reasoning, name, thinking, onClose }: Reasoning
               </p>
               <ol className="timeline">
                 {turn.steps.map((step, stepIndex) => (
-                  <Step key={stepIndex} event={step} state="done" />
+                  <Step key={stepIndex} event={step} state="done" hidden={asking && step.label === MOOD_STEP} />
                 ))}
                 {/* The step in progress: the agent has not said what it is yet. */}
                 {thinking && index === turns.length - 1 && turn.steps.at(-1)?.kind === 'tool' && (

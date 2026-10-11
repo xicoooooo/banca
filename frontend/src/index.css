@@ -3688,6 +3688,56 @@ a.btn {
   color: rgb(245 241 232 / 0.9);
 }
 
+.mood[data-read='right'] {
+  border-color: rgb(127 227 191 / 0.5);
+  background: rgb(127 227 191 / 0.08);
+}
+
+.mood__choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  padding: 0.3rem 0;
+}
+
+.mood__choice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  font: inherit;
+  text-align: left;
+  color: var(--color-ivory);
+  background: rgb(0 0 0 / 0.22);
+  transition:
+    border-color var(--t-micro) var(--ease-soft),
+    background var(--t-micro) var(--ease-soft);
+}
+
+.mood__choice:hover {
+  border-color: rgb(241 199 91 / 0.55);
+  background: rgb(217 164 65 / 0.1);
+}
+
+.mood__choice span {
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: var(--color-muted);
+}
+
+.mood__skip {
+  padding: 0.2rem 0;
+  border: 0;
+  font: inherit;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  color: var(--color-muted);
+  background: none;
+}
+
 /* ------------------------------------------------------------ daily missions */
 
 .missions {
