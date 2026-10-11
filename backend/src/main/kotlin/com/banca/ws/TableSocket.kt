@@ -229,6 +229,9 @@ class PokerConnection(
                     put("raises", actions["raise"] ?: 0)
                     put("calls", actions["call"] ?: 0)
                     put("checks", actions["check"] ?: 0)
+                    // This table is always one player against Banca, which is what the record between them is kept from.
+                    put("vsBanca", true)
+                    put("bancaBluffed", opponent.bluffedIn(table.handNumber))
                 },
             ),
         )

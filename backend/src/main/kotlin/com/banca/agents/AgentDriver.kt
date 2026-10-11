@@ -48,8 +48,8 @@ class AgentDriver(
     /** How Banca is playing at this table for the time being. Each table has its own. */
     private val moods = MoodSwings(config.random)
 
-    /** The hand it last bet or raised in on a turn the dice said to bluff, to be owned up to or not once it is over. */
-    private var bluffedIn = 0
+    /** The hand it last bluffed in, to be owned up to or not once it is over. */
+    private var bluffHand = 0
     private var lastRemark: String? = null
 
     override suspend fun decide(view: TableView, trace: suspend (TraceEvent) -> Unit): Action {
@@ -98,7 +98,7 @@ class AgentDriver(
 
         tools.decision?.let { decided ->
             trace(TraceEvent(TraceEvent.DECISION, "Decided to ${PokerTools.describe(decided)}"))
-            if (bluffing && decided.isPush) bluffedIn = view.handNumber
+            if (bluffing && isBluff(decided, tools)) bluffHand = view.handNumber
             return decided
         }
 
@@ -119,16 +119,24 @@ class AgentDriver(
                 detail = "Banca's model could not be asked this turn because $problem, so it played by the lines of the mood it was in.",
             ),
         )
-        if (bluffing && played.isPush) bluffedIn = view.handNumber
+        if (bluffing && isBluff(played, tools)) bluffHand = view.handNumber
         return played
     }
 
     /** A dry word about the hand just played, in the mood it was played in. Most hands pass without one. */
     override fun remark(view: TableView, net: Long): String? =
-        Banter.after(view, net, moods.now, bluffed = bluffedIn == view.handNumber, random = config.voice, not = lastRemark)
+        Banter.after(view, net, moods.now, bluffed = bluffedIn(view.handNumber), random = config.voice, not = lastRemark)
             ?.also { lastRemark = it }
 
-    private val Action.isPush: Boolean get() = this is Action.Bet || this is Action.Raise
+    override fun bluffedIn(handNumber: Int): Boolean = handNumber != 0 && bluffHand == handNumber
+
+    /**
+     * A bluff is a bet or raise on a turn the dice said to bluff, with a hand
+     * that is behind. On such a turn a strong hand is played as usual, and
+     * betting it is no bluff at all.
+     */
+    private fun isBluff(action: Action, tools: PokerTools): Boolean =
+        (action is Action.Bet || action is Action.Raise) && tools.equity < BLUFFING_BELOW
 
     /** Reads the function-call spelling, `submit_action("raise", 300)`. */
     private fun positionalSubmission(afterName: String): JsonObject? {
@@ -151,6 +159,9 @@ class AgentDriver(
     }
 
     companion object {
+        /** A hand is behind, and a bet with it a bluff, when it wins less often than this. */
+        const val BLUFFING_BELOW = 0.5
+
         /** What a hand's first step is called. It says nothing of the mood itself while the hand is live. */
         const val MOOD_STEP = "Settled on how to play"
 

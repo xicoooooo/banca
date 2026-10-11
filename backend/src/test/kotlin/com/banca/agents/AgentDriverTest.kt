@@ -9,6 +9,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -223,5 +224,43 @@ class AgentDriverTest {
         assertTrue(steps.none { "Ah" in it.label || "0." in it.label }, "labels never carry cards or numbers")
         assertTrue(steps.all { it.withoutDetail().detail == null })
         assertNull(trace.last().detail, "the decision itself is public")
+    }
+
+    @Test
+    fun `betting with nothing on a turn the dice said to bluff is a bluff, and is owned up to only for that hand`() = runBlocking {
+        // The dice always say bluff. Seven-deuce on a board that missed it is behind.
+        val driver = AgentDriver(ScriptedModel(calls("get_hand_equity"), submits("raise", 400)), AgentConfig(random = AlwaysLow))
+        val weak = facingABet(cards = listOf("7h", "2d"), board = listOf("Ks", "Qd", "9c"))
+
+        assertFalse(driver.bluffedIn(weak.handNumber), "nothing is owned up to before it has happened")
+        driver.decide(weak) { }
+
+        assertTrue(driver.bluffedIn(weak.handNumber))
+        assertFalse(driver.bluffedIn(weak.handNumber + 1))
+    }
+
+    @Test
+    fun `betting a strong hand is no bluff, whatever the dice said`() = runBlocking {
+        val driver = AgentDriver(ScriptedModel(calls("get_hand_equity"), submits("raise", 400)), AgentConfig(random = AlwaysLow))
+        val strong = facingABet(cards = listOf("Ah", "Ad"))
+        driver.decide(strong) { }
+
+        assertFalse(driver.bluffedIn(strong.handNumber))
+    }
+
+    @Test
+    fun `calling on a turn the dice said to bluff is no bluff either`() = runBlocking {
+        val driver = AgentDriver(ScriptedModel(calls("get_hand_equity"), submits("call")), AgentConfig(random = AlwaysLow))
+        val weak = facingABet(cards = listOf("7h", "2d"), board = listOf("Ks", "Qd", "9c"))
+        driver.decide(weak) { }
+
+        assertFalse(driver.bluffedIn(weak.handNumber))
+    }
+
+    /** Dice that always come up low, so every turn is one to bluff on, and cards that are otherwise dealt fairly. */
+    private object AlwaysLow : kotlin.random.Random() {
+        private val fair = kotlin.random.Random(4)
+        override fun nextBits(bitCount: Int): Int = fair.nextBits(bitCount)
+        override fun nextDouble(): Double = 0.0
     }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ago, areaPath, until, divergingBars, levelProgress, linePath, percent, plot, signed, toneOf } from './format'
+import { ago, leadOf, areaPath, until, divergingBars, levelProgress, linePath, percent, plot, signed, toneOf } from './format'
 
 describe('writing figures', () => {
   it('gives results a sign, and nothing a plain zero', () => {
@@ -75,5 +75,14 @@ describe('drawing charts', () => {
   it('scales bars to the largest day, whichever way it went', () => {
     expect(divergingBars([100, -400, 0])).toEqual([0.25, -1, 0])
     expect(divergingBars([0, 0])).toEqual([0, 0])
+  })
+})
+
+describe('saying who is ahead', () => {
+  it('names whoever has the chips, and by how many', () => {
+    expect(leadOf(1240)).toEqual({ text: 'You are 1,240 chips ahead', tone: 'gain' })
+    expect(leadOf(-380)).toEqual({ text: 'Banca is 380 chips ahead', tone: 'loss' })
+    expect(leadOf(1).text).toBe('You are 1 chip ahead')
+    expect(leadOf(0)).toEqual({ text: 'All square', tone: 'even' })
   })
 })

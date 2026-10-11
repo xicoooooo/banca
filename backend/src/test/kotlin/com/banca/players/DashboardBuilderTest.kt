@@ -318,4 +318,95 @@ class DashboardBuilderTest {
             dashboard.recent.map { it.summary },
         )
     }
+
+    // ------------------------------------------------------------ the rivalry
+
+    private fun hand(net: Long, pot: Long = 200, showdown: Boolean = false, folded: Boolean = false, bluffed: Boolean? = null, players: Int? = null) =
+        poker(
+            net,
+            buildJsonObject {
+                put("pot", pot)
+                put("showdown", showdown)
+                put("folded", folded)
+                if (players != null) put("players", players)
+                if (bluffed != null) {
+                    put("vsBanca", true)
+                    put("bancaBluffed", bluffed)
+                }
+            },
+        )
+
+    @Test
+    fun `there is no record against Banca until a hand has been played against it`() {
+        assertNull(build().rivalry)
+        assertNull(build(blackjack(100), blackjack(-100)).rivalry)
+    }
+
+    @Test
+    fun `the record counts the hands, who is ahead, and the biggest pot each took`() {
+        val rivalry = build(
+            hand(net = 300, pot = 600, showdown = true),
+            hand(net = -500, pot = 1_000, showdown = true),
+            hand(net = 40, pot = 80),
+            hand(net = 0, pot = 400, showdown = true),
+            hand(net = -20, pot = 60, folded = true),
+        ).rivalry!!
+
+        assertEquals(5, rivalry.hands)
+        assertEquals(listOf(2, 2, 1), listOf(rivalry.won, rivalry.lost, rivalry.even))
+        assertEquals(-180, rivalry.net)
+        assertEquals(600, rivalry.biggestPotWon)
+        assertEquals(1_000, rivalry.biggestPotLost)
+        assertEquals(3, rivalry.showdowns)
+        assertEquals(1, rivalry.showdownsWon)
+    }
+
+    @Test
+    fun `hands with other players in them are no part of it`() {
+        val rivalry = build(
+            hand(net = 900, pot = 2_000, players = 4),
+            hand(net = 100, pot = 200, players = 2, bluffed = false),
+            // A hand between two players at a table Banca was not at names two players and no Banca.
+            hand(net = -700, pot = 1_400, players = 2),
+            hand(net = 50),
+        ).rivalry!!
+
+        assertEquals(2, rivalry.hands)
+        assertEquals(150, rivalry.net)
+        assertEquals(200, rivalry.biggestPotWon)
+        assertNull(rivalry.biggestPotLost)
+    }
+
+    @Test
+    fun `the best run is the most hands won in a row`() {
+        val rivalry = build(hand(100), hand(-50), hand(100), hand(100), hand(100), hand(0), hand(100), hand(100)).rivalry!!
+
+        assertEquals(3, rivalry.bestRun)
+    }
+
+    @Test
+    fun `nothing is said of bluffs when no hand says whether there was one`() {
+        assertNull(build(hand(100), hand(-100, folded = true)).rivalry!!.bluffs)
+    }
+
+    @Test
+    fun `a bluff is caught when it is called down and beaten, and works when it is folded to`() {
+        val bluffs = build(
+            hand(net = 400, pot = 800, showdown = true, bluffed = true),
+            hand(net = -60, pot = 180, folded = true, bluffed = true),
+            hand(net = -200, pot = 640, folded = true, bluffed = true),
+            // It bluffed, and got there anyway: neither caught nor fallen for.
+            hand(net = -300, pot = 600, showdown = true, bluffed = true),
+            hand(net = -40, pot = 100, folded = true, bluffed = false),
+            hand(net = 100, pot = 200, bluffed = false),
+            // An old hand, from before bluffs were written down.
+            hand(net = -80, pot = 160, folded = true),
+        ).rivalry!!.bluffs!!
+
+        assertEquals(6, bluffs.hands, "only the hands that say")
+        assertEquals(4, bluffs.tried)
+        assertEquals(1, bluffs.caught)
+        assertEquals(2, bluffs.worked)
+        assertEquals(640, bluffs.biggest)
+    }
 }

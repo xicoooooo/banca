@@ -2531,6 +2531,56 @@ button {
   color: var(--color-ivory);
 }
 
+/* ------------------------------------------------------ you against Banca */
+
+.score {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0 0.6rem;
+}
+
+.score__side {
+  display: flex;
+  flex: 1;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: flex-end;
+  color: var(--color-muted);
+}
+
+.score__side:last-child {
+  justify-content: flex-start;
+}
+
+.score__hands {
+  font-size: 2.6rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--color-ivory);
+}
+
+.score__side[data-ahead='true'] .score__hands {
+  color: var(--color-gold-bright);
+}
+
+.score__who {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.score__who img {
+  border-radius: 6px;
+}
+
+.score__dash {
+  font-size: 1.6rem;
+  color: var(--color-muted);
+}
+
 /* ------------------------------------------------------ a hand to share */
 
 /* The picture of a hand, sized so that it and its buttons fit the sheet it opens in. */

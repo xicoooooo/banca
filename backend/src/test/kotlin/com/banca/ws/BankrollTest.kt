@@ -153,6 +153,8 @@ class BankrollTest {
         assertEquals(RoundOutcome.LOSS, hand.outcome)
         assertTrue(hand.net < 0)
         assertTrue(hand.detail.getValue("folded").jsonPrimitive.boolean)
+        assertTrue(hand.detail.getValue("vsBanca").jsonPrimitive.boolean)
+        assertTrue("bancaBluffed" in hand.detail, "whether Banca bluffed is written down with the hand")
         assertEquals(1_500 + hand.net, guest.players.balance(guest.player))
     }
 

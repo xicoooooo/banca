@@ -80,6 +80,56 @@ object DashboardBuilder {
             missions = missions ?: Missions.status(player.id, now, rounds.filter { !it.endedAt.isBefore(Rewards.startOfDay(Rewards.dayOf(now))) }, emptySet()),
             league = if (player.accountId != null) Leagues.TIERS[player.leagueTier.coerceIn(0, Leagues.TIERS.lastIndex)] else null,
             trophies = trophies.map(::trophyView),
+            rivalry = rivalry(rounds),
+        )
+    }
+
+    /**
+     * Whether a round was a hand of poker against Banca alone. Hands say so
+     * themselves now. Older ones did not, but a hand at a table for one was
+     * never anything else, and those are the hands that name no number of players.
+     */
+    private fun againstBanca(round: RoundRecord): Boolean =
+        round.game == Game.POKER && (round.detail.flag("vsBanca") || "players" !in round.detail)
+
+    /** @param rounds newest first */
+    fun rivalry(rounds: List<RoundRecord>): Rivalry? {
+        val hands = rounds.filter(::againstBanca)
+        if (hands.isEmpty()) return null
+
+        val won = hands.filter { it.outcome == RoundOutcome.WIN }
+        val lost = hands.filter { it.outcome == RoundOutcome.LOSS }
+        val showdowns = hands.filter { it.detail.flag("showdown") }
+
+        var run = 0
+        var bestRun = 0
+        for (hand in hands) {
+            run = if (hand.outcome == RoundOutcome.WIN) run + 1 else 0
+            bestRun = maxOf(bestRun, run)
+        }
+
+        val known = hands.filter { "bancaBluffed" in it.detail }
+        val bluffed = known.filter { it.detail.flag("bancaBluffed") }
+        val fellFor = bluffed.filter { it.outcome == RoundOutcome.LOSS && it.detail.flag("folded") }
+
+        return Rivalry(
+            hands = hands.size,
+            won = won.size,
+            lost = lost.size,
+            even = hands.size - won.size - lost.size,
+            net = hands.sumOf { it.net },
+            biggestPotWon = won.mapNotNull { it.detail.number("pot") }.maxOrNull(),
+            biggestPotLost = lost.mapNotNull { it.detail.number("pot") }.maxOrNull(),
+            showdowns = showdowns.size,
+            showdownsWon = showdowns.count { it.outcome == RoundOutcome.WIN },
+            bestRun = bestRun,
+            bluffs = if (known.isEmpty()) null else Bluffs(
+                hands = known.size,
+                tried = bluffed.size,
+                caught = bluffed.count { it.outcome == RoundOutcome.WIN && it.detail.flag("showdown") },
+                worked = fellFor.size,
+                biggest = fellFor.mapNotNull { it.detail.number("pot") }.maxOrNull(),
+            ),
         )
     }
 

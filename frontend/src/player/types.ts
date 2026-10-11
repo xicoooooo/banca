@@ -47,6 +47,24 @@ export type Dashboard = {
   /** The league the player is in, or null for a guest, who is in none. */
   league: string | null
   trophies: Trophy[]
+  /** How the player stands against Banca at poker, one against one, or null before they have played it. */
+  rivalry: Rivalry | null
+}
+
+/** The record between the player and Banca. `net` is the player's side: above nought and they are ahead. */
+export type Rivalry = {
+  hands: number
+  won: number
+  lost: number
+  even: number
+  net: number
+  biggestPotWon: number | null
+  biggestPotLost: number | null
+  showdowns: number
+  showdownsWon: number
+  bestRun: number
+  /** What came of Banca's bluffs, from the hands that recorded them, or null when none did. */
+  bluffs: { hands: number; tried: number; caught: number; worked: number; biggest: number | null } | null
 }
 
 /** One of the day's missions. `slot` is which of the three it is; `ready` means done and waiting to be claimed. */

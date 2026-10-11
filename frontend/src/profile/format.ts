@@ -114,3 +114,10 @@ export function divergingBars(values: number[]): number[] {
   const largest = Math.max(0, ...values.map(Math.abs))
   return values.map((value) => (largest === 0 ? 0 : value / largest))
 }
+
+/** Who is ahead in chips between the player and Banca, in a few words. */
+export function leadOf(net: number): { text: string; tone: 'gain' | 'loss' | 'even' } {
+  if (net === 0) return { text: 'All square', tone: 'even' }
+  const by = `${chips(Math.abs(net))} ${Math.abs(net) === 1 ? 'chip' : 'chips'}`
+  return net > 0 ? { text: `You are ${by} ahead`, tone: 'gain' } : { text: `Banca is ${by} ahead`, tone: 'loss' }
+}

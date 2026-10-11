@@ -524,6 +524,7 @@ class PokerRoom(
     /** Writes the hand to each player's record, shows how it ended, and tells everyone what Banca was thinking. */
     private suspend fun finish() {
         val finished = hand ?: return
+        val headsUpWithBanca = withBanca && finished.players.size == 2 && finished.players.any { it.seat == BANCA_SEAT }
         for (member in members.values) {
             val summary = runCatching { handSummaryOf(finished, member.seat) }.getOrNull() ?: continue
             try {
@@ -548,6 +549,11 @@ class PokerRoom(
                             put("calls", member.actions["call"] ?: 0)
                             put("checks", member.actions["check"] ?: 0)
                             put("players", finished.players.size)
+                            // A hand with nobody else in it counts towards the record between this player and Banca.
+                            if (headsUpWithBanca) {
+                                put("vsBanca", true)
+                                put("bancaBluffed", banca.bluffedIn(handNumber))
+                            }
                         },
                     ),
                 )

@@ -36,6 +36,13 @@ fun interface SeatDriver {
      * what the hand came to for it.
      */
     fun remark(view: TableView, net: Long): String? = null
+
+    /**
+     * Whether the seat bet or raised with a hand it did not believe in during
+     * the hand numbered [handNumber]. To be asked only once that hand is over:
+     * it is the one thing about its play the cards alone do not show.
+     */
+    fun bluffedIn(handNumber: Int): Boolean = false
 }
 
 /**

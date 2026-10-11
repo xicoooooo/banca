@@ -19,7 +19,41 @@ data class Dashboard(
     /** The league the player is in, or null for a guest, who is in none. */
     val league: String?,
     val trophies: List<TrophyView>,
+    /** How the player stands against Banca at poker, one against one, or null before they have played it. */
+    val rivalry: Rivalry? = null,
 )
+
+/**
+ * The record between one player and Banca, from every hand of poker the two
+ * played with nobody else in it. [net] is the player's side of it: above
+ * nought and they are ahead.
+ */
+@Serializable
+data class Rivalry(
+    val hands: Int,
+    val won: Int,
+    val lost: Int,
+    val even: Int,
+    val net: Long,
+    /** The biggest pot each has taken off the other. */
+    val biggestPotWon: Long?,
+    val biggestPotLost: Long?,
+    val showdowns: Int,
+    val showdownsWon: Int,
+    /** The most hands the player has won in a row. */
+    val bestRun: Int,
+    /** What has come of Banca's bluffs, or null when no hand on record says whether it bluffed. */
+    val bluffs: Bluffs?,
+)
+
+/**
+ * Banca's bluffs against one player. [hands] is how many hands are known
+ * about, which is fewer than all of them: older hands did not record it.
+ * A bluff is [caught] when the player called it down and won, and it [worked]
+ * when they folded to it. [biggest] is the largest pot taken that way.
+ */
+@Serializable
+data class Bluffs(val hands: Int, val tried: Int, val caught: Int, val worked: Int, val biggest: Long?)
 
 /** A trophy as it is shown: "Bronze Champion", won in the week beginning on [week]. */
 @Serializable

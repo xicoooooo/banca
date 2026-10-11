@@ -1,3 +1,4 @@
+import { RivalryRecord } from './Rivalry'
 import { TableStylePicker } from '../style/StylePicker'
 import { REMINDER_CHOICES, useReminderSetting } from '../casino/session'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
@@ -54,6 +55,11 @@ export function Profile({ onLeave, onPlay, onLearn, signInFailed = false }: Prof
               <Section title="Last 14 days" delay={3}>
                 <ActivityChart activity={dashboard.activity} />
               </Section>
+              {dashboard.rivalry && (
+                <Section title="You against Banca" aside="Poker" delay={3}>
+                  <RivalryRecord rivalry={dashboard.rivalry} />
+                </Section>
+              )}
               <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
                 {dashboard.games.map((game) => (
                   <GamePanel key={game.game} game={game} onPlay={() => onPlay(game.game)} />

@@ -134,6 +134,8 @@ class PokerRoomTest {
         val hand = runBlocking { guest.store.rounds(guest.player.id, 10) }.last()
         assertEquals(Game.POKER, hand.game)
         assertEquals(2, hand.detail.getValue("players").jsonPrimitive.int)
+        assertTrue(hand.detail.getValue("vsBanca").jsonPrimitive.boolean, "alone with Banca, the hand counts towards the record between them")
+        assertFalse(hand.detail.getValue("bancaBluffed").jsonPrimitive.boolean)
     }
 
     @Test
@@ -184,6 +186,7 @@ class PokerRoomTest {
 
         val theirs = runBlocking { host.store.rounds(otherId, 10) }
         assertTrue(theirs.isNotEmpty() && theirs.all { it.detail.getValue("players").jsonPrimitive.int == 3 })
+        assertTrue(theirs.none { "vsBanca" in it.detail }, "a hand with a third player in it is not one against Banca alone")
     }
 
     @Test

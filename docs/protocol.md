@@ -119,6 +119,21 @@ Finishing a week first, second or third in a league, having played, earns a trop
 |---|---|
 | `GET /profiles/{id}` | What anyone may see of a signed-in player: `name`, `memberSince`, `level`, `title`, `league`, `rounds`, `trophies`, and `achievements` out of `achievementsInAll`. `404` for a guest or an id nobody has |
 
+### The record against Banca
+
+The `rivalry` part of the dashboard is how the player stands against Banca at poker, from every hand the two played with nobody else in it: at a table for one, or at a shared table when only they and Banca were dealt in. It is `null` until there is such a hand.
+
+```json
+{
+  "hands": 86, "won": 41, "lost": 39, "even": 6, "net": 1240,
+  "biggestPotWon": 2600, "biggestPotLost": 1900,
+  "showdowns": 30, "showdownsWon": 17, "bestRun": 5,
+  "bluffs": { "hands": 40, "tried": 9, "caught": 3, "worked": 4, "biggest": 640 }
+}
+```
+
+`net` is the player's side of it in chips: above nought and they are ahead. `bluffs` covers only the hands that recorded whether Banca bluffed, which older hands did not; `hands` says how many that is, and the whole part is `null` when there are none. A bluff is a bet or raise Banca made on a turn it was told to bluff, with a hand that wins less than half the time. It is `caught` when the player called it down and won, and it `worked` when they folded to it; `biggest` is the largest pot it took that way.
+
 It needs no token. It never carries a balance, an email or a history.
 
 ### Friends
