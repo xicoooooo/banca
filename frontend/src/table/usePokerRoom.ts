@@ -1,6 +1,7 @@
 import { spokenOnly, useReactionStream } from '../casino/reactionStream'
 import { useRef, useState } from 'react'
-import type { ChatLine, Phrase } from '../casino/room'
+import { NO_TALK, heardLine, heardLog } from '../casino/chat'
+import type { Phrase } from '../casino/room'
 import { useChipNotices } from '../casino/useChipNotices'
 import { useSocket } from '../casino/useSocket'
 import { usePokerCoaching } from './coaching'
@@ -8,9 +9,6 @@ import type { PokerRoomClientMessage, PokerRoomServerMessage, PokerRoomView, Tra
 import type { Reasoning } from './useTable'
 
 const NO_REASONING: Reasoning = { handNumber: 0, events: [], revealed: false }
-
-/** How many lines of chat are kept to look back over. */
-const CHAT_KEPT = 30
 
 /**
  * A shared poker table as the server describes it. The table deals the hands
@@ -26,7 +24,7 @@ export function usePokerRoom(tableId: string) {
   const [error, setError] = useState<string | null>(null)
   const [full, setFull] = useState(false)
   const [refusals, setRefusals] = useState(0)
-  const [chat, setChat] = useState<ChatLine[]>([])
+  const [talk, setTalk] = useState(NO_TALK)
   const [phrases, setPhrases] = useState<Phrase[]>([])
   const [reactions, react] = useReactionStream()
   const chips = useChipNotices()
@@ -77,13 +75,13 @@ export function usePokerRoom(tableId: string) {
         setReasoning({ handNumber: message.handNumber, events: message.events, revealed: true })
         break
       case 'chat_log':
-        setChat(spokenOnly(message.lines))
+        setTalk((current) => heardLog(current, spokenOnly(message.lines)))
         setPhrases(message.phrases)
         break
       case 'chat':
         // A reaction is shown on the table and not added to what was said.
         if (message.line.emote) react(message.line)
-        else setChat((lines) => [...lines, message.line].slice(-CHAT_KEPT))
+        else setTalk((current) => heardLine(current, message.line))
         // Banca speaks only once a hand is over, so what it says is about the hand on the table.
         if (message.line.banca) setRemark({ handNumber: handNumber.current, text: message.line.text })
         break
@@ -113,7 +111,9 @@ export function usePokerRoom(tableId: string) {
     // Sitting back down counts with refusals as a reason to give the controls back.
     refusals: refusals + sittings,
     send,
-    chat,
+    chat: talk.lines,
+    // Every line heard since sitting down, which goes on counting once the kept lines are full.
+    chatCount: talk.count,
     reactions,
     said: room?.table?.result && remark?.handNumber === room.table.handNumber ? remark.text : null,
     phrases,

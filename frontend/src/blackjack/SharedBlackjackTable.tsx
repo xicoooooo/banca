@@ -90,7 +90,7 @@ function RailSeat({ seat, table }: { seat: TableSeat; table: BlackjackTableView 
  * drawn exactly as at a table alone; the others sit along the rail above.
  */
 export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; onLeave?: () => void }) {
-  const { table, view, reveal, endsAt, waitMs, connection, error, full, refusals, send, chat, reactions, phrases, coach, askCoach, broke, staked, retry } =
+  const { table, view, reveal, endsAt, waitMs, connection, error, full, refusals, send, chat, chatCount, reactions, phrases, coach, askCoach, broke, staked, retry } =
     useBlackjackTable(tableId)
   const seconds = useSecondsUntil(endsAt)
   const resultShown = useResultShown(view, reveal)
@@ -112,12 +112,12 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
   // The newest thing said is shown for a moment along the rail.
   const latest = chat.findLast((line) => !muted.has(line.from))
   const [quietAfter, setQuietAfter] = useState(0)
-  const spoken = chat.length > quietAfter && latest === chat.at(-1)
+  const spoken = chatCount > quietAfter && latest === chat.at(-1)
   useEffect(() => {
-    if (chat.length === 0) return
-    const timer = setTimeout(() => setQuietAfter(chat.length), 4_000)
+    if (chatCount === 0) return
+    const timer = setTimeout(() => setQuietAfter(chatCount), 4_000)
     return () => clearTimeout(timer)
-  }, [chat.length])
+  }, [chatCount])
 
   // A table its host has closed is gone, whatever was on the felt a moment ago.
   if (!table || !view || connection === 'gone') {
@@ -150,7 +150,7 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
   const deciding = table.yourTurn || insuring
   const betDown = table.phase === 'betting' && (me?.bet ?? 0) > 0
   const size = view.hands.length <= 1 ? 'var(--card-hero)' : view.hands.length === 2 ? 'var(--card-board)' : 'var(--card-opponent)'
-  const unread = chat.length - heard
+  const unread = chatCount - heard
 
   return (
     <CasinoShell showdown={dealing}>
@@ -170,7 +170,7 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
           className="icon-button flex-none"
           onClick={() => {
             sound.click()
-            setHeard(chat.length)
+            setHeard(chatCount)
             setShowRoom(true)
           }}
           aria-label={`Open the table: ${table.seats.length} here${unread > 0 ? `, ${unread} new messages` : ''}`}
@@ -182,7 +182,7 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
         </button>
       </div>
       {spoken && latest && !showRoom && (
-        <p className="chat-toast rise-in pt-1" key={chat.length}>
+        <p className="chat-toast rise-in pt-1" key={chatCount}>
           <span className="label tracking-[0.08em]!">{latest.from}</span> {latest.text}
         </p>
       )}
@@ -330,7 +330,7 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
           muted={muted}
           onMute={mute}
           onClose={() => {
-            setHeard(chat.length)
+            setHeard(chatCount)
             setShowRoom(false)
           }}
         />

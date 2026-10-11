@@ -4,14 +4,12 @@ import { prefersReducedMotion } from '../casino/motion'
 import { sound } from '../casino/sound'
 import { useChipNotices } from '../casino/useChipNotices'
 import { useSocket } from '../casino/useSocket'
-import type { ChatLine, Phrase } from '../casino/room'
+import { NO_TALK, heardLine, heardLog } from '../casino/chat'
+import type { Phrase } from '../casino/room'
 import type { RoomClientMessage, RoomServerMessage, RoomView, Wager } from './types'
 import type { Reading } from './useRoulette'
 
 const NOT_READING: Reading = { status: 'idle', steps: [], read: null }
-
-/** How many lines of chat are kept to look back over. */
-const CHAT_KEPT = 30
 
 /**
  * A shared roulette room as the server describes it. The room keeps the time
@@ -27,7 +25,7 @@ export function useRoom(roomId: string) {
   const [error, setError] = useState<string | null>(null)
   const [full, setFull] = useState(false)
   const [refusals, setRefusals] = useState(0)
-  const [chat, setChat] = useState<ChatLine[]>([])
+  const [talk, setTalk] = useState(NO_TALK)
   const [phrases, setPhrases] = useState<Phrase[]>([])
   const [reactions, react] = useReactionStream()
   const [reading, setReading] = useState<Reading>(NOT_READING)
@@ -59,13 +57,13 @@ export function useRoom(roomId: string) {
         break
       }
       case 'chat_log':
-        setChat(spokenOnly(message.lines))
+        setTalk((current) => heardLog(current, spokenOnly(message.lines)))
         setPhrases(message.phrases)
         break
       case 'chat':
         // A reaction is shown on the table and not added to what was said.
         if (message.line.emote) react(message.line)
-        else setChat((lines) => [...lines, message.line].slice(-CHAT_KEPT))
+        else setTalk((current) => heardLine(current, message.line))
         break
       case 'trace':
         setReading((current) => (current.status === 'thinking' ? { ...current, steps: [...current.steps, message.event] } : current))
@@ -109,7 +107,9 @@ export function useRoom(roomId: string) {
     // Sitting back down counts with refusals as a reason to show the room's bets rather than this device's.
     refusals: refusals + sittings,
     send,
-    chat,
+    chat: talk.lines,
+    // Every line heard since sitting down, which goes on counting once the kept lines are full.
+    chatCount: talk.count,
     reactions,
     phrases,
     reading,

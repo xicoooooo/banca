@@ -1,13 +1,11 @@
 import { spokenOnly, useReactionStream } from '../casino/reactionStream'
 import { useMemo, useRef, useState } from 'react'
-import type { ChatLine, Phrase } from '../casino/room'
+import { NO_TALK, heardLine, heardLog } from '../casino/chat'
+import type { Phrase } from '../casino/room'
 import { useChipNotices } from '../casino/useChipNotices'
 import { useSocket } from '../casino/useSocket'
 import type { BlackjackTableClientMessage, BlackjackTableServerMessage, BlackjackTableView, BlackjackView } from './types'
 import { useBlackjackPresentation, useCoaching } from './useBlackjack'
-
-/** How many lines of chat are kept to look back over. */
-const CHAT_KEPT = 30
 
 /**
  * The player's own part in a shared round, put the way a table played alone
@@ -37,7 +35,7 @@ export function useBlackjackTable(tableId: string) {
   const [error, setError] = useState<string | null>(null)
   const [full, setFull] = useState(false)
   const [refusals, setRefusals] = useState(0)
-  const [chat, setChat] = useState<ChatLine[]>([])
+  const [talk, setTalk] = useState(NO_TALK)
   const [phrases, setPhrases] = useState<Phrase[]>([])
   const [reactions, react] = useReactionStream()
   const chips = useChipNotices()
@@ -69,13 +67,13 @@ export function useBlackjackTable(tableId: string) {
           break
         }
         case 'chat_log':
-          setChat(spokenOnly(message.lines))
+          setTalk((current) => heardLog(current, spokenOnly(message.lines)))
           setPhrases(message.phrases)
           break
         case 'chat':
           // A reaction is shown on the table and not added to what was said.
           if (message.line.emote) react(message.line)
-          else setChat((lines) => [...lines, message.line].slice(-CHAT_KEPT))
+          else setTalk((current) => heardLine(current, message.line))
           break
         case 'trace':
           coaching.heardStep(message.event)
@@ -107,7 +105,9 @@ export function useBlackjackTable(tableId: string) {
     // Sitting back down counts with refusals as a reason to give the controls back.
     refusals: refusals + sittings,
     send,
-    chat,
+    chat: talk.lines,
+    // Every line heard since sitting down, which goes on counting once the kept lines are full.
+    chatCount: talk.count,
     reactions,
     phrases,
     coach: coaching.coach,

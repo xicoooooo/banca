@@ -32,7 +32,7 @@ function statusOf(view: RoomView): Status {
  * room as it is made so that it stands if the connection drops.
  */
 export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () => void }) {
-  const { view, endsAt, phaseMs, connection, error, full, refusals, send, chat, reactions, phrases, reading, askAbout, forgetRead, broke, staked, retry } = useRoom(roomId)
+  const { view, endsAt, phaseMs, connection, error, full, refusals, send, chat, chatCount, reactions, phrases, reading, askAbout, forgetRead, broke, staked, retry } = useRoom(roomId)
   const seconds = useSecondsUntil(endsAt)
   const [bets, setBets] = useState<Bets>(NO_BETS)
   const [previous, setPrevious] = useState<Bets>(NO_BETS)
@@ -70,12 +70,12 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
   // The newest thing said is shown for a moment where the hint usually is.
   const latest = chat.findLast((line) => !muted.has(line.from))
   const [quietAfter, setQuietAfter] = useState(0)
-  const spoken = chat.length > quietAfter
+  const spoken = chatCount > quietAfter
   useEffect(() => {
-    if (chat.length === 0) return
-    const timer = setTimeout(() => setQuietAfter(chat.length), 4_000)
+    if (chatCount === 0) return
+    const timer = setTimeout(() => setQuietAfter(chatCount), 4_000)
     return () => clearTimeout(timer)
-  }, [chat.length])
+  }, [chatCount])
 
   // A room its host has closed is gone, whatever was on the felt a moment ago.
   if (!view || connection === 'gone') {
@@ -130,7 +130,7 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
   // Whether anyone in the room has chips down, which is what a spin needs.
   const anyoneBet = view.players.some((player) => player.staked > 0)
   const canRebet = betting && total === 0 && totalOf(previous) > 0 && totalOf(previous) <= limits.stack
-  const unread = chat.length - heard
+  const unread = chatCount - heard
 
   return (
     <CasinoShell showdown={spinning}>
@@ -227,7 +227,7 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
                   className="icon-button"
                   onClick={() => {
                     sound.click()
-                    setHeard(chat.length)
+                    setHeard(chatCount)
                     setShowRoom(true)
                   }}
                   aria-label={`Open the room: ${view.players.length} here${unread > 0 ? `, ${unread} new messages` : ''}`}
@@ -241,7 +241,7 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
             </div>
 
             {spoken && latest && latest === chat.at(-1) && !showRoom ? (
-              <p className="chat-toast rise-in" key={chat.length}>
+              <p className="chat-toast rise-in" key={chatCount}>
                 <span className="label tracking-[0.08em]!">{latest.from}</span> {latest.text}
               </p>
             ) : reading.read && betting ? (
@@ -317,7 +317,7 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
           muted={muted}
           onMute={mute}
           onClose={() => {
-            setHeard(chat.length)
+            setHeard(chatCount)
             setShowRoom(false)
           }}
         />

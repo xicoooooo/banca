@@ -148,7 +148,7 @@ function Outcome({ view, seconds, onShowReasoning, onShare, toRead = false }: { 
  * controls are as at a table alone; everyone else sits in a row across the top.
  */
 export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: () => void }) {
-  const { room, endsAt, waitMs, reasoning, connection, error, full, refusals, send, chat, reactions, said, phrases, broke, staked, retry, coach, askCoach } =
+  const { room, endsAt, waitMs, reasoning, connection, error, full, refusals, send, chat, chatCount, reactions, said, phrases, broke, staked, retry, coach, askCoach } =
     usePokerRoom(tableId)
   const view = room?.table ?? null
   const { actions, showdown, potPulse } = usePresentation(view)
@@ -172,14 +172,14 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
   // The newest thing said is shown for a moment above the controls.
   const latest = chat.findLast((line) => !muted.has(line.from))
   const [quietAfter, setQuietAfter] = useState(0)
-  const spoken = chat.length > quietAfter && latest === chat.at(-1)
+  const spoken = chatCount > quietAfter && latest === chat.at(-1)
   // Banca waits for the cards to turn before it speaks, so it is given longer to be read.
   const readFor = chat.at(-1)?.banca ? 6_500 : 4_000
   useEffect(() => {
-    if (chat.length === 0) return
-    const timer = setTimeout(() => setQuietAfter(chat.length), readFor)
+    if (chatCount === 0) return
+    const timer = setTimeout(() => setQuietAfter(chatCount), readFor)
     return () => clearTimeout(timer)
-  }, [chat.length, readFor])
+  }, [chatCount, readFor])
 
   // A private table before its host has started the game: who is here, and the link to bring the rest.
   if (room && room.byInvite && !room.started && !broke && connection !== 'gone') {
@@ -209,11 +209,11 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
             type="button"
             className="btn btn--quiet px-4! py-2! text-sm"
             onClick={() => {
-              setHeard(chat.length)
+              setHeard(chatCount)
               setShowRoom(true)
             }}
           >
-            Chat{chat.length - heard > 0 ? ` · ${chat.length - heard}` : ''}
+            Chat{chatCount - heard > 0 ? ` · ${chatCount - heard}` : ''}
           </button>
         </WaitingRoom>
         {showRoom && (
@@ -231,7 +231,7 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
             muted={muted}
             onMute={mute}
             onClose={() => {
-              setHeard(chat.length)
+              setHeard(chatCount)
               setShowRoom(false)
             }}
           />
@@ -284,7 +284,7 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
   const shareable = over ? handCardOf(view, said) : null
   const toRead =
     reasoning.revealed && reading.answerFor(reasoning.handNumber) === null && reasoning.events.some((event) => moodOf(event.detail) !== null)
-  const unread = chat.length - heard
+  const unread = chatCount - heard
   const waiting = room.seats.filter((seat) => !seat.inHand && seat.seat !== BANCA_SEAT)
 
   return (
@@ -300,7 +300,7 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
             className="icon-button"
             onClick={() => {
               sound.click()
-              setHeard(chat.length)
+              setHeard(chatCount)
               setShowRoom(true)
             }}
             aria-label={`Open the table: ${room.seats.length} here${unread > 0 ? `, ${unread} new messages` : ''}`}
@@ -362,9 +362,9 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
         <StakedNote amount={staked} />
         {spoken && latest && !showRoom &&
           (latest.banca ? (
-            <BancaSays key={chat.length} text={latest.text} afterShowdown={Object.keys(view.result?.showdown ?? {}).length > 0} />
+            <BancaSays key={chatCount} text={latest.text} afterShowdown={Object.keys(view.result?.showdown ?? {}).length > 0} />
           ) : (
-            <p className="chat-toast rise-in pb-2" key={chat.length}>
+            <p className="chat-toast rise-in pb-2" key={chatCount}>
               <span className="label tracking-[0.08em]!">{latest.from}</span> {latest.text}
             </p>
           ))}
@@ -442,7 +442,7 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
           muted={muted}
           onMute={mute}
           onClose={() => {
-            setHeard(chat.length)
+            setHeard(chatCount)
             setShowRoom(false)
           }}
         />
