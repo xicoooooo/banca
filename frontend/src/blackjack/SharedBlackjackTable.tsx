@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { Card, CardSlot } from '../casino/Card'
+import { ReactionButton, Reactions } from '../casino/Reactions'
 import { CasinoShell } from '../casino/CasinoShell'
 import { OutOfChips, StakedNote } from '../casino/ChipNotices'
 import { ConnectionNote } from '../casino/ConnectionNote'
@@ -59,7 +60,7 @@ function RailSeat({ seat, table }: { seat: TableSeat; table: BlackjackTableView 
   const said = cards.length > 0 ? `${cards.length} cards, ${standing.text}` : standing.text
 
   return (
-    <li className="rail-seat" data-acting={seat.acting} aria-label={`${seat.name}: ${said}, ${seat.stack.toLocaleString('en-US')} chips`}>
+    <li className="rail-seat" data-seat-of={seat.name} data-acting={seat.acting} aria-label={`${seat.name}: ${said}, ${seat.stack.toLocaleString('en-US')} chips`}>
       <div className="rail-seat__cards" aria-hidden>
         {seat.hands.length === 0 ? (
           // No cards yet: their bet, or that they are still deciding on one.
@@ -89,7 +90,7 @@ function RailSeat({ seat, table }: { seat: TableSeat; table: BlackjackTableView 
  * drawn exactly as at a table alone; the others sit along the rail above.
  */
 export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; onLeave?: () => void }) {
-  const { table, view, reveal, endsAt, waitMs, connection, error, full, refusals, send, chat, phrases, coach, askCoach, broke, staked, retry } =
+  const { table, view, reveal, endsAt, waitMs, connection, error, full, refusals, send, chat, reactions, phrases, coach, askCoach, broke, staked, retry } =
     useBlackjackTable(tableId)
   const seconds = useSecondsUntil(endsAt)
   const resultShown = useResultShown(view, reveal)
@@ -163,6 +164,7 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
             <RailSeat key={`${seat.name}-${index}`} seat={seat} table={table} />
           ))}
         </ul>
+        <ReactionButton phrases={phrases} onSay={(say) => send({ type: 'chat', say })} />
         <button
           type="button"
           className="icon-button flex-none"
@@ -333,6 +335,7 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
           }}
         />
       )}
+      <Reactions reactions={reactions} muted={muted} />
     </CasinoShell>
   )
 }

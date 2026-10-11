@@ -342,6 +342,32 @@ class PokerRoomTest {
     }
 
     @Test
+    fun `a reaction is passed round the table and not kept for whoever sits down next`() = testApplication {
+        val guest = TestPlayers()
+        serve(guest)
+
+        sockets().webSocket("/ws/poker/tables/gold") {
+            sayHello(guest.token)
+            nextOf("chat_log")
+            say("""{"type":"chat","say":"clap"}""")
+            val thrown = nextOf("chat").getValue("line").jsonObject
+            assertTrue(thrown.getValue("emote").jsonPrimitive.boolean)
+            assertEquals(guest.player.name, thrown.getValue("from").jsonPrimitive.content)
+
+            delay(1_600)
+            say("""{"type":"chat","say":"good_luck"}""")
+            nextOf("chat")
+        }
+
+        val (_, token) = anotherPlayerOf(guest)
+        sockets().webSocket("/ws/poker/tables/gold") {
+            sayHello(token)
+            val kept = nextOf("chat_log").getValue("lines").jsonArray.map { it.jsonObject.getValue("text").jsonPrimitive.content }
+            assertEquals(listOf("Good luck"), kept, "what was said is remembered, and the reaction is not")
+        }
+    }
+
+    @Test
     fun `players at a table can talk to each other`() = testApplication {
         val guest = TestPlayers()
         serve(guest)

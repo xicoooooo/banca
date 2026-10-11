@@ -1,3 +1,4 @@
+import { spokenOnly, useReactionStream } from '../casino/reactionStream'
 import { useMemo, useRef, useState } from 'react'
 import type { ChatLine, Phrase } from '../casino/room'
 import { useChipNotices } from '../casino/useChipNotices'
@@ -38,6 +39,7 @@ export function useBlackjackTable(tableId: string) {
   const [refusals, setRefusals] = useState(0)
   const [chat, setChat] = useState<ChatLine[]>([])
   const [phrases, setPhrases] = useState<Phrase[]>([])
+  const [reactions, react] = useReactionStream()
   const chips = useChipNotices()
   const lastWait = useRef('')
 
@@ -67,11 +69,13 @@ export function useBlackjackTable(tableId: string) {
           break
         }
         case 'chat_log':
-          setChat(message.lines)
+          setChat(spokenOnly(message.lines))
           setPhrases(message.phrases)
           break
         case 'chat':
-          setChat((lines) => [...lines, message.line].slice(-CHAT_KEPT))
+          // A reaction is shown on the table and not added to what was said.
+          if (message.line.emote) react(message.line)
+          else setChat((lines) => [...lines, message.line].slice(-CHAT_KEPT))
           break
         case 'trace':
           coaching.heardStep(message.event)
@@ -104,6 +108,7 @@ export function useBlackjackTable(tableId: string) {
     refusals: refusals + sittings,
     send,
     chat,
+    reactions,
     phrases,
     coach: coaching.coach,
     askCoach: () => {

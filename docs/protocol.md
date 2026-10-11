@@ -746,6 +746,8 @@ Sent to everyone in the room whenever the phase changes or anyone's bets do, eac
 
 `chat_log` is sent on walking in: what has been said lately, and the phrases that can be said with one press. `chat` is a line as it is spoken, already tidied if it was typed.
 
+A line whose `emote` is `true` is a reaction: an emoji thrown onto the table, to be shown for a moment where everyone can see it and not added to what was said. The server passes it round like any other line but does not keep it, so it is never in a `chat_log`.
+
 A line also carries `banca`, which is `true` only for a line the house wrote. At a poker table Banca sometimes has a word to say once a hand is over, and it arrives as a `chat` line from `Banca` with `banca` set. A player may call themselves anything, so it is this, and not the name, that says a line is Banca's own.
 
 ### `trace`, `read` and `error`

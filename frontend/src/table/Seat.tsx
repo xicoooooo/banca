@@ -90,6 +90,7 @@ export function Seat({ player, view, isMe = false, action }: SeatProps) {
     <section
       aria-label={`${player.name}'s seat`}
       className="seat flex flex-col items-center gap-1.5"
+      data-seat-of={player.name}
       data-me={isMe}
       data-acting={acting}
       data-winner={winner}

@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { AnimatedNumber } from '../casino/AnimatedNumber'
 import { Card } from '../casino/Card'
+import { ReactionButton, Reactions } from '../casino/Reactions'
 import { CasinoShell } from '../casino/CasinoShell'
 import { ChipStack } from '../casino/Chip'
 import { OutOfChips, StakedNote } from '../casino/ChipNotices'
@@ -53,6 +54,7 @@ function SmallSeat({ player, view, action }: { player: PlayerView; view: TableVi
     <section
       aria-label={`${player.name}'s seat`}
       className="seat small-seat"
+      data-seat-of={player.name}
       data-me="false"
       data-acting={view.actorSeat === player.seat}
       data-winner={winner}
@@ -146,7 +148,7 @@ function Outcome({ view, seconds, onShowReasoning, onShare, toRead = false }: { 
  * controls are as at a table alone; everyone else sits in a row across the top.
  */
 export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: () => void }) {
-  const { room, endsAt, waitMs, reasoning, connection, error, full, refusals, send, chat, said, phrases, broke, staked, retry, coach, askCoach } =
+  const { room, endsAt, waitMs, reasoning, connection, error, full, refusals, send, chat, reactions, said, phrases, broke, staked, retry, coach, askCoach } =
     usePokerRoom(tableId)
   const view = room?.table ?? null
   const { actions, showdown, potPulse } = usePresentation(view)
@@ -290,22 +292,25 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
       <Header detail={room.name} status={statusOf(room, seconds)} onLeave={onLeave} />
 
       <div className="felt mt-2.5 flex flex-1 flex-col">
-        {/* The way into the chat sits in the corner of the felt, taking no room from the cards. */}
-        <button
-          type="button"
-          className="icon-button felt__corner"
-          onClick={() => {
-            sound.click()
-            setHeard(chat.length)
-            setShowRoom(true)
-          }}
-          aria-label={`Open the table: ${room.seats.length} here${unread > 0 ? `, ${unread} new messages` : ''}`}
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M20 12a8 8 0 01-11.8 7L4 20l1-4.2A8 8 0 1120 12z" />
-          </svg>
-          {unread > 0 && !showRoom && <span aria-hidden className="icon-button__dot" />}
-        </button>
+        {/* The ways to react and into the chat sit in the corner of the felt, taking no room from the cards. */}
+        <div className="felt__corner flex gap-1.5">
+          <ReactionButton phrases={phrases} onSay={(say) => send({ type: 'chat', say })} />
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => {
+              sound.click()
+              setHeard(chat.length)
+              setShowRoom(true)
+            }}
+            aria-label={`Open the table: ${room.seats.length} here${unread > 0 ? `, ${unread} new messages` : ''}`}
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M20 12a8 8 0 01-11.8 7L4 20l1-4.2A8 8 0 1120 12z" />
+            </svg>
+            {unread > 0 && !showRoom && <span aria-hidden className="icon-button__dot" />}
+          </button>
+        </div>
 
         <div className="felt__surface flex flex-1 flex-col items-center justify-evenly gap-1.5 px-2 py-3.5 short:py-2">
           {others.length === 1 ? (
@@ -415,6 +420,7 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
       {showCoach && room.yourTurn && view && coach.status !== 'idle' && (
         <PokerCoachPanel coach={coach} handNumber={view.handNumber} onClose={() => setShowCoach(false)} />
       )}
+      <Reactions reactions={reactions} muted={muted} />
       {sharing && <ShareHandPanel card={sharing} onClose={() => setSharing(null)} />}
       {showReasoning && <ReasoningPanel reasoning={reasoning} name="Banca" thinking={bancaThinking} onClose={() => setShowReasoning(false)} reading={reading} />}
       {showRoom && (

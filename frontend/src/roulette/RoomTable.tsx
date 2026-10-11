@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AnimatedNumber } from '../casino/AnimatedNumber'
+import { ReactionButton, Reactions } from '../casino/Reactions'
 import { CasinoShell } from '../casino/CasinoShell'
 import { OutOfChips, StakedNote } from '../casino/ChipNotices'
 import { useInviteOffer } from '../casino/useInviteOffer'
@@ -31,7 +32,7 @@ function statusOf(view: RoomView): Status {
  * room as it is made so that it stands if the connection drops.
  */
 export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () => void }) {
-  const { view, endsAt, phaseMs, connection, error, full, refusals, send, chat, phrases, reading, askAbout, forgetRead, broke, staked, retry } = useRoom(roomId)
+  const { view, endsAt, phaseMs, connection, error, full, refusals, send, chat, reactions, phrases, reading, askAbout, forgetRead, broke, staked, retry } = useRoom(roomId)
   const seconds = useSecondsUntil(endsAt)
   const [bets, setBets] = useState<Bets>(NO_BETS)
   const [previous, setPrevious] = useState<Bets>(NO_BETS)
@@ -162,11 +163,15 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
                 )}
               </div>
 
-              <div className="glass glass--strong rounded-2xl px-3 py-1.5">
-                <span className="label block">You</span>
-                <span className="block text-base font-semibold text-ivory">
-                  <AnimatedNumber value={view.stack} />
-                </span>
+              {/* The way to react sits beside the stack: the row of chips below has no room to spare on a phone. */}
+              <div className="flex items-center gap-2">
+                <div className="glass glass--strong rounded-2xl px-3 py-1.5">
+                  <span className="label block">You</span>
+                  <span className="block text-base font-semibold text-ivory">
+                    <AnimatedNumber value={view.stack} />
+                  </span>
+                </div>
+                <ReactionButton phrases={phrases} onSay={(say) => send({ type: 'chat', say })} />
               </div>
 
               {betting && !broke && (
@@ -317,6 +322,7 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
           }}
         />
       )}
+      <Reactions reactions={reactions} muted={muted} />
     </CasinoShell>
   )
 }

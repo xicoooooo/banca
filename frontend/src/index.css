@@ -2531,6 +2531,125 @@ button {
   color: var(--color-ivory);
 }
 
+/* ------------------------------------------------------------ reactions */
+
+/* Thrown onto the table and gone again: drawn above everything, and in nobody's way. */
+.reactions {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.reaction {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  align-items: center;
+  translate: -50% -50%;
+  animation: reaction-rise 2600ms var(--ease-soft) both;
+}
+
+.reaction__emoji {
+  font-size: 2.6rem;
+  line-height: 1;
+  rotate: var(--tilt, 0deg);
+  filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.45));
+}
+
+.reaction__from {
+  max-width: 7rem;
+  padding: 0.1rem 0.45rem;
+  overflow: hidden;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--color-ivory);
+  background: rgb(0 0 0 / 0.5);
+}
+
+@keyframes reaction-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.4);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0) scale(1.15);
+  }
+  22% {
+    transform: translateY(-6px) scale(1);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-96px) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reaction {
+    animation-name: reaction-fade;
+  }
+}
+
+@keyframes reaction-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  12%,
+  75% {
+    opacity: 1;
+  }
+}
+
+.react-button {
+  position: relative;
+  flex: none;
+}
+
+.react-button__row {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  z-index: 5;
+  display: flex;
+  gap: 0.15rem;
+  padding: 0.3rem;
+  border: 1px solid rgb(241 199 91 / 0.3);
+  border-radius: 999px;
+  background: rgb(6 20 17 / 0.94);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 0.5);
+  animation: rise-in var(--t-micro) var(--ease-soft) both;
+}
+
+.react-button__emote {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0;
+  border-radius: 50%;
+  font-size: 1.45rem;
+  line-height: 1;
+  background: none;
+  transition: transform var(--t-micro) var(--ease-soft);
+}
+
+.react-button__emote:hover,
+.react-button__emote:focus-visible {
+  background: rgb(255 255 255 / 0.1);
+  transform: scale(1.15);
+}
+
 /* ------------------------------------------------------ you against Banca */
 
 .score {

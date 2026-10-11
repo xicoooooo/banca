@@ -1,3 +1,4 @@
+import { spokenOnly, useReactionStream } from '../casino/reactionStream'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { prefersReducedMotion } from '../casino/motion'
 import { sound } from '../casino/sound'
@@ -28,6 +29,7 @@ export function useRoom(roomId: string) {
   const [refusals, setRefusals] = useState(0)
   const [chat, setChat] = useState<ChatLine[]>([])
   const [phrases, setPhrases] = useState<Phrase[]>([])
+  const [reactions, react] = useReactionStream()
   const [reading, setReading] = useState<Reading>(NOT_READING)
   const chips = useChipNotices()
   const lastPhase = useRef('')
@@ -57,11 +59,13 @@ export function useRoom(roomId: string) {
         break
       }
       case 'chat_log':
-        setChat(message.lines)
+        setChat(spokenOnly(message.lines))
         setPhrases(message.phrases)
         break
       case 'chat':
-        setChat((lines) => [...lines, message.line].slice(-CHAT_KEPT))
+        // A reaction is shown on the table and not added to what was said.
+        if (message.line.emote) react(message.line)
+        else setChat((lines) => [...lines, message.line].slice(-CHAT_KEPT))
         break
       case 'trace':
         setReading((current) => (current.status === 'thinking' ? { ...current, steps: [...current.steps, message.event] } : current))
@@ -106,6 +110,7 @@ export function useRoom(roomId: string) {
     refusals: refusals + sittings,
     send,
     chat,
+    reactions,
     phrases,
     reading,
     askAbout,

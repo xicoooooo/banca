@@ -33,6 +33,9 @@ class RoomChat {
         check(now - (lastSpoke[playerId] ?: Long.MIN_VALUE / 2) >= EVERY_MS) { "Give it a moment before saying more" }
         lastSpoke[playerId] = now
 
+        // A reaction is for the moment it is thrown in. It is passed on and not kept, so it
+        // does not push what was said out of the little that is remembered.
+        if (line.emote) return line
         lines.addLast(line)
         while (lines.size > KEPT) lines.removeFirst()
         return line
