@@ -20,7 +20,7 @@ export type HandCard = {
 }
 
 /** Hand categories, weakest first, as the server names them. */
-const ORDER = ['high_card', 'pair', 'two_pair', 'three_of_a_kind', 'straight', 'flush', 'full_house', 'four_of_a_kind', 'straight_flush']
+const ORDER = ['high_card', 'pair', 'two_pair', 'three_of_a_kind', 'straight', 'flush', 'full_house', 'four_of_a_kind', 'straight_flush', 'royal_flush']
 
 const NAMES: Record<string, string> = {
   high_card: 'high card',
@@ -32,6 +32,7 @@ const NAMES: Record<string, string> = {
   full_house: 'a full house',
   four_of_a_kind: 'four of a kind',
   straight_flush: 'a straight flush',
+  royal_flush: 'a royal flush',
 }
 
 const named = (hand: string) => NAMES[hand] ?? hand.replaceAll('_', ' ')

@@ -126,6 +126,18 @@ A player may wear one title beside their name. The `titles` of the dashboard are
 
 The title a player wears is shown to others: it is the `title` of their seat at a shared poker or blackjack table, of their entry in a roulette room's `players`, and `wearing` on their public page. It is `null` for a player who wears none. `player.title`, an older field, only names the player's level.
 
+### Moments
+
+The `moments` of the dashboard are the rare things that have happened to the player at the tables, newest first, twelve at most. Each has a `kind`, a `title`, a `detail` and the time it happened, `at`:
+
+| `kind` | What it is |
+|---|---|
+| `poker_hand` | A Hold'em showdown won with four of a kind, a straight flush or a royal flush |
+| `straight_up` | A roulette spin where a single number came in and the spin won at least ten times everything staked on it |
+| `blackjack_run` | The fifth of five rounds of blackjack won one after another |
+
+They are found in the record, not stored. A client is expected to celebrate the same things as they happen, from the results it is sent, by the same rules.
+
 ### The record against Banca
 
 The `rivalry` part of the dashboard is how the player stands against Banca at poker, from every hand the two played with nobody else in it: at a table for one, or at a shared table when only they and Banca were dealt in. It is `null` until there is such a hand.
@@ -255,7 +267,7 @@ When the hand ends:
 }
 ```
 
-`winnings` maps seat to chips collected from the pot. `showdown` maps seat to hand category and is empty when the hand ended by everyone else folding.
+`winnings` maps seat to chips collected from the pot. `showdown` maps seat to hand category and is empty when the hand ended by everyone else folding. The categories run from `high_card` to `straight_flush`, and a straight flush to the ace is named `royal_flush`.
 
 ### `trace`
 

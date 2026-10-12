@@ -2,6 +2,8 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { AnimatedNumber } from '../casino/AnimatedNumber'
 import { Card } from '../casino/Card'
 import { ReactionButton, Reactions } from '../casino/Reactions'
+import { Celebration } from '../casino/Celebration'
+import { pokerMoment } from '../casino/moments'
 import { CasinoShell } from '../casino/CasinoShell'
 import { ChipStack } from '../casino/Chip'
 import { OutOfChips, StakedNote } from '../casino/ChipNotices'
@@ -421,6 +423,7 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
         <PokerCoachPanel coach={coach} handNumber={view.handNumber} onClose={() => setShowCoach(false)} />
       )}
       <Reactions reactions={reactions} muted={muted} />
+      <Celebration moment={over ? pokerMoment(view) : null} delay={1_400} />
       {sharing && <ShareHandPanel card={sharing} onClose={() => setSharing(null)} />}
       {showReasoning && <ReasoningPanel reasoning={reasoning} name="Banca" thinking={bancaThinking} onClose={() => setShowReasoning(false)} reading={reading} />}
       {showRoom && (

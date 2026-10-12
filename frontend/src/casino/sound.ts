@@ -100,6 +100,12 @@ export const sound = {
       ping(ctx, t + 0.11, 988, 0.35, 0.035)
       ping(ctx, t + 0.22, 1175, 0.5, 0.04)
     }, delayMs),
+  /** For a moment the table stops for: a climb, and a chord held at the top of it. */
+  fanfare: () =>
+    play((ctx, t) => {
+      ;[523, 659, 784, 1047].forEach((note, index) => ping(ctx, t + index * 0.1, note, 0.4, 0.04))
+      ;[1047, 1319, 1568].forEach((note) => ping(ctx, t + 0.46, note, 1.1, 0.035))
+    }),
 }
 
 export function isMuted(): boolean {

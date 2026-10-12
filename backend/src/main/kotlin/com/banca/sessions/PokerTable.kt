@@ -120,11 +120,21 @@ fun tableViewOf(hand: Hand, handNumber: Int, names: Map<Int, String>, seat: Int?
         result = result?.let {
             ResultView(
                 winnings = it.winnings,
-                showdown = it.showdown.mapValues { (_, rank) -> rank.category.name.lowercase() },
+                showdown = it.showdown.mapValues { (_, rank) -> rank.named() },
             )
         },
     )
 }
+
+/**
+ * What a hand is called at the table: its category, except that a straight
+ * flush to the ace has a name of its own.
+ */
+fun com.banca.games.poker.HandRank.named(): String =
+    if (category == com.banca.games.poker.HandCategory.STRAIGHT_FLUSH && tiebreakers.firstOrNull() == ROYAL_HIGH) "royal_flush" else category.name.lowercase()
+
+/** The rank of an ace, which is what a royal flush runs up to. */
+private const val ROYAL_HIGH = 14
 
 /** The seat number given to someone who is at the table but not in the hand. */
 const val WATCHING = -1
@@ -139,7 +149,7 @@ fun handSummaryOf(hand: Hand, seat: Int): HandSummary? {
         net = (result.winnings[seat] ?: 0) - player.contributed,
         pot = hand.players.sumOf { it.contributed },
         wentToShowdown = result.wentToShowdown,
-        hand = result.showdown[seat]?.category?.name?.lowercase(),
+        hand = result.showdown[seat]?.named(),
         folded = !player.isContesting,
     )
 }

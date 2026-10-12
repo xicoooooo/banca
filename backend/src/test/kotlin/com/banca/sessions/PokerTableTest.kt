@@ -140,4 +140,13 @@ class PokerTableTest {
         assertEquals(80, table.view(0).players.sumOf { it.stack + it.committed })
         assertTrue(table.view(0).players.all { it.stack + it.committed == 40L })
     }
+
+    @Test
+    fun `a straight flush to the ace is called a royal flush, and no other hand is`() {
+        fun named(category: com.banca.games.poker.HandCategory, high: Int) = com.banca.games.poker.HandRank(category, listOf(high)).named()
+
+        assertEquals("royal_flush", named(com.banca.games.poker.HandCategory.STRAIGHT_FLUSH, 14))
+        assertEquals("straight_flush", named(com.banca.games.poker.HandCategory.STRAIGHT_FLUSH, 13))
+        assertEquals("straight", named(com.banca.games.poker.HandCategory.STRAIGHT, 14))
+    }
 }

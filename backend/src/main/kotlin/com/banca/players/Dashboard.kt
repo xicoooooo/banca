@@ -23,6 +23,8 @@ data class Dashboard(
     val rivalry: Rivalry? = null,
     /** The titles there are to wear, and which of them the player has earned. */
     val titles: List<TitleView> = emptyList(),
+    /** The rare things that have happened to the player at the tables, newest first. */
+    val moments: List<MomentView> = emptyList(),
 )
 
 /**

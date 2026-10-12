@@ -90,6 +90,19 @@ export function Profile({ onLeave, onPlay, onLearn, signInFailed = false }: Prof
               ))}
             </div>
           </Section>
+          {dashboard.moments.length > 0 && (
+            <Section title="Moments" aside={`${dashboard.moments.length} to remember`} delay={5}>
+              <ul className="moments">
+                {dashboard.moments.map((moment, index) => (
+                  <li key={`${moment.at}-${index}`} data-kind={moment.kind}>
+                    <span className="moments__title">{moment.title}</span>
+                    <span className="moments__detail">{moment.detail}</span>
+                    <span className="label moments__when">{ago(moment.at)}</span>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
           <Section title="Titles" aside={dashboard.player.wearing ? `Wearing ${dashboard.player.wearing}` : 'None worn'} delay={6}>
             <TitlePicker dashboard={dashboard} onChanged={refresh} />
           </Section>

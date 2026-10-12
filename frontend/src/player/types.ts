@@ -53,7 +53,12 @@ export type Dashboard = {
   rivalry: Rivalry | null
   /** The titles there are to wear, and which of them the player has earned. */
   titles: Title[]
+  /** The rare things that have happened to the player at the tables, newest first. */
+  moments: PlayerMoment[]
 }
+
+/** A rare hand, a number that came in, or a run of wins, as the record remembers it. */
+export type PlayerMoment = { kind: 'poker_hand' | 'straight_up' | 'blackjack_run'; title: string; detail: string; at: string }
 
 /** A title a player may wear. `how` is what earns it. */
 export type Title = { name: string; how: string; earned: boolean }

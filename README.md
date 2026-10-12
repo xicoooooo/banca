@@ -19,6 +19,7 @@ A multi-game social casino played with virtual chips: Texas Hold'em, blackjack a
 - **One bankroll.** Chips, history and statistics belong to the player and follow them from table to table. Play as a guest at once, or sign in with Google to keep your profile and reach it from another device.
 - **Chips cannot be bought.** They are won at the tables, or come from a daily reward that grows with a streak, three small missions a day, league prizes, and a small stake from the house for a player who has run out.
 - **A profile built from real rounds.** Levels, achievements, a bankroll chart and statistics for each game, all worked out from the rounds actually played.
+- **Moments the table stops for.** A royal flush, a single number that comes in at roulette, five blackjack rounds won running: the table celebrates as it happens, and your profile remembers it.
 - **Titles.** Earn them by level, by feats at the tables and in the leagues, from Card Sharp to Bluff Catcher to Gold Champion, and wear one beside your name where the others at a shared table see it.
 - **Reactions.** At any shared table, throw an emoji onto the felt for everyone to see: it rises from your seat and is gone in a moment.
 - **Read Banca.** After a poker hand, and before you are told, guess which mood it was in. Its play is the evidence, and a count is kept of how often you read it right.

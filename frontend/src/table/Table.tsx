@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { Celebration } from '../casino/Celebration'
 import { CasinoShell } from '../casino/CasinoShell'
+import { pokerMoment } from '../casino/moments'
 import { Header, type Status } from '../casino/Header'
 import { OutOfChips, StakedNote } from '../casino/ChipNotices'
 import { ConnectionNote } from '../casino/ConnectionNote'
@@ -162,6 +164,8 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
       </footer>
 
       <Guide guide={guide} />
+      {/* After the cards have turned and the result has been read. */}
+      <Celebration moment={pokerMoment(view)} delay={1_400} />
       {sharing && <ShareHandPanel card={sharing} onClose={() => setSharing(null)} />}
       {showCoach && view.legal && coach.status !== 'idle' && (
         <PokerCoachPanel coach={coach} handNumber={view.handNumber} onClose={() => setShowCoach(false)} />

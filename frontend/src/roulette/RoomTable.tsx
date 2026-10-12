@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AnimatedNumber } from '../casino/AnimatedNumber'
 import { ReactionButton, Reactions } from '../casino/Reactions'
+import { Celebration } from '../casino/Celebration'
+import { rouletteMoment } from '../casino/moments'
 import { CasinoShell } from '../casino/CasinoShell'
 import { OutOfChips, StakedNote } from '../casino/ChipNotices'
 import { useInviteOffer } from '../casino/useInviteOffer'
@@ -260,7 +262,9 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
                     : 'Bets open again in a moment'
                   : total === 0
                     ? 'Pick a chip, then press the layout'
-                    : `Wins on ${Math.round(covered * 100)}% of the wheel · up to +${best.toLocaleString('en-US')}`}
+                    : best > 0
+                    ? `Wins on ${Math.round(covered * 100)}% of the wheel · up to +${best.toLocaleString('en-US')}`
+                    : 'This layout cannot come out ahead'}
               </p>
             )}
 
@@ -323,6 +327,7 @@ export function RoomTable({ roomId, onLeave }: { roomId: string; onLeave?: () =>
         />
       )}
       <Reactions reactions={reactions} muted={muted} />
+      <Celebration moment={rouletteMoment(shown, view.roundNumber)} delay={500} />
     </CasinoShell>
   )
 }

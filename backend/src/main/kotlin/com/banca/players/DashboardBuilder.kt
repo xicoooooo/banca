@@ -83,6 +83,7 @@ object DashboardBuilder {
             trophies = trophies.map(::trophyView),
             rivalry = rivalry(rounds),
             titles = Titles.all(level, rounds, trophies.map(::trophyView)),
+            moments = Moments.of(rounds),
         )
     }
 

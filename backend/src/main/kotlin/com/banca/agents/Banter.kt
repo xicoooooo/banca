@@ -43,7 +43,7 @@ object Banter {
     private const val BIG_POT = 20
 
     /** Hands Banca expects to win with, by the name the table is given for them. */
-    private val STRONG = setOf("two_pair", "three_of_a_kind", "straight", "flush", "full_house", "four_of_a_kind", "straight_flush")
+    private val STRONG = setOf("two_pair", "three_of_a_kind", "straight", "flush", "full_house", "four_of_a_kind", "straight_flush", "royal_flush")
     private val WEAK = setOf("high_card", "pair")
 
     /** Stands in a line for the name of the player who won the hand. */

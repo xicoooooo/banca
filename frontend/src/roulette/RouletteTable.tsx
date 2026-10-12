@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { AnimatedNumber } from '../casino/AnimatedNumber'
+import { Celebration } from '../casino/Celebration'
 import { CasinoShell } from '../casino/CasinoShell'
+import { rouletteMoment } from '../casino/moments'
 import { OutOfChips, StakedNote } from '../casino/ChipNotices'
 import { Header, type Status } from '../casino/Header'
 import { ConnectionNote } from '../casino/ConnectionNote'
@@ -185,7 +187,9 @@ export function RouletteTable({ onLeave }: { onLeave?: () => void }) {
               <p className="label text-center tracking-[0.12em]!" aria-live="polite">
                 {total === 0 || !affordable
                   ? 'Pick a chip, then press the layout'
-                  : `Wins on ${Math.round(covered * 100)}% of the wheel · up to +${best.toLocaleString('en-US')}`}
+                  : best > 0
+                    ? `Wins on ${Math.round(covered * 100)}% of the wheel · up to +${best.toLocaleString('en-US')}`
+                    : 'This layout cannot come out ahead'}
               </p>
             )}
 
@@ -199,6 +203,8 @@ export function RouletteTable({ onLeave }: { onLeave?: () => void }) {
       {/* Put away while the wheel turns, which is the thing to watch. */}
       <Guide guide={guide} quiet={spinning} />
       {showRead && !spinning && reading.status !== 'idle' && <AnalystPanel reading={reading} onClose={() => setShowRead(false)} />}
+      {/* Once the ball has been seen to land. */}
+      <Celebration moment={rouletteMoment(shown, view.roundNumber)} delay={500} />
     </CasinoShell>
   )
 }

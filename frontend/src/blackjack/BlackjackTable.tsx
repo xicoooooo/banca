@@ -1,5 +1,7 @@
 import { useState, type CSSProperties } from 'react'
 import { CardSlot } from '../casino/Card'
+import { Celebration } from '../casino/Celebration'
+import { useWinRun } from '../casino/useWinRun'
 import { CasinoShell } from '../casino/CasinoShell'
 import { Header, type Status } from '../casino/Header'
 import { OutOfChips, StakedNote } from '../casino/ChipNotices'
@@ -41,6 +43,8 @@ export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
   const [showCoach, setShowCoach] = useState(false)
   const [reviewing, setReviewing] = useState<Reviewed | null>(null)
   const resultShown = useResultShown(view, reveal)
+  // A run of wins is counted as each result is shown, and celebrated when it is long enough.
+  const run = useWinRun(view?.roundNumber ?? null, view?.result && resultShown ? view.result.net : null)
   // Banca's walk through a first round follows the round: before the cards, while the hand is played, once it is settled.
   const guide = useGuide(
     'blackjack',
@@ -185,6 +189,7 @@ export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
       {showCoach && deciding && coach.status !== 'idle' && (
         <CoachPanel coach={coach} roundNumber={view.roundNumber} onClose={() => setShowCoach(false)} />
       )}
+      <Celebration moment={run} delay={600} />
     </CasinoShell>
   )
 }

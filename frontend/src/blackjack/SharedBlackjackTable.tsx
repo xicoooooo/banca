@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { Card, CardSlot } from '../casino/Card'
 import { ReactionButton, Reactions } from '../casino/Reactions'
+import { Celebration } from '../casino/Celebration'
+import { useWinRun } from '../casino/useWinRun'
 import { CasinoShell } from '../casino/CasinoShell'
 import { OutOfChips, StakedNote } from '../casino/ChipNotices'
 import { ConnectionNote } from '../casino/ConnectionNote'
@@ -94,6 +96,7 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
     useBlackjackTable(tableId)
   const seconds = useSecondsUntil(endsAt)
   const resultShown = useResultShown(view, reveal)
+  const run = useWinRun(view?.roundNumber ?? null, view?.result && resultShown ? view.result.net : null)
   const [showCoach, setShowCoach] = useState(false)
   const lastReview = useLastReview(view)
   const [reviewing, setReviewing] = useState<Reviewed | null>(null)
@@ -336,6 +339,7 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
         />
       )}
       <Reactions reactions={reactions} muted={muted} />
+      <Celebration moment={run} delay={600} />
     </CasinoShell>
   )
 }
