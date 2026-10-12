@@ -4,6 +4,8 @@ import com.banca.module
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocket
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsText
 import io.ktor.server.testing.testApplication
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
@@ -109,5 +111,21 @@ class BlackjackSocketTest {
 
         say("""{"type":"bet","amount":100}""")
         assertEquals("state", receiveMessage().type, "the table still works afterwards")
+    }
+
+    @Test
+    fun `anyone can be dealt a practice drill, with every play already graded`() = testApplication {
+        application { module(players = TestPlayers().players) }
+
+        val drill = wireJson.parseToJsonElement(client.get("/blackjack/drill").bodyAsText()).jsonObject
+        val questions = drill.getValue("questions").jsonArray.map { it.jsonObject }
+
+        assertEquals(10, questions.size)
+        assertEquals(8, drill.getValue("secondsEach").jsonPrimitive.int)
+        for (question in questions) {
+            val plays = question.getValue("plays").jsonArray.map { it.jsonObject.getValue("action").jsonPrimitive.content }
+            assertTrue(question.getValue("best").jsonPrimitive.content in plays)
+            assertEquals(2, question.getValue("cards").jsonArray.size)
+        }
     }
 }

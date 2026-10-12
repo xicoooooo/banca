@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { BlackjackDrill } from './blackjack/Drill'
 import { BlackjackPicker } from './blackjack/BlackjackPicker'
 import { BlackjackTable } from './blackjack/BlackjackTable'
 import { SharedBlackjackTable } from './blackjack/SharedBlackjackTable'
@@ -124,6 +125,8 @@ function App() {
     // Leaving a table goes back to the choice of tables, not all the way out.
     const toTables = () => open('blackjack')
     if (alone) return <BlackjackTable onLeave={toTables} />
+    // A drill is not a table: "drill" is kept back from the names a table can have.
+    if (place?.room === 'drill') return <BlackjackDrill onLeave={toTables} />
     if (place?.room) return <SharedBlackjackTable key={place.room} tableId={place.room} onLeave={toTables} />
     return (
       <BlackjackPicker

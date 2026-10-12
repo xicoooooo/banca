@@ -22,6 +22,12 @@ export function BlackjackPicker({ onLeave, onChoose }: { onLeave: () => void; on
         </span>
       )}
       alone="Just you and the dealer, at your own pace, with Banca to ask."
+      extra={{
+        kicker: 'Practice',
+        name: 'Take a drill',
+        detail: 'Ten hands against the clock, each marked against the best play. No chips are staked.',
+        choose: 'drill',
+      }}
       footnote={
         <>
           At a shared table everyone faces the same dealer

@@ -1,5 +1,6 @@
 package com.banca.ws
 
+import com.banca.agents.BlackjackDrills
 import com.banca.Allowance
 import com.banca.Limit
 import com.banca.players.Players
@@ -74,6 +75,11 @@ fun Application.configureGameSockets(
         val invitedBlackjack = Invites({ spec -> BlackjackRoom(spec, blackjackTables, scope) }, { it.summary().players > 0 })
         sharedSocket("/ws/blackjack/tables/{table}", players, tables, find = { listedBlackjack[it] ?: invitedBlackjack.find(it) }) { table, send, session ->
             BlackjackSeat(table, coaching.blackjack(blackjackTables.advisor, session), send, table.chipsFor(session))
+        }
+        // Practice away from a table: some hands to decide on, each play already graded.
+        val drills = BlackjackDrills(blackjack.rules)
+        get("/blackjack/drill") {
+            call.respond(drills.deal(blackjack.random()))
         }
         get("/blackjack/tables") {
             call.respond(listedBlackjack.values.map { it.summary() })

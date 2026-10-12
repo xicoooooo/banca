@@ -787,6 +787,30 @@ Version 1, JSON text frames over a WebSocket. Besides the table for one, blackja
 ws://<host>/ws/blackjack/tables/<table>
 ```
 
+### A practice drill
+
+`GET /blackjack/drill` deals a drill: some hands to decide on away from a table, for no chips. It needs no token.
+
+```json
+{
+  "secondsEach": 8,
+  "questions": [
+    {
+      "cards": ["Th", "6d"], "total": 16, "soft": false, "dealer": "Kc",
+      "plays": [
+        { "action": "hit", "verdict": "best", "cost": 0.0 },
+        { "action": "stand", "verdict": "slip", "cost": 0.9 },
+        { "action": "double", "verdict": "mistake", "cost": 53.2 }
+      ],
+      "best": "hit",
+      "reason": "A dealer showing a ten busts only 23% of the time, so 16 loses too often as it stands."
+    }
+  ]
+}
+```
+
+Each question is the player's two cards and the dealer's face-up one, with every play open to them graded as a decision at a table is: `best`, a `slip` that gives up a little, or a `mistake`. `cost` is the chips a play gives up on average for every hundred staked. `split` is among the plays only for a pair. The answers come with the questions because nothing rides on a drill, and a client is expected to mark each answer at once. The hands are drawn from the ones worth practising: stiff totals, totals to double on, soft hands and pairs.
+
 `GET /blackjack/tables` lists them: `[{ "id": "emerald", "name": "Emerald Table", "players": 2, "seats": 5 }]`.
 
 A shared table is one dealer and one shoe, and up to five players with a hand each. The table keeps the time:

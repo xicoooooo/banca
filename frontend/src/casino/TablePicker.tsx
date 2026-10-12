@@ -24,9 +24,11 @@ type TablePickerProps<Listing extends TableListing> = {
   detail: (table: Listing) => ReactNode
   /** What is said for the table to oneself. */
   alone: string
+  /** Something else to do at this game besides sitting at a table, offered after the tables. */
+  extra?: { kicker: string; name: string; detail: string; choose: string }
   footnote: ReactNode
   onLeave: () => void
-  /** Opens a shared table by its id, or 'solo' for the table to oneself. */
+  /** Opens a shared table by its id, 'solo' for the table to oneself, or whatever [extra] is chosen by. */
   onChoose: (table: string) => void
 }
 
@@ -35,7 +37,7 @@ type TablePickerProps<Listing extends TableListing> = {
  * for friends, or at a table to oneself. The same choice at every game.
  */
 export function TablePicker<Listing extends TableListing>(props: TablePickerProps<Listing>) {
-  const { game, gameId, kicker, heading, listedAt, occupancy, detail, alone, footnote, onLeave, onChoose } = props
+  const { game, gameId, kicker, heading, listedAt, occupancy, detail, alone, extra, footnote, onLeave, onChoose } = props
   const [tables, setTables] = useState<Listing[] | null>(null)
   const [settingUp, setSettingUp] = useState(false)
 
@@ -99,6 +101,14 @@ export function TablePicker<Listing extends TableListing>(props: TablePickerProp
           <span className="text-xl font-semibold tracking-tight">Play alone</span>
           <span className="text-sm leading-relaxed text-muted">{alone}</span>
         </button>
+
+        {extra && (
+          <button type="button" onClick={() => onChoose(extra.choose)} className="game-tile rise-in" style={{ ['--rise-delay' as string]: '380ms' }}>
+            <span className="label text-gold!">{extra.kicker}</span>
+            <span className="text-xl font-semibold tracking-tight">{extra.name}</span>
+            <span className="text-sm leading-relaxed text-muted">{extra.detail}</span>
+          </button>
+        )}
 
         <p className="label pt-2 text-center leading-relaxed">{footnote}</p>
       </div>

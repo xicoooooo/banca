@@ -2531,6 +2531,63 @@ button {
   color: var(--color-ivory);
 }
 
+/* ------------------------------------------------------------------ drills */
+
+/* The plays for a drill's hand, two to a row so that each is easy to press in a hurry. */
+.drill-plays {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.drill-told {
+  padding: 0.8rem 1rem;
+  border: 1px solid rgb(241 199 91 / 0.3);
+  border-radius: 16px;
+  background: rgb(241 199 91 / 0.06);
+}
+
+.drill-told[data-mark='right'] {
+  border-color: rgb(127 227 191 / 0.5);
+  background: rgb(127 227 191 / 0.08);
+}
+
+.drill-told__mark {
+  margin: 0;
+  font-weight: 650;
+  color: var(--color-gold-bright);
+}
+
+.drill-told[data-mark='right'] .drill-told__mark {
+  color: var(--gain);
+}
+
+.drill-told__why {
+  margin: 0;
+  padding-top: 0.35rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: rgb(245 241 232 / 0.85);
+}
+
+.drill-missed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drill-missed li + li {
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--hairline);
+}
+
+.drill-missed p {
+  margin: 0;
+}
+
 /* ---------------------------------------------------------- celebrations */
 
 /* The table stopping for a moment. Drawn over everything and in the way of nothing. */
