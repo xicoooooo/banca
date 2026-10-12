@@ -13,6 +13,7 @@ Every player starts as a guest. The server makes one on request and returns a se
 | `POST /players` | `201` `{ "token": "...", "player": { "name": "Guest 4821", "balance": 2000, "signedIn": false } }`. `429` when too many have been asked for from one address |
 | `GET /players/me` | `{ "name": "...", "balance": 1940, "signedIn": false }` |
 | `PATCH /players/me` with `{ "name": "Ana" }` | The same, renamed. `400` with `{ "message": "..." }` if the name is refused |
+| `PUT /players/me/title` | Wears a title, with `{ "title": "Card Sharp" }`, or none with `{ "title": null }`. Answers with the dashboard. `400` for a title the player has not earned |
 | `GET /players/me/dashboard` | Everything the profile page shows, worked out from the player's rounds |
 
 All but the first need `Authorization: Bearer <token>`, and answer `401` to a token the server does not know.
@@ -117,7 +118,13 @@ Finishing a week first, second or third in a league, having played, earns a trop
 
 | Request | Answer |
 |---|---|
-| `GET /profiles/{id}` | What anyone may see of a signed-in player: `name`, `memberSince`, `level`, `title`, `league`, `rounds`, `trophies`, and `achievements` out of `achievementsInAll`. `404` for a guest or an id nobody has |
+| `GET /profiles/{id}` | What anyone may see of a signed-in player: `name`, `wearing`, `memberSince`, `level`, `title`, `league`, `rounds`, `trophies`, and `achievements` out of `achievementsInAll`. `404` for a guest or an id nobody has |
+
+### Titles
+
+A player may wear one title beside their name. The `titles` of the dashboard are the ones there are, each with its `name`, `how` it is earned and whether it is `earned`; `player.wearing` is the one being worn, or `null`. Titles come from the levels ("Card Sharp"), from feats at the tables ("Bluff Catcher") and from trophies ("Gold Champion"). Each counts something that only goes up, so a title once earned is never lost.
+
+The title a player wears is shown to others: it is the `title` of their seat at a shared poker or blackjack table, of their entry in a roulette room's `players`, and `wearing` on their public page. It is `null` for a player who wears none. `player.title`, an older field, only names the player's level.
 
 ### The record against Banca
 

@@ -12,6 +12,7 @@ import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
+import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration.Companion.hours
@@ -25,6 +26,10 @@ data class NewGuest(val token: String, val player: Identity)
 
 @Serializable
 data class Rename(val name: String)
+
+/** The title to wear, or null to wear none. */
+@Serializable
+data class Wear(val title: String? = null)
 
 @Serializable
 data class Problem(val message: String)
@@ -124,6 +129,15 @@ fun Application.configurePlayerRoutes(
                 call.respond(players.identity(players.rename(player, call.receive<Rename>().name)))
             } catch (refused: IllegalArgumentException) {
                 call.respond(HttpStatusCode.BadRequest, Problem(refused.message ?: "That name is not allowed"))
+            }
+        }
+
+        put("/players/me/title") {
+            val player = call.player(players) ?: return@put
+            try {
+                call.respond(players.dashboard(players.wear(player, call.receive<Wear>().title)))
+            } catch (refused: IllegalArgumentException) {
+                call.respond(HttpStatusCode.BadRequest, Problem(refused.message ?: "That title cannot be worn"))
             }
         }
 

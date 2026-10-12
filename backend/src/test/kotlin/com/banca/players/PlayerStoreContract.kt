@@ -125,6 +125,19 @@ abstract class PlayerStoreContract {
     }
 
     @Test
+    fun `a player wears the title they chose until they take it off`() = with { store ->
+        val mine = token()
+        val player = store.create("Ana", mine, 2_000)
+        assertNull(player.title, "nobody starts with one")
+
+        assertEquals("Card Sharp", store.wear(player.id, "Card Sharp").title)
+        assertEquals("Card Sharp", assertNotNull(store.findByTokenHash(mine)).title, "and it is there when they are next looked up")
+
+        assertNull(store.wear(player.id, null).title)
+        assertNull(assertNotNull(store.findByTokenHash(mine)).title)
+    }
+
+    @Test
     fun `a player can be known by several tokens, and each can be taken away alone`() = with { store ->
         val phone = token()
         val laptop = token()

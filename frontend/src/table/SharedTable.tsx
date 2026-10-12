@@ -223,7 +223,7 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
             code={room.room}
             practice={room.practice}
             onEnd={room.youHost ? () => send({ type: 'end' }) : undefined}
-            players={room.seats.map((seat) => ({ name: seat.name, staked: 0, net: null, you: seat.you }))}
+            players={room.seats.map((seat) => ({ name: seat.name, staked: 0, net: null, you: seat.you, title: seat.title }))}
             chat={chat}
             phrases={phrases}
             onSay={(say) => send({ type: 'chat', say })}
@@ -433,7 +433,7 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
           players={room.seats.map((seat) => {
             const player = view.players.find((inHand) => inHand.seat === seat.seat)
             const won = view.result?.winnings[seat.seat]
-            return { name: seat.name, staked: seat.inHand && player ? player.stack : 0, net: over && won ? won : null, you: seat.you }
+            return { name: seat.name, staked: seat.inHand && player ? player.stack : 0, net: over && won ? won : null, you: seat.you, title: seat.title }
           })}
           chat={chat}
           phrases={phrases}

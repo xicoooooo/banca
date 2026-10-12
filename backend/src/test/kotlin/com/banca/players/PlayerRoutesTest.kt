@@ -6,6 +6,8 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.request
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
@@ -80,6 +82,48 @@ class PlayerRoutesTest {
         assertEquals(HttpStatusCode.BadRequest, rename("x".repeat(21)).status)
         assertEquals(HttpStatusCode.BadRequest, rename("<script>").status)
         assertEquals("Ana Sofia", runBlocking { guest.players.authenticate(guest.token) }!!.name, "a refused name changes nothing")
+    }
+
+    @Test
+    fun `a browser is let make every kind of request the app makes`() = testApplication {
+        val guest = TestPlayers()
+        application { module(players = guest.players) }
+
+        // A browser asks first, before any request that is not a plain read or post.
+        for ((method, path) in listOf("PATCH" to "/players/me", "PUT" to "/players/me/title", "DELETE" to "/friends/${guest.player.id}")) {
+            val asked = client.request(path) {
+                this.method = io.ktor.http.HttpMethod.Options
+                header(HttpHeaders.Origin, "http://localhost:5173")
+                header(HttpHeaders.AccessControlRequestMethod, method)
+                header(HttpHeaders.AccessControlRequestHeaders, "authorization,content-type")
+            }
+            assertEquals(HttpStatusCode.OK, asked.status, "$method $path")
+            assertTrue(method in asked.headers[HttpHeaders.AccessControlAllowMethods].orEmpty(), "$method is among the methods allowed")
+        }
+    }
+
+    @Test
+    fun `a player may wear a title they have earned, and no other`() = testApplication {
+        val guest = TestPlayers()
+        application { module(players = guest.players) }
+
+        suspend fun wear(title: String?) = client.put("/players/me/title") {
+            header(HttpHeaders.Authorization, "Bearer ${guest.token}")
+            contentType(ContentType.Application.Json)
+            setBody(if (title == null) """{"title":null}""" else """{"title":"$title"}""")
+        }
+        fun wearing(body: String) = json(body).getValue("player").jsonObject["wearing"]
+
+        val worn = wear("Newcomer")
+        assertEquals(HttpStatusCode.OK, worn.status)
+        assertEquals("Newcomer", wearing(worn.bodyAsText())!!.jsonPrimitive.content)
+        assertEquals("Newcomer", runBlocking { guest.players.authenticate(guest.token) }!!.title)
+
+        assertEquals(HttpStatusCode.BadRequest, wear("High Roller").status, "a title still to be earned")
+        assertEquals(HttpStatusCode.BadRequest, wear("Owner of the House").status, "a title there is no such thing as")
+        assertEquals("Newcomer", runBlocking { guest.players.authenticate(guest.token) }!!.title, "a refused title changes nothing")
+
+        assertTrue(wearing(wear(null).bodyAsText()) is kotlinx.serialization.json.JsonNull, "and it can be taken off")
     }
 
     @Test

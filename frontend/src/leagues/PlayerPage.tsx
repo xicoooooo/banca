@@ -50,6 +50,7 @@ export function PlayerPage({ id, onLeave }: { id: string; onLeave: () => void })
             </span>
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-2xl font-semibold tracking-tight text-ivory">{profile.name}</h1>
+              {profile.wearing && <p className="worn-title">{profile.wearing}</p>}
               <p className="label pt-1 tracking-[0.12em]!">
                 Level {profile.level} · {profile.title} · Since {monthAndYear(profile.memberSince)}
               </p>

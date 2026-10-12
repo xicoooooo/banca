@@ -54,6 +54,7 @@ object DashboardBuilder {
             player = PlayerCard(
                 signedIn = player.accountId != null,
                 name = player.name,
+                wearing = player.title,
                 memberSince = player.createdAt.toString(),
                 level = level,
                 title = Levels.titleOf(level),
@@ -81,6 +82,7 @@ object DashboardBuilder {
             league = if (player.accountId != null) Leagues.TIERS[player.leagueTier.coerceIn(0, Leagues.TIERS.lastIndex)] else null,
             trophies = trophies.map(::trophyView),
             rivalry = rivalry(rounds),
+            titles = Titles.all(level, rounds, trophies.map(::trophyView)),
         )
     }
 
@@ -329,14 +331,10 @@ object Levels {
         return level
     }
 
-    fun titleOf(level: Int): String = when {
-        level < 3 -> "Newcomer"
-        level < 5 -> "Regular"
-        level < 8 -> "Player"
-        level < 12 -> "Card Sharp"
-        level < 16 -> "High Roller"
-        else -> "House Favourite"
-    }
+    /** The name a player goes by at each stretch of levels, with the level it begins at. */
+    val TITLES = listOf(1 to "Newcomer", 3 to "Regular", 5 to "Player", 8 to "Card Sharp", 12 to "High Roller", 16 to "House Favourite")
+
+    fun titleOf(level: Int): String = TITLES.last { (from, _) -> level >= from }.second
 }
 
 /** One line about a round, for the list of recent play. */

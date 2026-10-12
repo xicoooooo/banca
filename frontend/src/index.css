@@ -2531,6 +2531,50 @@ button {
   color: var(--color-ivory);
 }
 
+/* --------------------------------------------------------------- titles */
+
+/* The title a player wears, under their name wherever the name is written large. */
+.worn-title {
+  margin: 0;
+  padding-top: 0.15rem;
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  font-style: italic;
+  color: var(--color-gold-bright);
+}
+
+.titles-to-earn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.titles-to-earn li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.6rem;
+  align-items: baseline;
+}
+
+/* In the list of who is at a table, the title sits under the name, in small. */
+.room-player__who {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.room-player__title {
+  font-size: 0.66rem;
+  font-style: italic;
+  line-height: 1.2;
+  color: var(--color-gold-bright);
+}
+
 /* ------------------------------------------------------------ reactions */
 
 /* Thrown onto the table and gone again: drawn above everything, and in nobody's way. */

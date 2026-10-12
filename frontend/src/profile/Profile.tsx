@@ -1,3 +1,4 @@
+import { TitlePicker } from './Titles'
 import { RivalryRecord } from './Rivalry'
 import { TableStylePicker } from '../style/StylePicker'
 import { REMINDER_CHOICES, useReminderSetting } from '../casino/session'
@@ -88,6 +89,9 @@ export function Profile({ onLeave, onPlay, onLearn, signInFailed = false }: Prof
                 </button>
               ))}
             </div>
+          </Section>
+          <Section title="Titles" aside={dashboard.player.wearing ? `Wearing ${dashboard.player.wearing}` : 'None worn'} delay={6}>
+            <TitlePicker dashboard={dashboard} onChanged={refresh} />
           </Section>
           <Section title="Backs and felts" delay={6}>
             <p className="pb-4 text-sm leading-relaxed text-ivory/80">
@@ -185,6 +189,7 @@ function Identity({ dashboard, onRenamed }: { dashboard: Dashboard; onRenamed: (
                 </svg>
               </button>
             </div>
+            {player.wearing && <p className="worn-title">{player.wearing}</p>}
             <p className="label pt-1 tracking-[0.12em]!">
               Level {player.level} · {player.title} · Since {monthAndYear(player.memberSince)}
             </p>

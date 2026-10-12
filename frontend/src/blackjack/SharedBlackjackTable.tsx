@@ -322,7 +322,7 @@ export function SharedBlackjackTable({ tableId, onLeave }: { tableId: string; on
           code={table.room}
           practice={table.practice}
           onEnd={table.byInvite && table.youHost ? () => send({ type: 'end' }) : undefined}
-          players={table.seats.map((seat) => ({ name: seat.name, staked: seat.bet, net: seat.net, you: seat.you }))}
+          players={table.seats.map((seat) => ({ name: seat.name, staked: seat.bet, net: seat.net, you: seat.you, title: seat.title }))}
           chat={chat}
           phrases={phrases}
           onSay={(say) => send({ type: 'chat', say })}

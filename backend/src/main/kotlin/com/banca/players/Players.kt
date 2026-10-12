@@ -96,6 +96,15 @@ class Players(private val store: PlayerStore, private val clock: Clock = Clock.s
         return store.rename(player.id, tidy)
     }
 
+    /**
+     * Has the player wear [title], which must be one they have earned, or
+     * none at all when it is null.
+     */
+    suspend fun wear(player: Player, title: String?): Player {
+        if (title != null) require(Titles.mayWear(title, dashboard(player).titles)) { "That is not a title you have earned" }
+        return store.wear(player.id, title)
+    }
+
     suspend fun balance(player: Player): Long = store.balance(player.id)
 
     /** Writes a finished round down and returns the balance after it. */
@@ -197,6 +206,7 @@ class Players(private val store: PlayerStore, private val clock: Clock = Clock.s
             trophies = full.trophies,
             achievements = full.achievements.count { it.earned },
             achievementsInAll = full.achievements.size,
+            wearing = player.title,
         )
     }
 

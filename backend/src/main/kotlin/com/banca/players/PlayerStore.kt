@@ -31,6 +31,9 @@ interface PlayerStore {
 
     suspend fun rename(id: UUID, name: String): Player
 
+    /** Sets the title a player wears, or takes it off when [title] is null. */
+    suspend fun wear(id: UUID, title: String?): Player
+
     suspend fun balance(id: UUID): Long
 
     /** Writes the round and its payment as one, and returns the balance after it. */

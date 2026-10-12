@@ -21,6 +21,8 @@ data class Dashboard(
     val trophies: List<TrophyView>,
     /** How the player stands against Banca at poker, one against one, or null before they have played it. */
     val rivalry: Rivalry? = null,
+    /** The titles there are to wear, and which of them the player has earned. */
+    val titles: List<TitleView> = emptyList(),
 )
 
 /**
@@ -75,11 +77,15 @@ data class PublicProfile(
     val trophies: List<TrophyView>,
     val achievements: Int,
     val achievementsInAll: Int,
+    /** The title they have chosen to wear, or null for none. */
+    val wearing: String? = null,
 )
 
 @Serializable
 data class PlayerCard(
     val name: String,
+    /** The title they have chosen to wear beside their name, or null for none. Not the same as [title], which only names their level. */
+    val wearing: String? = null,
     /** True when the profile is saved to an account, false for a guest. */
     val signedIn: Boolean,
     val memberSince: String,

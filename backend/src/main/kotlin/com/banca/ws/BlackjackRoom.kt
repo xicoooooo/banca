@@ -73,6 +73,8 @@ data class TableSeatView(
     val acting: Boolean,
     /** What the round did for them, once it is over. */
     val net: Long?,
+    /** The title they wear, if any. */
+    val title: String? = null,
 )
 
 @Serializable
@@ -692,6 +694,7 @@ class BlackjackRoom(
                         hands = round?.hands.orEmpty().mapIndexed { index, hand -> handViewOf(round!!, index, hand) },
                         acting = isActing(other),
                         net = other.net.takeIf { phase == TablePhase.RESULTS },
+                        title = other.session.player.title,
                     )
                 },
                 seatsInAll = seats,

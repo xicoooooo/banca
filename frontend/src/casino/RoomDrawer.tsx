@@ -100,7 +100,10 @@ export function RoomDrawer({ name, players, chat, phrases, onSay, onType, muted,
           <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0 pb-3">
             {players.map((player, index) => (
               <li key={`${player.name}-${index}`} className="room-player" data-you={player.you} data-muted={muted.has(player.name)}>
-                <span className="truncate">{player.you ? 'You' : player.name}</span>
+                <span className="room-player__who">
+                  <span className="truncate">{player.you ? 'You' : player.name}</span>
+                  {player.title && <span className="room-player__title truncate">{player.title}</span>}
+                </span>
                 {player.net !== null ? (
                   <span className="figure font-semibold" data-tone={player.net > 0 ? 'gain' : player.net < 0 ? 'loss' : 'even'}>
                     {signed(player.net)}

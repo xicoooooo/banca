@@ -89,6 +89,17 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
         }
     }
 
+    override suspend fun wear(id: UUID, title: String?): Player = query { connection ->
+        connection.prepareStatement("update profiles set title = ? where id = ? returning $PLAYER").use { statement ->
+            statement.setString(1, title)
+            statement.setObject(2, id)
+            statement.executeQuery().use { rows ->
+                check(rows.next()) { "No player $id" }
+                rows.toPlayer()
+            }
+        }
+    }
+
     override suspend fun rename(id: UUID, name: String): Player = query { connection ->
         connection.prepareStatement("update profiles set display_name = ? where id = ? returning $PLAYER").use { statement ->
             statement.setString(1, name)
@@ -514,11 +525,12 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
         createdAt = getTimestamp("created_at").toInstant(),
         accountId = getString("auth_user_id"),
         leagueTier = getInt("league_tier"),
+        title = getString("title"),
     )
 
     companion object {
         /** The columns a player is read from. */
-        private const val PLAYER = "id, display_name, created_at, auth_user_id, league_tier"
+        private const val PLAYER = "id, display_name, created_at, auth_user_id, league_tier, title"
 
         /**
          * Opens a pool from an address of the usual form,

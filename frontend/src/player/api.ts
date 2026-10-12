@@ -56,6 +56,15 @@ export async function claimMission(slot: number): Promise<number> {
   return ((await response.json()) as { granted: number }).granted
 }
 
+/** Wears a title the player has earned, or none when it is null. Refused for a title that is not theirs. */
+export async function wearTitle(title: string | null): Promise<void> {
+  await request('/players/me/title', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  })
+}
+
 export async function renamePlayer(name: string): Promise<void> {
   await request('/players/me', {
     method: 'PATCH',

@@ -84,7 +84,7 @@ export type ClientMessage =
 export type ActMessage = Extract<ClientMessage, { type: 'act' }>
 
 /** Someone with a seat at a shared table, whether or not they are in the hand being played. */
-export type PokerSeat = { seat: number; name: string; you: boolean; inHand: boolean; away: boolean }
+export type PokerSeat = { seat: number; name: string; you: boolean; inHand: boolean; away: boolean; /** The title they wear, if any. */ title?: string | null }
 
 /** A shared poker table as one player sees it. `table` is the hand, in the shape a table alone has. */
 export type PokerRoomView = {

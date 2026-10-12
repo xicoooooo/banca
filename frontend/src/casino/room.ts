@@ -1,7 +1,7 @@
 // What every shared table has, whatever is played at it: people, and what they say.
 
 /** Someone at a shared table, as the others see them. `net` is what the last round did for them, once it is over. */
-export type RoomPlayer = { name: string; staked: number; net: number | null; you: boolean }
+export type RoomPlayer = { name: string; staked: number; net: number | null; you: boolean; /** The title they wear, if any. */ title?: string | null }
 
 /** Something said at a table: a set phrase, or a message a player typed, as tidied by the server. */
 export type ChatLine = {

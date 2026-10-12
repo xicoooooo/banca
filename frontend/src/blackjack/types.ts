@@ -77,6 +77,8 @@ export type BlackjackServerMessage =
 /** Someone at a shared table, as the others see them. */
 export type TableSeat = {
   name: string
+  /** The title they wear, if any. */
+  title?: string | null
   you: boolean
   bet: number
   /** The chips they have that are not on the table. */

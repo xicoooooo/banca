@@ -67,7 +67,7 @@ class PokerTablesConfig(
 
 /** Someone with a seat at the table, whether or not they are in the hand being played. */
 @Serializable
-data class PokerSeatView(val seat: Int, val name: String, val you: Boolean, val inHand: Boolean, val away: Boolean)
+data class PokerSeatView(val seat: Int, val name: String, val you: Boolean, val inHand: Boolean, val away: Boolean, /** The title they wear, if any. */ val title: String? = null)
 
 @Serializable
 data class PokerRoomView(
@@ -611,7 +611,7 @@ class PokerRoom(
                 table = current?.let { tableViewOf(it, handNumber, names, if (dealtIn) member.seat else null) },
                 seats = bancaSeat +
                     members.values.sortedBy { it.seat }.map { other ->
-                        PokerSeatView(other.seat, other.name, you = other.id == member.id, inHand = inHand(other), away = !other.connected)
+                        PokerSeatView(other.seat, other.name, you = other.id == member.id, inHand = inHand(other), away = !other.connected, title = other.session.player.title)
                     },
                 seatsInAll = playerSeats + if (withBanca) 1 else 0,
                 host = host?.let { members[it]?.name },

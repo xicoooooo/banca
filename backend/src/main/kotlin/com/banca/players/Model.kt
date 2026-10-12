@@ -38,6 +38,8 @@ data class Player(
     val accountId: String? = null,
     /** The league the player is in, from 0. Only means anything for a player who has signed in. */
     val leagueTier: Int = 0,
+    /** The title they have chosen to wear, in its own words, or null when they wear none. */
+    val title: String? = null,
 )
 
 /** How one player stands to another: friends, or a request one way or the other that has not been answered. */

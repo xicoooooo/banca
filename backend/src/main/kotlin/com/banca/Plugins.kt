@@ -27,7 +27,10 @@ fun Application.configureCors() {
         // The player endpoints are called with a token and a JSON body.
         allowHeader(HttpHeaders.Authorization)
         allowHeader(HttpHeaders.ContentType)
+        // Beyond the reading and posting a browser may always do: renaming, wearing a title, ending a friendship.
         allowMethod(HttpMethod.Patch)
+        allowMethod(HttpMethod.Put)
+        allowMethod(HttpMethod.Delete)
 
         allowHost("localhost:5173")
         allowHost("127.0.0.1:5173")

@@ -87,7 +87,7 @@ class RoomsConfig(
 
 /** Someone in the room, as the others see them. [net] is what the last spin did for them, once it is known. */
 @Serializable
-data class RoomPlayerView(val name: String, val staked: Long, val net: Long?, val you: Boolean)
+data class RoomPlayerView(val name: String, val staked: Long, val net: Long?, val you: Boolean, /** The title they wear, if any. */ val title: String? = null)
 
 /** The chips on one bet, everyone's together, and how many players put them there. */
 @Serializable
@@ -533,6 +533,7 @@ class RouletteRoom(
                         // What a spin did for someone is not shown before the ball is seen to land.
                         net = other.net.takeIf { phase == Phase.RESULTS },
                         you = other.id == member.id,
+                        title = other.session.player.title,
                     )
                 },
                 result = member.result,

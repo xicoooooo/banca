@@ -68,6 +68,12 @@ class InMemoryPlayerStore(private val clock: Clock = Clock.systemUTC()) : Player
         account.player
     }
 
+    override suspend fun wear(id: UUID, title: String?): Player = lock.withLock {
+        val account = account(id)
+        account.player = account.player.copy(title = title)
+        account.player
+    }
+
     override suspend fun balance(id: UUID): Long = lock.withLock { account(id).ledger.sumOf { it.amount } }
 
     override suspend fun recordRound(id: UUID, round: FinishedRound): Long = lock.withLock {

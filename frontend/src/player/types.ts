@@ -10,6 +10,8 @@ export type Dashboard = {
     name: string
     /** True when the profile is saved to an account, false for a guest. */
     signedIn: boolean
+    /** The title they have chosen to wear beside their name, or null for none. `title` below only names their level. */
+    wearing: string | null
     memberSince: string
     level: number
     title: string
@@ -49,7 +51,12 @@ export type Dashboard = {
   trophies: Trophy[]
   /** How the player stands against Banca at poker, one against one, or null before they have played it. */
   rivalry: Rivalry | null
+  /** The titles there are to wear, and which of them the player has earned. */
+  titles: Title[]
 }
+
+/** A title a player may wear. `how` is what earns it. */
+export type Title = { name: string; how: string; earned: boolean }
 
 /** The record between the player and Banca. `net` is the player's side: above nought and they are ahead. */
 export type Rivalry = {
@@ -100,6 +107,8 @@ export type PublicProfile = {
   trophies: Trophy[]
   achievements: number
   achievementsInAll: number
+  /** The title they have chosen to wear, or null for none. */
+  wearing: string | null
 }
 
 /** The chips a player can come by without winning them, and when. */
