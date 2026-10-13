@@ -126,6 +126,22 @@ A player may wear one title beside their name. The `titles` of the dashboard are
 
 The title a player wears is shown to others: it is the `title` of their seat at a shared poker or blackjack table, of their entry in a roulette room's `players`, and `wearing` on their public page. It is `null` for a player who wears none. `player.title`, an older field, only names the player's level.
 
+### Banca's report
+
+The `report` of the dashboard is a week of the player's play read back to them, or `null` when there has not been enough to report on. Weeks run Monday to Sunday in UTC, as the leagues' do. It is on the week in play once that has ten rounds in it, and on the week before until then.
+
+```json
+{
+  "week": "2026-10-12", "current": true, "rounds": 22, "net": 410,
+  "notes": [
+    { "game": "blackjack", "title": "Blackjack · 53% by the book", "text": "9 of your 17 decisions were the best play. …" }
+  ],
+  "focus": { "title": "Tighten up at blackjack", "text": "…", "go": "blackjack/drill" }
+}
+```
+
+`notes` has one entry for each game played at least five times that week. `focus` is the one thing Banca would have the player work on, or `null` when nothing stood out; `go` is where in the app to do it, as the address a screen is reached at, or `null`. The report is read off the rounds by written rules, and no model is asked for it.
+
 ### Moments
 
 The `moments` of the dashboard are the rare things that have happened to the player at the tables, newest first, twelve at most. Each has a `kind`, a `title`, a `detail` and the time it happened, `at`:

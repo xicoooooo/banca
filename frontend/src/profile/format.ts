@@ -121,3 +121,9 @@ export function leadOf(net: number): { text: string; tone: 'gain' | 'loss' | 'ev
   const by = `${chips(Math.abs(net))} ${Math.abs(net) === 1 ? 'chip' : 'chips'}`
   return net > 0 ? { text: `You are ${by} ahead`, tone: 'gain' } : { text: `Banca is ${by} ahead`, tone: 'loss' }
 }
+
+/** The week a report is on, in words: "The week of 5 October". */
+export function weekInWords(week: string): string {
+  const monday = new Date(`${week}T00:00:00Z`)
+  return `The week of ${monday.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' })}`
+}

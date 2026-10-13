@@ -55,6 +55,19 @@ export type Dashboard = {
   titles: Title[]
   /** The rare things that have happened to the player at the tables, newest first. */
   moments: PlayerMoment[]
+  /** Banca's report on the player's week, or null when there has not been enough play to report on. */
+  report: WeeklyReport | null
+}
+
+/** A week of play read back. `week` is the Monday it began; `current` is whether it is the week still being played. */
+export type WeeklyReport = {
+  week: string
+  current: boolean
+  rounds: number
+  net: number
+  notes: { game: GameId | null; title: string; text: string }[]
+  /** The one thing to work on, and where in the app to do it, as the address a screen is reached at. */
+  focus: { title: string; text: string; go: string | null } | null
 }
 
 /** A rare hand, a number that came in, or a run of wins, as the record remembers it. */

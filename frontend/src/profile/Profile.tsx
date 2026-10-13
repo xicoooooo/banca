@@ -1,3 +1,4 @@
+import { WeekReport } from './WeekReport'
 import { TitlePicker } from './Titles'
 import { RivalryRecord } from './Rivalry'
 import { TableStylePicker } from '../style/StylePicker'
@@ -55,6 +56,13 @@ export function Profile({ onLeave, onPlay, onLearn, signInFailed = false }: Prof
               <Statistics dashboard={dashboard} />
               <Section title="Last 14 days" delay={3}>
                 <ActivityChart activity={dashboard.activity} />
+              </Section>
+              <Section title="Banca's report" aside={dashboard.report ? (dashboard.report.current ? 'This week so far' : 'Last week') : undefined} delay={3}>
+                {dashboard.report ? (
+                  <WeekReport report={dashboard.report} />
+                ) : (
+                  <Empty>Play ten rounds in a week and Banca will have something to say about how you played them.</Empty>
+                )}
               </Section>
               {dashboard.rivalry && (
                 <Section title="You against Banca" aside="Poker" delay={3}>

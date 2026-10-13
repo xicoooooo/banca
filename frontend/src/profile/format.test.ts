@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ago, leadOf, areaPath, until, divergingBars, levelProgress, linePath, percent, plot, signed, toneOf } from './format'
+import { ago, leadOf, weekInWords, areaPath, until, divergingBars, levelProgress, linePath, percent, plot, signed, toneOf } from './format'
 
 describe('writing figures', () => {
   it('gives results a sign, and nothing a plain zero', () => {
@@ -84,5 +84,12 @@ describe('saying who is ahead', () => {
     expect(leadOf(-380)).toEqual({ text: 'Banca is 380 chips ahead', tone: 'loss' })
     expect(leadOf(1).text).toBe('You are 1 chip ahead')
     expect(leadOf(0)).toEqual({ text: 'All square', tone: 'even' })
+  })
+})
+
+describe('naming a week', () => {
+  it('says the week by the Monday it began on', () => {
+    expect(weekInWords('2026-10-05')).toBe('The week of 5 October')
+    expect(weekInWords('2026-09-28')).toBe('The week of 28 September')
   })
 })

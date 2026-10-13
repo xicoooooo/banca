@@ -25,6 +25,8 @@ data class Dashboard(
     val titles: List<TitleView> = emptyList(),
     /** The rare things that have happened to the player at the tables, newest first. */
     val moments: List<MomentView> = emptyList(),
+    /** Banca's report on the player's week, or null when there has not been enough play to report on. */
+    val report: WeeklyReport? = null,
 )
 
 /**
