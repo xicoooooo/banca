@@ -34,6 +34,8 @@ A multi-game social casino played with virtual chips: Texas Hold'em, blackjack a
 
 - **A guide to each game.** The first time you sit down, Banca walks you through a real round, step by step. Skip it, or take it again from your profile.
 
+- **A room to your taste.** Four lights for the room, from evening to candlelit, and an optional sound under the game: a quiet hush, rain on the windows, or slow lounge chords. All of it made in the browser, with nothing to download.
+
 - **Installs like an app.** Add it to a phone's home screen from the lobby and it opens full screen, with no store involved. It opens without a network too, and says it is waiting for one.
 
 - **Built to be usable by more people.** Playable from a keyboard, nothing told by colour alone (red is hatched at roulette), and motion that steps aside when the system asks it to.

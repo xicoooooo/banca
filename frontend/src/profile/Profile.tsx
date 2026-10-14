@@ -1,3 +1,4 @@
+import { AtmosphereSetting } from './AtmosphereSetting'
 import { WeekReport } from './WeekReport'
 import { TitlePicker } from './Titles'
 import { RivalryRecord } from './Rivalry'
@@ -113,6 +114,9 @@ export function Profile({ onLeave, onPlay, onLearn, signInFailed = false }: Prof
           )}
           <Section title="Titles" aside={dashboard.player.wearing ? `Wearing ${dashboard.player.wearing}` : 'None worn'} delay={6}>
             <TitlePicker dashboard={dashboard} onChanged={refresh} />
+          </Section>
+          <Section title="Atmosphere" delay={6}>
+            <AtmosphereSetting />
           </Section>
           <Section title="Backs and felts" delay={6}>
             <p className="pb-4 text-sm leading-relaxed text-ivory/80">

@@ -4,6 +4,9 @@
 
 const STORAGE_KEY = 'banca:muted'
 
+/** Said on the window whenever sound becomes possible or is turned on or off, for anything that plays for longer than a moment. */
+export const SOUND_CHANGED = 'banca:sound'
+
 let context: AudioContext | null = null
 let unlocked = false
 let muted = readMuted()
@@ -21,6 +24,7 @@ function readMuted(): boolean {
 if (typeof window !== 'undefined') {
   const unlock = () => {
     unlocked = true
+    window.dispatchEvent(new Event(SOUND_CHANGED))
     window.removeEventListener('pointerdown', unlock)
     window.removeEventListener('keydown', unlock)
   }
@@ -28,7 +32,8 @@ if (typeof window !== 'undefined') {
   window.addEventListener('keydown', unlock)
 }
 
-function audio(): AudioContext | null {
+/** The page's one audio context, when sound is on and the person has touched the page; null otherwise. */
+export function audio(): AudioContext | null {
   if (muted || !unlocked) return null
   try {
     context ??= new AudioContext()
@@ -114,6 +119,7 @@ export function isMuted(): boolean {
 
 export function setMuted(next: boolean): void {
   muted = next
+  window.dispatchEvent(new Event(SOUND_CHANGED))
   try {
     localStorage.setItem(STORAGE_KEY, next ? '1' : '0')
   } catch {

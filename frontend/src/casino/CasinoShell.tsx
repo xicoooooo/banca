@@ -29,6 +29,9 @@ export function CasinoShell({ children, showdown = false }: { children: ReactNod
         <div className="casino-bg__light casino-bg__light--gold" />
         <div className="casino-bg__light casino-bg__light--emerald" />
         <div className="casino-bg__noise" />
+        {/* Only drawn in the smoky room. */}
+        <div className="casino-bg__haze casino-bg__haze--one" />
+        <div className="casino-bg__haze casino-bg__haze--two" />
         {PARTICLES.map((p, index) => (
           <span
             key={index}

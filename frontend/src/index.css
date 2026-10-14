@@ -2531,6 +2531,130 @@ button {
   color: var(--color-ivory);
 }
 
+.atmosphere-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.atmosphere-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  font: inherit;
+  text-align: left;
+  color: var(--color-ivory);
+  background: rgb(0 0 0 / 0.16);
+  transition:
+    border-color var(--t-micro) var(--ease-soft),
+    background var(--t-micro) var(--ease-soft);
+}
+
+.atmosphere-choice span {
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: var(--color-muted);
+}
+
+.atmosphere-choice[data-selected='true'] {
+  border-color: rgb(241 199 91 / 0.7);
+  background: rgb(217 164 65 / 0.1);
+}
+
+/* ------------------------------------------------------------------ themes */
+
+/* The light in the room. Evening is the room as it is drawn above; each of the
+   others changes only the lights, the dust and the dark at the edges. */
+
+.casino-bg__haze {
+  display: none;
+  position: absolute;
+  width: 120vmax;
+  height: 60vmax;
+  border-radius: 50%;
+  filter: blur(60px);
+  background: radial-gradient(closest-side, rgb(225 225 215 / 0.15), transparent);
+}
+
+:root[data-theme='smoky'] .casino-bg__haze {
+  display: block;
+}
+
+.casino-bg__haze--one {
+  top: 10%;
+  left: -40vmax;
+  animation: haze-drift 46s ease-in-out infinite alternate;
+}
+
+.casino-bg__haze--two {
+  bottom: -5%;
+  right: -50vmax;
+  animation: haze-drift 61s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes haze-drift {
+  to {
+    transform: translate3d(40vmax, -6vmax, 0) scale(1.15);
+  }
+}
+
+:root[data-theme='smoky'] .casino-bg__vignette {
+  background: radial-gradient(ellipse at 50% 45%, transparent 38%, rgb(0 0 0 / 0.66) 100%);
+}
+
+:root[data-theme='smoky'] .particle {
+  filter: blur(1px);
+}
+
+/* Candlelit: the table lit warm and low, the room fallen away into the dark. */
+:root[data-theme='candlelit'] .casino-bg__light--gold {
+  background: radial-gradient(circle, rgb(255 176 80 / 0.24), transparent 62%);
+}
+
+:root[data-theme='candlelit'] .casino-bg__light--table {
+  background: radial-gradient(circle, rgb(255 190 110 / 0.16), rgb(var(--light-b) / 0.18) 40%, transparent 65%);
+  animation: breathe 3.2s ease-in-out infinite alternate;
+}
+
+:root[data-theme='candlelit'] .casino-bg__vignette {
+  background: radial-gradient(ellipse at 50% 45%, rgb(255 168 70 / 0.1), transparent 34%, rgb(0 0 0 / 0.8) 100%);
+}
+
+:root[data-theme='candlelit'] .particle {
+  background: #ffcf7a !important;
+}
+
+/* Daylight: brighter all round, and the corners lifted. */
+:root[data-theme='daylight'] .casino-bg {
+  filter: brightness(1.38) saturate(1.08);
+}
+
+:root[data-theme='daylight'] .casino-bg__vignette {
+  background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgb(0 0 0 / 0.32) 100%);
+}
+
+:root[data-theme='daylight'] .casino-bg__light--gold {
+  background: radial-gradient(circle, rgb(255 250 235 / 0.18), transparent 62%);
+}
+
+:root[data-theme='daylight'] .particle {
+  display: none;
+}
+
+/* A showdown still dims the room, whatever the light. */
+:root[data-theme='daylight'] [data-showdown='true'] .casino-bg {
+  filter: brightness(0.85) saturate(0.95);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .casino-bg__haze {
+    animation: none;
+  }
+}
+
 /* ------------------------------------------------------------- hand replay */
 
 .replay-table {
