@@ -4,6 +4,25 @@ import { useDialog } from '../casino/useDialog'
 import { pictureOf } from './drawHandCard'
 import type { HandCard } from './handCard'
 
+/** The way to play a finished hand back: a small button beside the result. */
+export function ReplayHandButton({ onOpen }: { onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      className="btn btn--fold px-4!"
+      aria-label="Replay this hand"
+      onClick={() => {
+        sound.click()
+        onOpen()
+      }}
+    >
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M3 12a9 9 0 103-6.7M3 4v5h5" />
+      </svg>
+    </button>
+  )
+}
+
 /** The way to a hand's picture: a small button beside the result. */
 export function ShareHandButton({ onOpen }: { onOpen: () => void }) {
   return (

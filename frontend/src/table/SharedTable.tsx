@@ -22,10 +22,12 @@ import { Pot } from './Pot'
 import { PokerCoachPanel, PokerCoachPill, PokerCoachReason } from './PokerCoach'
 import { ReasoningPanel } from './ReasoningPanel'
 import { Seat } from './Seat'
-import { ShareHandButton, ShareHandPanel } from '../share/ShareHand'
+import { ReplayHandButton, ShareHandButton, ShareHandPanel } from '../share/ShareHand'
 import { handCardOf, type HandCard } from '../share/handCard'
 import type { PlayerView, PokerRoomView, TableView } from './types'
+import { HandReplay } from './HandReplay'
 import { moodOf, useReadingBanca } from './reads'
+import { replayOf, type Replay } from './replay'
 import { usePokerRoom } from './usePokerRoom'
 import { TIMING, usePresentation } from './usePresentation'
 
@@ -109,7 +111,7 @@ function SmallSeat({ player, view, action }: { player: PlayerView; view: TableVi
 }
 
 /** How a hand at a shared table ended, said for whoever is reading it. */
-function Outcome({ view, seconds, onShowReasoning, onShare, toRead = false }: { view: TableView; seconds: number; onShowReasoning?: () => void; onShare?: () => void; toRead?: boolean }) {
+function Outcome({ view, seconds, onShowReasoning, onShare, onReplay, toRead = false }: { view: TableView; seconds: number; onShowReasoning?: () => void; onShare?: () => void; onReplay?: () => void; toRead?: boolean }) {
   const result = view.result!
   const winners = Object.keys(result.winnings).map(Number)
   const nameOf = (seat: number) => (seat === view.yourSeat ? 'You' : (view.players.find((player) => player.seat === seat)?.name ?? 'Someone'))
@@ -137,6 +139,7 @@ function Outcome({ view, seconds, onShowReasoning, onShare, toRead = false }: { 
             {toRead ? 'Read Banca' : "Banca's reasoning"}
           </button>
         )}
+        {onReplay && <ReplayHandButton onOpen={onReplay} />}
         {onShare && <ShareHandButton onOpen={onShare} />}
         <p className="label flex-1 text-center">Next hand in {seconds}s</p>
       </div>
@@ -150,7 +153,7 @@ function Outcome({ view, seconds, onShowReasoning, onShare, toRead = false }: { 
  * controls are as at a table alone; everyone else sits in a row across the top.
  */
 export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: () => void }) {
-  const { room, endsAt, waitMs, reasoning, connection, error, full, refusals, send, chat, chatCount, reactions, said, phrases, broke, staked, retry, coach, askCoach } =
+  const { room, frames, endsAt, waitMs, reasoning, connection, error, full, refusals, send, chat, chatCount, reactions, said, phrases, broke, staked, retry, coach, askCoach } =
     usePokerRoom(tableId)
   const view = room?.table ?? null
   const { actions, showdown, potPulse } = usePresentation(view)
@@ -158,6 +161,7 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
   const [showReasoning, setShowReasoning] = useState(false)
   const [showCoach, setShowCoach] = useState(false)
   const reading = useReadingBanca()
+  const [replaying, setReplaying] = useState<Replay | null>(null)
   // The hand being shared, kept as it was when asked for: the table deals the next one without waiting.
   const [sharing, setSharing] = useState<HandCard | null>(null)
   const [showRoom, setShowRoom] = useState(false)
@@ -387,6 +391,15 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
             onShowReasoning={reasoning.events.length > 0 ? () => setShowReasoning(true) : undefined}
             onShare={shareable ? () => setSharing(shareable) : undefined}
             toRead={toRead}
+            // Only a hand the player was dealt into is theirs to play back.
+            onReplay={
+              room.dealtIn
+                ? () => {
+                    const replay = replayOf(frames, reasoning.revealed ? reasoning.events : [], room.seats.some((seat) => seat.seat === BANCA_SEAT) ? BANCA_SEAT : null)
+                    if (replay) setReplaying(replay)
+                  }
+                : undefined
+            }
           />
         ) : room.yourTurn && view.legal && me ? (
           <>
@@ -425,6 +438,7 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
       <Reactions reactions={reactions} muted={muted} />
       <Celebration moment={over ? pokerMoment(view) : null} delay={1_400} />
       {sharing && <ShareHandPanel card={sharing} onClose={() => setSharing(null)} />}
+      {replaying && <HandReplay replay={replaying} onClose={() => setReplaying(null)} />}
       {showReasoning && <ReasoningPanel reasoning={reasoning} name="Banca" thinking={bancaThinking} onClose={() => setShowReasoning(false)} reading={reading} />}
       {showRoom && (
         <RoomDrawer

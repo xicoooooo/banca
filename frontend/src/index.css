@@ -2531,6 +2531,85 @@ button {
   color: var(--color-ivory);
 }
 
+/* ------------------------------------------------------------- hand replay */
+
+.replay-table {
+  padding: 0.9rem 0.75rem;
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  background: radial-gradient(120% 90% at 50% 30%, rgb(var(--felt-1) / 0.45), rgb(var(--felt-3) / 0.4));
+}
+
+.replay-seats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.8rem 0 0;
+  list-style: none;
+}
+
+.replay-seats li {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  transition:
+    border-color var(--t-micro) var(--ease-soft),
+    background var(--t-micro) var(--ease-soft);
+}
+
+.replay-seats p {
+  margin: 0;
+}
+
+/* Whoever this step was about. */
+.replay-seats li[data-acting='true'] {
+  border-color: rgb(241 199 91 / 0.5);
+  background: rgb(241 199 91 / 0.08);
+}
+
+.replay-seats li[data-folded='true'] {
+  opacity: 0.5;
+}
+
+.replay-dealer {
+  display: inline-grid;
+  place-items: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-left: 0.4rem;
+  border-radius: 50%;
+  font-size: 0.6rem;
+  font-weight: 700;
+  vertical-align: 0.1em;
+  color: #16181d;
+  background: var(--color-ivory);
+}
+
+.replay-said {
+  margin: 0;
+  padding-top: 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-ivory);
+}
+
+.replay-thinking {
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgb(241 199 91 / 0.3);
+  border-radius: 14px;
+  background: rgb(241 199 91 / 0.06);
+}
+
+.replay-thinking p {
+  margin: 0;
+}
+
 /* ---------------------------------------------------------- Banca's report */
 
 .report-notes {

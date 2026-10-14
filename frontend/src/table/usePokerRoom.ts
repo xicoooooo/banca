@@ -5,7 +5,8 @@ import type { Phrase } from '../casino/room'
 import { useChipNotices } from '../casino/useChipNotices'
 import { useSocket } from '../casino/useSocket'
 import { usePokerCoaching } from './coaching'
-import type { PokerRoomClientMessage, PokerRoomServerMessage, PokerRoomView, TraceEvent } from './types'
+import { withFrame } from './handFrames'
+import type { PokerRoomClientMessage, PokerRoomServerMessage, PokerRoomView, TableView, TraceEvent } from './types'
 import type { Reasoning } from './useTable'
 
 const NO_REASONING: Reasoning = { handNumber: 0, events: [], revealed: false }
@@ -21,6 +22,8 @@ export function usePokerRoom(tableId: string) {
   const [endsAt, setEndsAt] = useState(0)
   const [waitMs, setWaitMs] = useState(0)
   const [reasoning, setReasoning] = useState<Reasoning>(NO_REASONING)
+  /** Every state of the hand on the table, to play it back from once it is over. */
+  const [frames, setFrames] = useState<TableView[]>([])
   const [error, setError] = useState<string | null>(null)
   const [full, setFull] = useState(false)
   const [refusals, setRefusals] = useState(0)
@@ -53,7 +56,10 @@ export function usePokerRoom(tableId: string) {
         setRoom(next)
         setEndsAt(Date.now() + next.msLeft)
         const table = next.table
-        if (table) handNumber.current = table.handNumber
+        if (table) {
+          handNumber.current = table.handNumber
+          setFrames((kept) => withFrame(kept, table))
+        }
         // A new hand starts with a clean slate.
         if (table) {
           setReasoning((current) => (current.handNumber === table.handNumber ? current : { handNumber: table.handNumber, events: [], revealed: false }))
@@ -102,6 +108,7 @@ export function usePokerRoom(tableId: string) {
 
   return {
     room,
+    frames,
     endsAt,
     waitMs,
     reasoning,

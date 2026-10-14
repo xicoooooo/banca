@@ -26,6 +26,7 @@ A multi-game social casino played with virtual chips: Texas Hold'em, blackjack a
 - **Reactions.** At any shared table, throw an emoji onto the felt for everyone to see: it rises from your seat and is gone in a moment.
 - **Read Banca.** After a poker hand, and before you are told, guess which mood it was in. Its play is the evidence, and a count is kept of how often you read it right.
 - **A score to settle.** Your profile keeps the record between you and Banca at poker, one against one: hands won, who is ahead in chips, the biggest pot each took off the other, and how many of its bluffs you caught or folded to.
+- **Hands to play back.** Once a hand of Hold'em is over, step back through it action by action, with Banca's cards face up and what it reckoned beside each of its decisions.
 - **A hand worth showing.** Any poker hand you saw through to the end can be turned into a picture, with the cards, the result and what Banca said about it, to send to a friend. It is drawn on your own device.
 - **Card backs and felts to collect.** Six backs and five felts, opened by levels, achievements, leagues and trophies, and never bought. Choose them on your profile and every table changes.
 - **Friends.** Give a friend your code, see when they are at a table, and join them there.

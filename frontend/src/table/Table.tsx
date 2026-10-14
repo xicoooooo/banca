@@ -18,7 +18,9 @@ import { ReasoningPanel } from './ReasoningPanel'
 import { Seat } from './Seat'
 import type { TableView } from './types'
 import { usePresentation } from './usePresentation'
+import { HandReplay } from './HandReplay'
 import { moodOf, useReadingBanca } from './reads'
+import { replayOf, type Replay } from './replay'
 import { useTable } from './useTable'
 import { Guide } from '../guide/Guide'
 import { ShareHandPanel } from '../share/ShareHand'
@@ -37,11 +39,12 @@ function statusOf(view: TableView): Status {
 }
 
 export function Table({ onLeave }: { onLeave?: () => void }) {
-  const { view, reasoning, said, connection, error, refusals, send, broke, staked, coach, askCoach } = useTable()
+  const { view, frames, reasoning, said, connection, error, refusals, send, broke, staked, coach, askCoach } = useTable()
   const { actions, showdown, potPulse } = usePresentation(view)
   const [showReasoning, setShowReasoning] = useState(false)
   const [showCoach, setShowCoach] = useState(false)
   const reading = useReadingBanca()
+  const [replaying, setReplaying] = useState<Replay | null>(null)
   // The hand being shared, kept as it was when asked for, so the picture outlasts the hand.
   const [sharing, setSharing] = useState<HandCard | null>(null)
   // The hand being cleared away, if Next hand has just been pressed.
@@ -141,6 +144,10 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
               onShowReasoning={reasoning.events.length > 0 ? () => setShowReasoning(true) : undefined}
               onShare={shareable ? () => setSharing(shareable) : undefined}
               toRead={toRead}
+              onReplay={() => {
+                const replay = replayOf(frames, reasoning.revealed ? reasoning.events : [], opponent.seat)
+                if (replay) setReplaying(replay)
+              }}
             />
           </>
         ) : view.legal ? (
@@ -167,6 +174,7 @@ export function Table({ onLeave }: { onLeave?: () => void }) {
       {/* After the cards have turned and the result has been read. */}
       <Celebration moment={pokerMoment(view)} delay={1_400} />
       {sharing && <ShareHandPanel card={sharing} onClose={() => setSharing(null)} />}
+      {replaying && <HandReplay replay={replaying} onClose={() => setReplaying(null)} />}
       {showCoach && view.legal && coach.status !== 'idle' && (
         <PokerCoachPanel coach={coach} handNumber={view.handNumber} onClose={() => setShowCoach(false)} />
       )}

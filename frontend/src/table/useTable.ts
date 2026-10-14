@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useChipNotices } from '../casino/useChipNotices'
 import { useSocket } from '../casino/useSocket'
 import { usePokerCoaching } from './coaching'
+import { withFrame } from './handFrames'
 import type { ClientMessage, ServerMessage, TableView, TraceEvent } from './types'
 
 /** What the opponent did to reach its decisions in one hand. */
@@ -18,6 +19,8 @@ const NO_REASONING: Reasoning = { handNumber: 0, events: [], revealed: false }
 export function useTable() {
   const [view, setView] = useState<TableView | null>(null)
   const [reasoning, setReasoning] = useState<Reasoning>(NO_REASONING)
+  /** Every state of the hand on the table, to play it back from once it is over. */
+  const [frames, setFrames] = useState<TableView[]>([])
   /** What the opponent said about a hand once it was over, and which hand that was. */
   const [remark, setRemark] = useState<{ handNumber: number; text: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -36,6 +39,7 @@ export function useTable() {
         // A table that is dealing is a table the player can afford.
         chips.dealt()
         setView(message.view)
+        setFrames((kept) => withFrame(kept, message.view))
         setError(null)
         // A new hand starts with a clean slate.
         setReasoning((current) =>
@@ -80,5 +84,5 @@ export function useTable() {
   // Only the hand on the table is spoken of: a remark does not outlast the hand it was made about.
   const said = view?.result && remark?.handNumber === view.handNumber ? remark.text : null
 
-  return { view, reasoning, said, connection, error, refusals: refusals + sittings, send, broke: chips.broke, staked: chips.staked, coach: coaching.coach, askCoach }
+  return { view, frames, reasoning, said, connection, error, refusals: refusals + sittings, send, broke: chips.broke, staked: chips.staked, coach: coaching.coach, askCoach }
 }
