@@ -17,6 +17,7 @@ import type { BlackjackView } from './types'
 import { Dealer, Hand, Result } from './TableParts'
 import { useBlackjack, useResultShown } from './useBlackjack'
 import { Guide } from '../guide/Guide'
+import { ChallengeResults } from './Challenge'
 import { useGuide } from '../guide/useGuide'
 
 function statusOf(view: BlackjackView, resultShown: boolean): Status {
@@ -34,12 +35,19 @@ function statusOf(view: BlackjackView, resultShown: boolean): Status {
   }
 }
 
+/** True when there is no round on the table, or the last one's result has been seen. */
+function resultShownOrNone(view: BlackjackView | null, resultShown: boolean): boolean {
+  return !view || view.phase !== 'settled' || resultShown
+}
+
 /**
  * The blackjack table. State comes from the server through [useBlackjack] and
  * is only ever drawn here.
  */
-export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
-  const { view, reveal, connection, error, refusals, send, broke, staked, retry, coach, askCoach } = useBlackjack()
+export function BlackjackTable({ onLeave, challenge: code }: { onLeave?: () => void; /** Set when the table is a challenge's, by its code. */ challenge?: string }) {
+  const { view, challenge, turnedAway, reveal, connection, error, refusals, send, broke, staked, retry, coach, askCoach } = useBlackjack(
+    code ? `/ws/blackjack/challenges/${code}` : '/ws/blackjack',
+  )
   const [showCoach, setShowCoach] = useState(false)
   const [reviewing, setReviewing] = useState<Reviewed | null>(null)
   const resultShown = useResultShown(view, reveal)
@@ -48,13 +56,22 @@ export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
   // Banca's walk through a first round follows the round: before the cards, while the hand is played, once it is settled.
   const guide = useGuide(
     'blackjack',
-    view && {
+    // A challenge is no place to be walked through the game for the first time.
+    code ? null : view && {
       round: view.roundNumber,
       stage: view.phase === 'betting' ? 0 : view.phase === 'settled' && resultShown ? 2 : 1,
       idle: view.legal.bet,
       facts: { insurance: view.phase === 'insurance', deciding: view.phase === 'player' },
     },
   )
+
+  // A challenge whose go is over, or that cannot be taken, shows how it stands instead of the table,
+  // once the last round has been seen to its end.
+  const myGo = challenge?.standings.find((standing) => standing.you)
+  const goOver = code !== undefined && (turnedAway !== null || (myGo?.chips !== null && myGo?.chips !== undefined))
+  if (goOver && (!view || view.legal.bet || turnedAway !== null) && resultShownOrNone(view, resultShown)) {
+    return <ChallengeResults challenge={challenge} missing={turnedAway === 'no_challenge'} onLeave={onLeave ?? (() => history.back())} />
+  }
 
   if (!view) {
     return (
@@ -82,7 +99,13 @@ export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
   return (
     <CasinoShell showdown={dealing}>
       <Header
-        detail={view.roundNumber > 0 ? `Blackjack · ${view.roundNumber}` : 'Blackjack'}
+        detail={
+          code && challenge
+            ? `Challenge · round ${Math.max(view.roundNumber, 1)} of ${challenge.rounds}`
+            : view.roundNumber > 0
+              ? `Blackjack · ${view.roundNumber}`
+              : 'Blackjack'
+        }
         status={statusOf(view, resultShown)}
         onLeave={onLeave}
       />
@@ -97,7 +120,7 @@ export function BlackjackTable({ onLeave }: { onLeave?: () => void }) {
           <div className="grid h-14 place-items-center">
             {resultShown ? (
               <Result view={view} />
-            ) : deciding ? (
+            ) : deciding && !code ? (
               <CoachPill coach={coach} onAsk={askCoach} onOpen={() => setShowCoach(true)} />
             ) : (
               <p className="label text-center leading-loose text-gold/75!">

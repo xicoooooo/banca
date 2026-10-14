@@ -2655,6 +2655,55 @@ button {
   }
 }
 
+/* -------------------------------------------------------------- challenges */
+
+.challenge-standings,
+.challenge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.challenge-standings li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: rgb(0 0 0 / 0.16);
+}
+
+.challenge-standings li[data-you='true'] {
+  border-color: rgb(241 199 91 / 0.45);
+  background: rgb(217 164 65 / 0.08);
+}
+
+.challenge-standings__place {
+  width: 2.2rem;
+  font-weight: 700;
+  color: var(--color-gold-bright);
+}
+
+.challenge-list a {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  text-decoration: none;
+  background: rgb(0 0 0 / 0.16);
+  transition: background var(--t-micro) var(--ease-soft);
+}
+
+.challenge-list a:hover {
+  background: rgb(0 0 0 / 0.3);
+}
+
 /* ------------------------------------------------------------- tournaments */
 
 .podium {

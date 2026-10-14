@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BlackjackDrill } from './blackjack/Drill'
+import { StartChallenge } from './blackjack/Challenge'
 import { BlackjackPicker } from './blackjack/BlackjackPicker'
 import { BlackjackTable } from './blackjack/BlackjackTable'
 import { SharedBlackjackTable } from './blackjack/SharedBlackjackTable'
@@ -125,8 +126,10 @@ function App() {
     // Leaving a table goes back to the choice of tables, not all the way out.
     const toTables = () => open('blackjack')
     if (alone) return <BlackjackTable onLeave={toTables} />
-    // A drill is not a table: "drill" is kept back from the names a table can have.
+    // A drill is not a table: "drill" is kept back from the names a table can have, and so are challenges.
     if (place?.room === 'drill') return <BlackjackDrill onLeave={toTables} />
+    if (place?.room === 'challenge') return <StartChallenge onLeave={toTables} />
+    if (place?.room?.startsWith('challenge-')) return <BlackjackTable key={place.room} challenge={place.room.slice('challenge-'.length)} onLeave={toTables} />
     if (place?.room) return <SharedBlackjackTable key={place.room} tableId={place.room} onLeave={toTables} />
     return (
       <BlackjackPicker

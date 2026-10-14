@@ -6,7 +6,7 @@ import { prefersReducedMotion } from '../casino/motion'
 import { sound } from '../casino/sound'
 import { useSocket } from '../casino/useSocket'
 import { deriveBlackjackEvents } from './events'
-import type { Advice, BlackjackClientMessage, BlackjackServerMessage, BlackjackView, CoachStep } from './types'
+import type { Advice, BlackjackClientMessage, BlackjackServerMessage, BlackjackView, ChallengeView, CoachStep } from './types'
 
 /**
  * When things happen, in milliseconds, so cards, chips, sounds and labels all
@@ -171,27 +171,37 @@ export function useCoaching(view: BlackjackView | null) {
   }
 }
 
-/** The blackjack table as the server describes it, with the movement and sound that go with each change. */
-export function useBlackjack() {
+/**
+ * The blackjack table as the server describes it, with the movement and sound
+ * that go with each change. [path] is where the table is: the table for one,
+ * or a challenge, which is played the same way.
+ */
+export function useBlackjack(path = '/ws/blackjack') {
   const [view, setView] = useState<BlackjackView | null>(null)
+  /** At a challenge: how it stands, and why the player could not sit down to it, if they could not. */
+  const [challenge, setChallenge] = useState<ChallengeView | null>(null)
+  const [turnedAway, setTurnedAway] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [refusals, setRefusals] = useState(0)
   const chips = useChipNotices()
   const coaching = useCoaching(view)
 
-  const { connection, sittings, send } = useSocket<BlackjackServerMessage, BlackjackClientMessage>('/ws/blackjack', (message) => {
+  const { connection, sittings, send } = useSocket<BlackjackServerMessage, BlackjackClientMessage>(path, (message) => {
     if (message.type === 'staked' || message.type === 'broke') {
       chips.receive(message)
     } else if (message.type === 'trace') {
       coaching.heardStep(message.event)
     } else if (message.type === 'advice') {
       coaching.heardAdvice(message.advice)
+    } else if (message.type === 'challenge') {
+      setChallenge(message.view)
     } else if (message.type === 'state') {
       // The table says first where things stand, and only then that it cannot deal.
       chips.dealt()
       setView(message.view)
       setError(null)
     } else {
+      if (message.code === 'no_challenge' || message.code === 'challenge_taken') setTurnedAway(message.code)
       setError(message.message)
       setRefusals((count) => count + 1)
       coaching.gaveUp()
@@ -204,6 +214,8 @@ export function useBlackjack() {
   // whatever was pressed as the line went down was never heard.
   return {
     view,
+    challenge,
+    turnedAway,
     reveal,
     connection,
     error,

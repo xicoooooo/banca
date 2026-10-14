@@ -9,13 +9,13 @@ type Said = 'idle' | 'copied' | 'failed'
  * that is the share sheet; elsewhere the address is copied, and the player
  * told that it has been.
  */
-export function InviteButton({ table, prominent = false }: { table: string; prominent?: boolean }) {
+export function InviteButton({ table, prominent = false, text, label = 'Invite friends' }: { table: string; prominent?: boolean; text?: string; label?: string }) {
   const [said, setSaid] = useState<Said>('idle')
 
   const invite = async () => {
     sound.click()
     const url = window.location.href
-    const words = { title: 'Banca', text: `Join me at ${table} on Banca. Play money only.`, url }
+    const words = { title: 'Banca', text: text ?? `Join me at ${table} on Banca. Play money only.`, url }
 
     if (typeof navigator.share === 'function') {
       try {
@@ -37,7 +37,7 @@ export function InviteButton({ table, prominent = false }: { table: string; prom
 
   return (
     <button type="button" className={`btn ${prominent ? 'btn--call' : 'btn--quiet'} px-4! py-2! text-sm`} onClick={invite} aria-live="polite">
-      {said === 'copied' ? 'Link copied' : said === 'failed' ? 'Copy it from the address bar' : 'Invite friends'}
+      {said === 'copied' ? 'Link copied' : said === 'failed' ? 'Copy it from the address bar' : label}
     </button>
   )
 }
@@ -47,7 +47,7 @@ export function InviteButton({ table, prominent = false }: { table: string; prom
  * who has Banca on their home screen and nowhere to paste one. Pressing it
  * copies it.
  */
-export function TableCode({ id }: { id: string }) {
+export function TableCode({ id, label = 'Table code' }: { id: string; label?: string }) {
   const [copied, setCopied] = useState(false)
   const copy = async () => {
     try {
@@ -59,8 +59,8 @@ export function TableCode({ id }: { id: string }) {
     }
   }
   return (
-    <button type="button" className="table-code" onClick={copy} aria-label={`Table code ${shownCode(id).split('').join(' ')}. Press to copy.`}>
-      <span className="label">{copied ? 'Copied' : 'Table code'}</span>
+    <button type="button" className="table-code" onClick={copy} aria-label={`${label} ${shownCode(id).split('').join(' ')}. Press to copy.`}>
+      <span className="label">{copied ? 'Copied' : label}</span>
       <span className="table-code__digits figure">{shownCode(id)}</span>
     </button>
   )

@@ -125,6 +125,35 @@ abstract class PlayerStoreContract {
     }
 
     @Test
+    fun `a challenge is kept, taken once by each player, and finished once`() = with { store ->
+        val setter = store.create("Ana", token(), 2_000)
+        val taker = store.create("Rui", token(), 2_000)
+        val code = UUID.randomUUID().toString().take(6)
+        val challenge = store.createChallenge(setter.id, code, seed = 42, rounds = 10, stack = 1_000)
+
+        val found = assertNotNull(store.challengeByCode(code))
+        assertEquals(challenge.id, found.id)
+        assertEquals(listOf(42L, 10L, 1_000L), listOf(found.seed, found.rounds.toLong(), found.stack))
+        assertEquals("Ana", found.creatorName)
+        assertNull(store.challengeByCode("nope00"))
+
+        assertTrue(store.enterChallenge(challenge.id, setter.id))
+        assertFalse(store.enterChallenge(challenge.id, setter.id), "a challenge is taken once")
+        assertTrue(store.enterChallenge(challenge.id, taker.id))
+
+        store.finishChallenge(challenge.id, setter.id, roundsPlayed = 10, chips = 1_350)
+        store.finishChallenge(challenge.id, setter.id, roundsPlayed = 10, chips = 9_999)
+        val entries = store.challengeEntries(challenge.id)
+        assertEquals(listOf("Ana", "Rui"), entries.map { it.name })
+        assertEquals(1_350L, entries.first().chips, "and finished once")
+        assertNull(entries.last().chips, "Rui is still playing")
+
+        assertEquals(listOf(code), store.challengesOf(taker.id, 10).map { it.code }, "a challenge taken is one of the taker's")
+        assertEquals(listOf(code), store.challengesOf(setter.id, 10).map { it.code })
+        assertTrue(store.challengesOf(store.create("Marta", token(), 2_000).id, 10).isEmpty())
+    }
+
+    @Test
     fun `a player wears the title they chose until they take it off`() = with { store ->
         val mine = token()
         val player = store.create("Ana", mine, 2_000)

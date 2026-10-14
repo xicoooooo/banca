@@ -65,6 +65,17 @@ export async function wearTitle(title: string | null): Promise<void> {
   })
 }
 
+/** Sets a challenge in the player's name and returns its code. */
+export async function setChallenge(): Promise<string> {
+  const response = await request('/blackjack/challenges', { method: 'POST' })
+  return ((await response.json()) as { code: string }).code
+}
+
+/** The challenges the player has set or taken, newest first. */
+export async function fetchMyChallenges(): Promise<import('../blackjack/types').ChallengeView[]> {
+  return (await request('/players/me/challenges')).json() as Promise<import('../blackjack/types').ChallengeView[]>
+}
+
 export async function renamePlayer(name: string): Promise<void> {
   await request('/players/me', {
     method: 'PATCH',
@@ -95,7 +106,8 @@ export async function openTable(listedAt: string, options: TableOptions = {}): P
 }
 
 /** A private table found by its code: which game it is and where. */
-export type FoundTable = { game: GameId; id: string; name: string }
+/** What a code leads to: a private table at one of the games, or a blackjack challenge. */
+export type FoundTable = { game: GameId | 'challenge'; id: string; name: string }
 
 /** Looks a private table up by the code its host gave out. Refused, with the reason, when there is no such table. */
 export async function findTable(code: string): Promise<FoundTable> {

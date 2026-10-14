@@ -20,7 +20,8 @@ export function JoinByCode() {
     setRefused(null)
     try {
       const table = await findTable(code)
-      window.location.hash = `/${table.game}/${table.id}`
+      // A challenge is played at the blackjack screen; every other code is a table at its own game.
+      window.location.hash = table.game === 'challenge' ? `/blackjack/challenge-${table.id}` : `/${table.game}/${table.id}`
     } catch (problem) {
       setRefused(problem instanceof Refused ? problem.message : 'That code could not be checked. Try again in a moment.')
       setLooking(false)

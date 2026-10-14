@@ -821,6 +821,31 @@ Version 1, JSON text frames over a WebSocket. Besides the table for one, blackja
 ws://<host>/ws/blackjack/tables/<table>
 ```
 
+### Challenges
+
+A challenge is a run of blackjack one player sets for others to try to beat: 10 rounds, 1,000 chips that are the challenge's own, and bets of 10 to 100. Its shoe is shuffled from a seed it keeps, so everyone who takes it is dealt the same cards for as long as they play the same way. Each player may take a challenge once, and they are compared by what they end on. Nobody's bankroll or record is touched.
+
+| Request | Answer |
+|---|---|
+| `POST /blackjack/challenges` | Sets a challenge in the caller's name: `201` `{ "code": "k7x2qm" }`. `429` to a player who has set too many lately |
+| `GET /blackjack/challenges/{code}` | The challenge as the caller sees it, or `404` |
+| `GET /players/me/challenges` | The challenges the caller has set or taken, newest first |
+| `GET /tables/{code}` | Finds a challenge too, as `{ "game": "challenge", "id": "k7x2qm", "name": "Ana's challenge" }` |
+
+```json
+{
+  "code": "k7x2qm", "by": "Ana", "yours": false, "rounds": 10, "stack": 1000, "maxBet": 100, "createdAt": "2026-10-14T16:20:00Z", "taken": true,
+  "standings": [
+    { "name": "Ana", "chips": 1350, "roundsPlayed": 10, "place": 1, "you": false },
+    { "name": "Rui", "chips": 950, "roundsPlayed": 10, "place": 2, "you": true }
+  ]
+}
+```
+
+`standings` puts those who have finished first, best first, then anyone still playing, whose `chips` and `place` are null. Players on the same chips share a place.
+
+A challenge is played at `ws://<host>/ws/blackjack/challenges/{code}`, which speaks as the table for one at `/ws/blackjack` does, with these differences: it sends `{ "type": "challenge", "view": … }` as the player sits down and again when their go is over; there is no coach, so `advise` is refused; a bet over 100 is refused, as is any bet after the last round. A go is over after the last round, when the player has fewer chips than the smallest bet, or when they leave and do not come back. A code that is no challenge is answered with an `error` whose `code` is `no_challenge`, and a challenge already taken with `challenge_taken`.
+
 ### A practice drill
 
 `GET /blackjack/drill` deals a drill: some hands to decide on away from a table, for no chips. It needs no token.

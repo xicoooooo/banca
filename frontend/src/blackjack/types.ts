@@ -72,7 +72,8 @@ export type BlackjackServerMessage =
   | { type: 'state'; view: BlackjackView }
   | { type: 'trace'; roundNumber: number; event: CoachStep }
   | { type: 'advice'; roundNumber: number; hand: number | null; advice: Advice }
-  | { type: 'error'; message: string }
+  | { type: 'error'; message: string; code?: string }
+  | { type: 'challenge'; view: ChallengeView }
 
 /** Someone at a shared table, as the others see them. */
 export type TableSeat = {
@@ -129,3 +130,19 @@ export type BlackjackTableClientMessage =
   | { type: 'chat'; text: string }
 
 export type BlackjackClientMessage = { type: 'bet'; amount: number } | { type: 'act'; action: BlackjackAction } | { type: 'advise' }
+
+/** One player's go at a challenge. `chips` is what they ended on, and null while they are still playing. */
+export type ChallengeStanding = { name: string; chips: number | null; roundsPlayed: number; place: number | null; you: boolean }
+
+/** A challenge: its rules, who set it, and how everyone who took it did. */
+export type ChallengeView = {
+  code: string
+  by: string
+  yours: boolean
+  rounds: number
+  stack: number
+  maxBet: number
+  createdAt: string
+  taken: boolean
+  standings: ChallengeStanding[]
+}

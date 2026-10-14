@@ -76,6 +76,28 @@ fun Application.configureGameSockets(
         sharedSocket("/ws/blackjack/tables/{table}", players, tables, find = { listedBlackjack[it] ?: invitedBlackjack.find(it) }) { table, send, session ->
             BlackjackSeat(table, coaching.blackjack(blackjackTables.advisor, session), send, table.chipsFor(session))
         }
+        // Challenges: a run of blackjack from a shoe one player set, for others to try to beat.
+        sharedSocket("/ws/blackjack/challenges/{table}", players, tables, find = { code -> code.lowercase().takeIf { it.length == 6 && it.all(Char::isLetterOrDigit) } }) { code, send, session ->
+            ChallengeConnection(code, players.challenges, blackjack.rules, send, session)
+        }
+        post("/blackjack/challenges") {
+            val player = players.authenticate(call.bearer()) ?: return@post call.respond(HttpStatusCode.Unauthorized, NotOpened("This player is not known here"))
+            if (!invites.take(player.id.toString())) {
+                return@post call.respond(HttpStatusCode.TooManyRequests, NotOpened("You have set a lot of challenges. Try again in a while."))
+            }
+            call.respond(HttpStatusCode.Created, SetChallenge(players.challenges.set(player)))
+        }
+        get("/blackjack/challenges/{code}") {
+            val viewer = players.authenticate(call.bearer())
+            val view = players.challenges.view(call.parameters["code"].orEmpty().lowercase(), viewer)
+                ?: return@get call.respond(HttpStatusCode.NotFound, NotOpened("There is no challenge with that code."))
+            call.respond(view)
+        }
+        get("/players/me/challenges") {
+            val player = players.authenticate(call.bearer()) ?: return@get call.respond(HttpStatusCode.Unauthorized, NotOpened("This player is not known here"))
+            call.respond(players.challenges.of(player))
+        }
+
         // Practice away from a table: some hands to decide on, each play already graded.
         val drills = BlackjackDrills(blackjack.rules)
         get("/blackjack/drill") {
@@ -104,6 +126,7 @@ fun Application.configureGameSockets(
             val found = invitedPoker.find(code)?.let { FoundTable("poker", code, it.name) }
                 ?: invitedBlackjack.find(code)?.let { FoundTable("blackjack", code, it.name) }
                 ?: invitedRooms.find(code)?.let { FoundTable("roulette", code, it.name) }
+                ?: players.challenges.view(code, null)?.let { FoundTable("challenge", code, "${it.by}'s challenge") }
                 ?: return@get call.respond(HttpStatusCode.NotFound, NotOpened("There is no table with that code. Check it, or ask for a new one."))
             call.respond(found)
         }
@@ -113,6 +136,13 @@ fun Application.configureGameSockets(
         }
     }
 }
+
+/** A challenge just set: the code it is taken by. */
+@Serializable
+data class SetChallenge(val code: String)
+
+/** The token a request was made with, or nothing. */
+private fun ApplicationCall.bearer(): String = request.headers[HttpHeaders.Authorization]?.removePrefix("Bearer ")?.trim().orEmpty()
 
 /** A table just opened for a player's own company: where it is, and what it is called. */
 @Serializable

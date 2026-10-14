@@ -111,6 +111,23 @@ interface PlayerStore {
 
     suspend fun findById(id: UUID): Player?
 
+    /** Keeps a new challenge set by [by]. Fails if [code] is already taken. */
+    suspend fun createChallenge(by: UUID, code: String, seed: Long, rounds: Int, stack: Long): ChallengeRecord
+
+    suspend fun challengeByCode(code: String): ChallengeRecord?
+
+    /** Notes that [playerId] has sat down to [challengeId]. False if they had already, which is once too many. */
+    suspend fun enterChallenge(challengeId: UUID, playerId: UUID): Boolean
+
+    /** Writes down how [playerId]'s go at [challengeId] ended, unless it already has been. */
+    suspend fun finishChallenge(challengeId: UUID, playerId: UUID, roundsPlayed: Int, chips: Long)
+
+    /** Everyone who has taken [challengeId], finished or not, in the order they sat down. */
+    suspend fun challengeEntries(challengeId: UUID): List<ChallengeEntry>
+
+    /** The challenges [playerId] has set or taken, newest first. */
+    suspend fun challengesOf(playerId: UUID, limit: Int): List<ChallengeRecord>
+
     /** The player's rounds, newest first. */
     suspend fun rounds(id: UUID, limit: Int): List<RoundRecord>
 

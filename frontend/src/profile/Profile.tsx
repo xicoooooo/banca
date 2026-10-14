@@ -1,3 +1,4 @@
+import { ChallengeList } from './ChallengeList'
 import { AtmosphereSetting } from './AtmosphereSetting'
 import { WeekReport } from './WeekReport'
 import { TitlePicker } from './Titles'
@@ -112,6 +113,7 @@ export function Profile({ onLeave, onPlay, onLearn, signInFailed = false }: Prof
               </ul>
             </Section>
           )}
+          <ChallengeList />
           <Section title="Titles" aside={dashboard.player.wearing ? `Wearing ${dashboard.player.wearing}` : 'None worn'} delay={6}>
             <TitlePicker dashboard={dashboard} onChanged={refresh} />
           </Section>

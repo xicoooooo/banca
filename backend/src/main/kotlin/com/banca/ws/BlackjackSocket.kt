@@ -80,6 +80,10 @@ class BlackjackConnection(
     private val session: PlayerSession,
     /** Who coaches this player. The config's coach, unless they are given one of their own. */
     private val advisor: BlackjackAdvisor = config.advisor,
+    private val minBet: Long = BlackjackHouse.MIN_BET,
+    private val maxBet: Long = BlackjackHouse.MAX_BET,
+    /** The last round there is, for a run of a set length. Null for a table that deals as long as the player likes. */
+    private val lastRound: Int? = null,
 ) : GameConnection {
 
     private val log = LoggerFactory.getLogger(BlackjackConnection::class.java)
@@ -103,11 +107,11 @@ class BlackjackConnection(
             return
         }
 
-        val funding = session.fund(MIN_BET)
+        val funding = session.fund(minBet)
         table = BlackjackTable(
             stack = funding.balance,
-            minBet = MIN_BET,
-            maxBet = MAX_BET,
+            minBet = minBet,
+            maxBet = maxBet,
             rules = config.rules,
             random = config.random(),
         )
@@ -128,9 +132,10 @@ class BlackjackConnection(
         when (val message = wireJson.decodeFromString<BlackjackClientMessage>(text)) {
             is BlackjackClientMessage.Bet -> {
                 check(table.isBetting) { "The round is still being played" }
+                check(lastRound == null || table.roundNumber < lastRound) { "That was the last round" }
                 // The bankroll may have moved since this table last looked: at
                 // another table, or by a reward claimed in the meantime.
-                val funding = session.fund(MIN_BET)
+                val funding = session.fund(minBet)
                 table.fund(funding.balance, refilled = false)
                 if (funding !is Funding.Ready) {
                     pushState()
@@ -214,7 +219,7 @@ class BlackjackConnection(
 
         // Chips cannot be bought, so a player left unable to bet is staked by
         // the house, if it has not done so too recently.
-        val funding = session.fund(MIN_BET)
+        val funding = session.fund(minBet)
         table.fund(funding.balance, refilled = funding is Funding.Staked)
         return funding
     }
@@ -225,8 +230,8 @@ class BlackjackConnection(
         emit(BlackjackServerMessage.State(if (view.phase == "settled") view.copy(review = tally.review()) else view))
     }
 
-    private companion object {
-        const val MIN_BET = BlackjackHouse.MIN_BET
-        const val MAX_BET = BlackjackHouse.MAX_BET
-    }
+    /** How many rounds have been dealt, and what the player has now: for whatever keeps score of a run. */
+    val roundsDealt: Int get() = if (::table.isInitialized) table.roundNumber else 0
+    val roundSettled: Boolean get() = !::table.isInitialized || table.isBetting
+    val chips: Long get() = if (::table.isInitialized) table.view().stack else 0
 }

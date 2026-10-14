@@ -54,6 +54,21 @@ enum class FriendState {
 /** Another player, and how this one stands to them. */
 data class FriendLink(val other: Player, val state: FriendState)
 
+/** A challenge as it is kept: the shoe it is dealt from, how long it is, and who set it. */
+data class ChallengeRecord(
+    val id: UUID,
+    val code: String,
+    val seed: Long,
+    val rounds: Int,
+    val stack: Long,
+    val createdBy: UUID,
+    val creatorName: String,
+    val createdAt: Instant,
+)
+
+/** One player's go at a challenge. [chips] is what they ended on, and null until they have finished. */
+data class ChallengeEntry(val playerId: UUID, val name: String, val roundsPlayed: Int, val chips: Long?, val startedAt: Instant)
+
 /** Someone the sign-in provider vouches for. */
 data class Account(val id: String, val name: String?)
 

@@ -23,6 +23,7 @@ A multi-game social casino played with virtual chips: Texas Hold'em, blackjack a
 - **A drill to practise on.** Ten blackjack hands against the clock, each marked at once against the best play, with the reason for any you miss. No chips are staked.
 - **Moments the table stops for.** A royal flush, a single number that comes in at roulette, five blackjack rounds won running: the table celebrates as it happens, and your profile remembers it.
 - **Titles.** Earn them by level, by feats at the tables and in the leagues, from Card Sharp to Bluff Catcher to Gold Champion, and wear one beside your name where the others at a shared table see it.
+- **Challenges.** Set a run of ten blackjack rounds from a shoe of your own and send the code: friends are dealt the same cards and try to end on more chips than you.
 - **Reactions.** At any shared table, throw an emoji onto the felt for everyone to see: it rises from your seat and is gone in a moment.
 - **Read Banca.** After a poker hand, and before you are told, guess which mood it was in. Its play is the evidence, and a count is kept of how often you read it right.
 - **A score to settle.** Your profile keeps the record between you and Banca at poker, one against one: hands won, who is ahead in chips, the biggest pot each took off the other, and how many of its bluffs you caught or folded to.

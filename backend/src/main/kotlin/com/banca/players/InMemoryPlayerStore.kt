@@ -24,6 +24,8 @@ class InMemoryPlayerStore(private val clock: Clock = Clock.systemUTC()) : Player
     private val friendCodes = mutableMapOf<UUID, String>()
     /** Who asked whom, and whether they were accepted. */
     private val asked = mutableMapOf<Pair<UUID, UUID>, Boolean>()
+    private val challenges = mutableListOf<ChallengeRecord>()
+    private val entries = mutableMapOf<UUID, MutableList<ChallengeEntry>>()
     private val lock = Mutex()
 
     private fun account(id: UUID) = accounts[id] ?: error("No player $id")
@@ -203,5 +205,38 @@ class InMemoryPlayerStore(private val clock: Clock = Clock.systemUTC()) : Player
 
     override suspend fun ledger(id: UUID, limit: Int): List<LedgerEntry> = lock.withLock {
         account(id).ledger.takeLast(limit)
+    }
+
+    override suspend fun createChallenge(by: UUID, code: String, seed: Long, rounds: Int, stack: Long): ChallengeRecord = lock.withLock {
+        check(challenges.none { it.code == code }) { "The code $code is taken" }
+        ChallengeRecord(UUID.randomUUID(), code, seed, rounds, stack, by, account(by).player.name, Instant.now(clock)).also { challenges += it }
+    }
+
+    override suspend fun challengeByCode(code: String): ChallengeRecord? = lock.withLock {
+        challenges.firstOrNull { it.code == code }?.let { it.copy(creatorName = accounts[it.createdBy]?.player?.name ?: it.creatorName) }
+    }
+
+    override suspend fun enterChallenge(challengeId: UUID, playerId: UUID): Boolean = lock.withLock {
+        val taken = entries.getOrPut(challengeId) { mutableListOf() }
+        if (taken.any { it.playerId == playerId }) return@withLock false
+        taken += ChallengeEntry(playerId, account(playerId).player.name, roundsPlayed = 0, chips = null, startedAt = Instant.now(clock))
+        true
+    }
+
+    override suspend fun finishChallenge(challengeId: UUID, playerId: UUID, roundsPlayed: Int, chips: Long): Unit = lock.withLock {
+        val taken = entries[challengeId] ?: return@withLock
+        val at = taken.indexOfFirst { it.playerId == playerId && it.chips == null }
+        if (at >= 0) taken[at] = taken[at].copy(roundsPlayed = roundsPlayed, chips = chips)
+    }
+
+    override suspend fun challengeEntries(challengeId: UUID): List<ChallengeEntry> = lock.withLock {
+        entries[challengeId].orEmpty().map { it.copy(name = accounts[it.playerId]?.player?.name ?: it.name) }
+    }
+
+    override suspend fun challengesOf(playerId: UUID, limit: Int): List<ChallengeRecord> = lock.withLock {
+        challenges
+            .filter { challenge -> challenge.createdBy == playerId || entries[challenge.id].orEmpty().any { it.playerId == playerId } }
+            .sortedByDescending { it.createdAt }
+            .take(limit)
     }
 }

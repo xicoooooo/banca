@@ -513,6 +513,103 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
         }
     }
 
+    override suspend fun createChallenge(by: UUID, code: String, seed: Long, rounds: Int, stack: Long): ChallengeRecord = query { connection ->
+        connection.prepareStatement(
+            "insert into challenges (code, seed, rounds, stack, created_by) values (?, ?, ?, ?, ?) returning id, created_at",
+        ).use { statement ->
+            statement.setString(1, code)
+            statement.setLong(2, seed)
+            statement.setInt(3, rounds)
+            statement.setLong(4, stack)
+            statement.setObject(5, by)
+            statement.executeQuery().use { rows ->
+                rows.next()
+                val name = connection.prepareStatement("select display_name from profiles where id = ?").use { lookup ->
+                    lookup.setObject(1, by)
+                    lookup.executeQuery().use { found -> if (found.next()) found.getString(1) else "Someone" }
+                }
+                ChallengeRecord(rows.getObject("id", UUID::class.java), code, seed, rounds, stack, by, name, rows.getTimestamp("created_at").toInstant())
+            }
+        }
+    }
+
+    override suspend fun challengeByCode(code: String): ChallengeRecord? = query { connection ->
+        connection.prepareStatement("$CHALLENGE where c.code = ?").use { statement ->
+            statement.setString(1, code)
+            statement.executeQuery().use { rows -> if (rows.next()) rows.toChallenge() else null }
+        }
+    }
+
+    override suspend fun enterChallenge(challengeId: UUID, playerId: UUID): Boolean = query { connection ->
+        connection.prepareStatement(
+            "insert into challenge_entries (challenge_id, profile_id) values (?, ?) on conflict do nothing",
+        ).use { statement ->
+            statement.setObject(1, challengeId)
+            statement.setObject(2, playerId)
+            statement.executeUpdate() == 1
+        }
+    }
+
+    override suspend fun finishChallenge(challengeId: UUID, playerId: UUID, roundsPlayed: Int, chips: Long): Unit = query { connection ->
+        connection.prepareStatement(
+            "update challenge_entries set finished_at = now(), rounds_played = ?, chips = ? " +
+                "where challenge_id = ? and profile_id = ? and finished_at is null",
+        ).use { statement ->
+            statement.setInt(1, roundsPlayed)
+            statement.setLong(2, chips)
+            statement.setObject(3, challengeId)
+            statement.setObject(4, playerId)
+            statement.executeUpdate()
+        }
+    }
+
+    override suspend fun challengeEntries(challengeId: UUID): List<ChallengeEntry> = query { connection ->
+        connection.prepareStatement(
+            "select e.profile_id, p.display_name, e.rounds_played, e.chips, e.started_at " +
+                "from challenge_entries e join profiles p on p.id = e.profile_id where e.challenge_id = ? order by e.started_at",
+        ).use { statement ->
+            statement.setObject(1, challengeId)
+            statement.executeQuery().use { rows ->
+                buildList {
+                    while (rows.next()) {
+                        add(
+                            ChallengeEntry(
+                                playerId = rows.getObject("profile_id", UUID::class.java),
+                                name = rows.getString("display_name"),
+                                roundsPlayed = rows.getInt("rounds_played"),
+                                chips = rows.getLong("chips").takeUnless { rows.wasNull() },
+                                startedAt = rows.getTimestamp("started_at").toInstant(),
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    override suspend fun challengesOf(playerId: UUID, limit: Int): List<ChallengeRecord> = query { connection ->
+        connection.prepareStatement(
+            "$CHALLENGE where c.created_by = ? or exists (select 1 from challenge_entries e where e.challenge_id = c.id and e.profile_id = ?) " +
+                "order by c.created_at desc limit ?",
+        ).use { statement ->
+            statement.setObject(1, playerId)
+            statement.setObject(2, playerId)
+            statement.setInt(3, limit)
+            statement.executeQuery().use { rows -> buildList { while (rows.next()) add(rows.toChallenge()) } }
+        }
+    }
+
+    private fun ResultSet.toChallenge() = ChallengeRecord(
+        id = getObject("id", UUID::class.java),
+        code = getString("code"),
+        seed = getLong("seed"),
+        rounds = getInt("rounds"),
+        stack = getLong("stack"),
+        createdBy = getObject("created_by", UUID::class.java),
+        creatorName = getString("display_name"),
+        createdAt = getTimestamp("created_at").toInstant(),
+    )
+
     private fun Connection.balanceOf(id: UUID): Long =
         prepareStatement("select coalesce(sum(amount), 0) from wallet_entries where profile_id = ?").use { statement ->
             statement.setObject(1, id)
@@ -531,6 +628,10 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
     companion object {
         /** The columns a player is read from. */
         private const val PLAYER = "id, display_name, created_at, auth_user_id, league_tier, title"
+
+        /** A challenge with the name of whoever set it. */
+        private const val CHALLENGE =
+            "select c.id, c.code, c.seed, c.rounds, c.stack, c.created_by, c.created_at, p.display_name from challenges c join profiles p on p.id = c.created_by"
 
         /**
          * Opens a pool from an address of the usual form,
