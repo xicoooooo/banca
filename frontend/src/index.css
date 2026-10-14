@@ -2655,6 +2655,71 @@ button {
   }
 }
 
+/* ------------------------------------------------------------- tournaments */
+
+.podium {
+  padding: 1.1rem 1rem 1.2rem;
+  border: 1px solid rgb(241 199 91 / 0.3);
+  border-radius: 22px;
+  background: rgb(241 199 91 / 0.05);
+}
+
+.podium__steps {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  justify-content: center;
+  margin: 0;
+  padding: 1rem 0 0;
+  list-style: none;
+}
+
+.podium__step {
+  display: flex;
+  flex: 1;
+  max-width: 7.5rem;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.podium__name {
+  max-width: 100%;
+  overflow: hidden;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-ivory);
+}
+
+.podium__step[data-you='true'] .podium__name {
+  color: var(--color-gold-bright);
+}
+
+.podium__block {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  border-radius: 12px 12px 4px 4px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0.04));
+  border: 1px solid var(--hairline);
+}
+
+.podium__step[data-place='1'] .podium__block {
+  height: 5.5rem;
+  background: linear-gradient(180deg, rgb(241 199 91 / 0.45), rgb(217 164 65 / 0.12));
+  border-color: rgb(241 199 91 / 0.6);
+}
+
+.podium__step[data-place='2'] .podium__block {
+  height: 4rem;
+}
+
+.podium__step[data-place='3'] .podium__block {
+  height: 3rem;
+}
+
 /* ------------------------------------------------------------- hand replay */
 
 .replay-table {

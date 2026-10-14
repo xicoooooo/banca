@@ -652,6 +652,24 @@ Each needs `Authorization: Bearer <token>`, and may carry what the host wants of
 | `banca` | Poker only. False leaves Banca out, for a table of friends alone |
 | `turns` | `normal`, or `long` for three times as long over each decision |
 | `chips` | `real`, the usual, for a table played from each player's own bankroll; or `practice` for one where everyone is handed 2,000 chips that exist only at that table |
+| `format` | Poker only. `cash`, the usual, for hand after hand; or `tournament`, for a tournament with chips of its own, in which case `chips` does not apply |
+
+A tournament begins when its host starts it, with everyone connected at that moment and Banca if it plays. Each is given 1,500 tournament chips and nothing is topped up. The blinds start at 10/20 and rise every 6 hands. A player who loses every chip is out; one who leaves the table goes out where they stand; one whose connection drops keeps their place and has their hands checked or folded for them. The last player with chips wins. No round of a tournament touches anyone's bankroll or record, and none counts for the leagues or missions.
+
+Its table's `state` carries `tournament`:
+
+```json
+{
+  "running": true, "level": 2, "smallBlind": 15, "bigBlind": 30, "handsToNextLevel": 3, "stack": 1500,
+  "standings": [
+    { "name": "Rui", "chips": 2410, "place": null, "you": false },
+    { "name": "Banca", "chips": 1590, "place": null, "you": false },
+    { "name": "Ana", "chips": 0, "place": 3, "you": true }
+  ]
+}
+```
+
+`standings` lists those still playing by their chips, then those out by where they finished; `place` is null for anyone still playing. It is empty before the first tournament. Once one is over, the hand that settled it is shown as usual, then `running` is false, `started` returns to false, and the table waits with every `place` filled until its host starts another.
 
 The answer is `401` without a player the server knows, `400` for a table the game does not allow, `429` to a player who has opened more than five in ten minutes or thirty in a day, and `503` when the server is keeping as many as it will.
 

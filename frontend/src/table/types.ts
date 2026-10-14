@@ -107,6 +107,8 @@ export type PokerRoomView = {
   dealtIn: boolean
   table: TableView | null
   seats: PokerSeat[]
+  /** At a table played as a tournament: the blinds, the standings and, once it is over, where everyone finished. */
+  tournament?: TournamentView | null
   seatsInAll: number
 }
 
@@ -129,3 +131,16 @@ export type PokerRoomClientMessage =
   | { type: 'act'; action: 'bet' | 'raise'; amount: number }
   | { type: 'chat'; say: string }
   | { type: 'chat'; text: string }
+
+/** A player's place in a tournament. `place` is where they finished, counting from first, and null while they still play. */
+export type TournamentSeat = { name: string; chips: number; place: number | null; you: boolean }
+
+export type TournamentView = {
+  running: boolean
+  level: number
+  smallBlind: number
+  bigBlind: number
+  handsToNextLevel: number
+  stack: number
+  standings: TournamentSeat[]
+}

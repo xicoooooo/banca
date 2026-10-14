@@ -46,6 +46,8 @@ class TableOptions(
     val host: UUID? = null,
     /** Set for a table played with practice chips, which are the table's own and touch nobody's bankroll. */
     val practice: PracticePurse? = null,
+    /** Set for a poker table played as a tournament, which keeps its own chips and score. */
+    val tournament: Tournament? = null,
 )
 
 /**

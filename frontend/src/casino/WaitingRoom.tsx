@@ -19,24 +19,34 @@ type WaitingRoomProps = {
   onEnd?: () => void
   /** The way into the table's chat. */
   children?: ReactNode
+  /** Set for a tournament table, whose chips are its own. */
+  tournament?: boolean
+  /** Shown above the seats: how the last tournament finished, when one has. */
+  before?: ReactNode
 }
 
 /**
  * A private table before its game begins: who has arrived, the seats still
  * empty, the link to fill them, and for the host the button that starts it.
  */
-export function WaitingRoom({ table, seats, seatsInAll, host, youHost, notYet, onStart, code, practice, onEnd, children }: WaitingRoomProps) {
+export function WaitingRoom({ table, seats, seatsInAll, host, youHost, notYet, onStart, code, practice, onEnd, children, tournament = false, before }: WaitingRoomProps) {
   const empty = Math.max(0, seatsInAll - seats.length)
 
   return (
     <div className="m-auto flex w-full max-w-md flex-col gap-4 py-6">
       <div className="text-center">
-        <p className="label text-gold!">A private table</p>
+        <p className="label text-gold!">{tournament ? 'A private tournament' : 'A private table'}</p>
         <h1 className="pt-2 text-3xl font-semibold tracking-tight text-ivory">{table}</h1>
         <p className="pt-2 text-sm leading-relaxed text-muted">
-          {youHost ? 'Send the link to your friends. The game begins when you say.' : `Waiting for ${host ?? 'the host'} to start the game.`}
+          {youHost
+            ? tournament
+              ? 'Send the link to your friends. Everyone here when you start is in, with 1,500 chips each.'
+              : 'Send the link to your friends. The game begins when you say.'
+            : `Waiting for ${host ?? 'the host'} to start the ${tournament ? 'tournament' : 'game'}.`}
         </p>
       </div>
+
+      {before}
 
       <div className="flex justify-center">
         <TableCode id={code} />
@@ -63,7 +73,7 @@ export function WaitingRoom({ table, seats, seatsInAll, host, youHost, notYet, o
       <div className="flex flex-col gap-2.5">
         {youHost && (
           <button type="button" className="btn btn--raise" onClick={onStart} disabled={notYet !== null}>
-            Start the game
+            {tournament ? (before ? 'Start another tournament' : 'Start the tournament') : 'Start the game'}
           </button>
         )}
         <div className="flex items-center justify-center gap-2">
@@ -74,7 +84,11 @@ export function WaitingRoom({ table, seats, seatsInAll, host, youHost, notYet, o
       </div>
 
       <p className="label pt-1 text-center leading-relaxed">
-        {practice ? 'Practice chips · nothing here touches anyone\u2019s own' : 'Played with your own chips · does not count for the leagues'}
+        {tournament
+          ? 'Tournament chips · the blinds rise every 6 hands · nothing here touches anyone\u2019s own'
+          : practice
+            ? 'Practice chips · nothing here touches anyone\u2019s own'
+            : 'Played with your own chips · does not count for the leagues'}
         <br />
         Only people with the link or the code can find this table
       </p>

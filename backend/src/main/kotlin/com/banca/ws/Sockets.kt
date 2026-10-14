@@ -108,7 +108,9 @@ fun Application.configureGameSockets(
             call.respond(found)
         }
 
-        post("/poker/tables") { call.openInvite(players, invites, invitedPoker, "table", seats = 2..pokerTables.seats, usual = pokerTables.seats, mayLeaveBancaOut = true) }
+        post("/poker/tables") {
+            call.openInvite(players, invites, invitedPoker, "table", seats = 2..pokerTables.seats, usual = pokerTables.seats, mayLeaveBancaOut = true, mayRunTournament = true)
+        }
     }
 }
 
@@ -125,7 +127,7 @@ private data class NotOpened(val message: String)
 
 /** What a host may choose for the table they open. Anything left out is the usual. */
 @Serializable
-private data class Wanted(val seats: Int? = null, val banca: Boolean = true, val turns: String = "normal", val chips: String = "real")
+private data class Wanted(val seats: Int? = null, val banca: Boolean = true, val turns: String = "normal", val chips: String = "real", val format: String = "cash")
 
 /**
  * Opens a table for the caller to invite others to, named after them and set
@@ -141,6 +143,8 @@ private suspend fun ApplicationCall.openInvite(
     seats: IntRange,
     usual: Int,
     mayLeaveBancaOut: Boolean = false,
+    /** Whether the game can be played as a tournament, which only poker can. */
+    mayRunTournament: Boolean = false,
 ) {
     val token = request.headers[HttpHeaders.Authorization]?.removePrefix("Bearer ")?.trim().orEmpty()
     val player = players.authenticate(token)
@@ -157,6 +161,9 @@ private suspend fun ApplicationCall.openInvite(
     if (wanted.turns !in setOf("normal", "long")) return respond(HttpStatusCode.BadRequest, NotOpened("Turns are normal or long"))
     if (wanted.chips !in setOf("real", "practice")) return respond(HttpStatusCode.BadRequest, NotOpened("Chips are real or practice"))
     if (!wanted.banca && !mayLeaveBancaOut) return respond(HttpStatusCode.BadRequest, NotOpened("Banca is only a player at poker"))
+    if (wanted.format !in setOf("cash", "tournament")) return respond(HttpStatusCode.BadRequest, NotOpened("A table is a cash game or a tournament"))
+    if (wanted.format == "tournament" && !mayRunTournament) return respond(HttpStatusCode.BadRequest, NotOpened("Only poker is played as a tournament"))
+    val tournament = wanted.format == "tournament"
 
     if (!allowance.take(player.id.toString())) {
         return respond(HttpStatusCode.TooManyRequests, NotOpened("You have opened a lot of tables. Use one of those, or try again in a while."))
@@ -166,7 +173,9 @@ private suspend fun ApplicationCall.openInvite(
         banca = wanted.banca,
         longTurns = wanted.turns == "long",
         host = player.id,
-        practice = if (wanted.chips == "practice") PracticePurse() else null,
+        // A tournament has chips of its own, so whatever was asked for chips does not come into it.
+        practice = if (wanted.chips == "practice" && !tournament) PracticePurse() else null,
+        tournament = if (tournament) Tournament() else null,
     )
     val spec = tables.open("${player.name}'s $kind", options)
         ?: return respond(HttpStatusCode.ServiceUnavailable, NotOpened("The house is full just now. Try again in a little while."))

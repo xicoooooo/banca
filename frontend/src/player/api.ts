@@ -74,7 +74,7 @@ export async function renamePlayer(name: string): Promise<void> {
 }
 
 /** What a host chooses for a private table. Anything left out is the game's usual. */
-export type TableOptions = { seats?: number; banca?: boolean; turns?: 'normal' | 'long'; chips?: 'real' | 'practice' }
+export type TableOptions = { seats?: number; banca?: boolean; turns?: 'normal' | 'long'; chips?: 'real' | 'practice'; format?: 'cash' | 'tournament' }
 
 /**
  * Opens a table for the player to invite others to, at the address the game

@@ -21,6 +21,8 @@ import { Board } from './Board'
 import { Pot } from './Pot'
 import { PokerCoachPanel, PokerCoachPill, PokerCoachReason } from './PokerCoach'
 import { ReasoningPanel } from './ReasoningPanel'
+import { Podium } from './Podium'
+import { ordinal } from './places'
 import { Seat } from './Seat'
 import { ReplayHandButton, ShareHandButton, ShareHandPanel } from '../share/ShareHand'
 import { handCardOf, type HandCard } from '../share/handCard'
@@ -147,6 +149,14 @@ function Outcome({ view, seconds, onShowReasoning, onShare, onReplay, toRead = f
   )
 }
 
+/** At a tournament, the level of the blinds and when they next go up, in place of the table's name. */
+function levelOf(room: PokerRoomView): string | null {
+  const tournament = room.tournament
+  if (!tournament?.running) return null
+  const next = tournament.handsToNextLevel > 0 ? ` · up in ${tournament.handsToNextLevel}` : ''
+  return `Level ${tournament.level} · ${tournament.smallBlind}/${tournament.bigBlind}${next}`
+}
+
 /**
  * A poker table shared with other players, with Banca in one seat. The table
  * deals hand after hand and keeps the time. The player's own cards and
@@ -210,6 +220,8 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
           code={room.room}
           practice={room.practice}
           onEnd={room.youHost ? () => send({ type: 'end' }) : undefined}
+          tournament={Boolean(room.tournament)}
+          before={room.tournament && !room.tournament.running && room.tournament.standings.length > 0 ? <Podium tournament={room.tournament} /> : undefined}
         >
           <button
             type="button"
@@ -292,10 +304,11 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
     reasoning.revealed && reading.answerFor(reasoning.handNumber) === null && reasoning.events.some((event) => moodOf(event.detail) !== null)
   const unread = chatCount - heard
   const waiting = room.seats.filter((seat) => !seat.inHand && seat.seat !== BANCA_SEAT)
+  const myPlace = room.tournament?.standings.find((seat) => seat.you)?.place ?? null
 
   return (
     <CasinoShell showdown={showdown}>
-      <Header detail={room.name} status={statusOf(room, seconds)} onLeave={onLeave} />
+      <Header detail={levelOf(room) ?? room.name} status={statusOf(room, seconds)} onLeave={onLeave} />
 
       <div className="felt mt-2.5 flex flex-1 flex-col">
         {/* The ways to react and into the chat sit in the corner of the felt, taking no room from the cards. */}
@@ -348,9 +361,25 @@ export function SharedTable({ tableId, onLeave }: { tableId: string; onLeave?: (
           ) : (
             <div className="grid min-h-[calc(var(--card-hero)*1.4+4.5rem)] place-items-center">
               <p className="label text-center leading-relaxed text-gold/60!">
-                You are watching this hand
-                <br />
-                and will be dealt into the next
+                {myPlace ? (
+                  <>
+                    You finished {ordinal(myPlace)}
+                    <br />
+                    and are watching the rest
+                  </>
+                ) : room.tournament?.running ? (
+                  <>
+                    A tournament is being played
+                    <br />
+                    and you can watch it
+                  </>
+                ) : (
+                  <>
+                    You are watching this hand
+                    <br />
+                    and will be dealt into the next
+                  </>
+                )}
               </p>
             </div>
           )}

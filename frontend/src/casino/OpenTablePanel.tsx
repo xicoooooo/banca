@@ -31,6 +31,8 @@ export function OpenTablePanel({ game: fixed, onClose }: OpenTablePanelProps) {
   const [banca, setBanca] = useState(true)
   const [longTurns, setLongTurns] = useState(false)
   const [practice, setPractice] = useState(false)
+  // Poker may be played as a tournament, with chips of its own; every game may be played as it is.
+  const [tournament, setTournament] = useState(false)
   const [opening, setOpening] = useState(false)
   const [refused, setRefused] = useState<string | null>(null)
 
@@ -53,6 +55,7 @@ export function OpenTablePanel({ game: fixed, onClose }: OpenTablePanelProps) {
       banca: game === 'poker' ? banca : true,
       turns: longTurns && game !== 'roulette' ? 'long' : 'normal',
       chips: practice ? 'practice' : 'real',
+      format: game === 'poker' && tournament ? 'tournament' : 'cash',
     }
     try {
       const table = await openTable(rules.openAt, options)
@@ -143,6 +146,26 @@ export function OpenTablePanel({ game: fixed, onClose }: OpenTablePanelProps) {
             </fieldset>
           )}
 
+          {game === 'poker' && (
+            <fieldset className="setup">
+              <legend className="label">How it is played</legend>
+              <div className="setup__choices">
+                <button type="button" className="btn btn--quiet" data-selected={!tournament} aria-pressed={!tournament} onClick={() => setTournament(false)}>
+                  Cash game
+                </button>
+                <button type="button" className="btn btn--quiet" data-selected={tournament} aria-pressed={tournament} onClick={() => setTournament(true)}>
+                  Tournament
+                </button>
+              </div>
+              <p className="pt-2 text-xs leading-relaxed text-muted">
+                {tournament
+                  ? 'Everyone starts with 1,500 tournament chips and nothing is topped up. The blinds rise every 6 hands, and the last player with chips wins. Nobody\u2019s own chips are touched.'
+                  : 'Hand after hand, for as long as you like, each player bringing chips to every hand.'}
+              </p>
+            </fieldset>
+          )}
+
+          {!(game === 'poker' && tournament) && (
           <fieldset className="setup">
             <legend className="label">Chips</legend>
             <div className="setup__choices">
@@ -159,6 +182,7 @@ export function OpenTablePanel({ game: fixed, onClose }: OpenTablePanelProps) {
                 : 'Everyone plays from their own bankroll, and what is won and lost is real. It counts for your statistics, but not for the leagues: only the open tables do.'}
             </p>
           </fieldset>
+          )}
 
           <div>
             <button type="button" className="btn btn--raise w-full" onClick={open} disabled={opening} data-pending={opening}>

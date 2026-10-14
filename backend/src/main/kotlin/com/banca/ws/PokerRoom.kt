@@ -94,6 +94,8 @@ data class PokerRoomView(
     val started: Boolean = true,
     /** True when the table is played with practice chips, which are its own and touch nobody's bankroll. */
     val practice: Boolean = false,
+    /** Present at a table played as a tournament: the blinds, the standings and, once one is over, where everyone finished. Before the first, nobody is in the standings. */
+    val tournament: TournamentView? = null,
 )
 
 @Serializable
@@ -194,6 +196,9 @@ class PokerRoom(
     /** A private table deals nothing until its host says so. Every other table is always under way. */
     private var started = !spec.byInvite
 
+    /** Set when the table is played as a tournament, with its own chips and blinds that rise. */
+    private val tournament = spec.options.tournament
+
     /** Set once the host has asked for the table to be closed. */
     private var closing = false
 
@@ -286,6 +291,9 @@ class PokerRoom(
         if (!inHand(member)) {
             members.remove(playerId)
             chat.forget(playerId)
+            // Gone from a tournament for good, they go out where they stand.
+            tournament?.forfeit(playerId)
+            if (tournament?.finished == true) started = false
             broadcast()
         }
     }
@@ -311,6 +319,11 @@ class PokerRoom(
         val here = members.values.count { it.connected } + if (withBanca) 1 else 0
         check(here >= 2) { "Poker needs two. Wait for someone to join" }
 
+        // A tournament begins with whoever is here, unless one was under way when everybody stepped away.
+        if (tournament != null && !tournament.running) {
+            val entrants = members.values.filter { it.connected }.sortedBy { it.seat }.map { it.id to it.name }
+            tournament.begin(entrants + if (withBanca) listOf(Tournament.BANCA to "Banca") else emptyList())
+        }
         started = true
         acted.trySend(Unit)
         broadcast()
@@ -382,6 +395,15 @@ class PokerRoom(
 
                 lock.withLock { finish() }
                 delay(timings.results)
+                // A tournament that hand settled is over: once the hand that won it has been seen, the table
+                // waits, showing where everyone finished, until the host starts another.
+                lock.withLock {
+                    if (tournament?.finished == true && started) {
+                        started = false
+                        phase = TablePhase.WAITING
+                        broadcast()
+                    }
+                }
                 // The host asked for the table to be closed while the hand was being played.
                 if (lock.withLock { closing.also { if (it) { close(); running = false } } }) return
             }
@@ -403,8 +425,13 @@ class PokerRoom(
      * is nobody here at all, which stops the table.
      */
     private suspend fun deal(): Boolean? {
-        val gone = members.values.removeAll { it.leaving || !it.connected }
-        if (members.isEmpty() || closing) {
+        // At a tournament a player whose connection has dropped keeps their place, and their chips are
+        // played for them until they are back. One who has left for good goes out where they stand.
+        val leaving = members.values.filter { it.leaving || (!it.connected && tournament == null) }
+        leaving.forEach { tournament?.forfeit(it.id) }
+        if (tournament?.finished == true) started = false
+        val gone = members.values.removeAll { it in leaving }
+        if (members.values.none { it.connected } || closing) {
             running = false
             hand = null
             phase = TablePhase.WAITING
@@ -421,6 +448,8 @@ class PokerRoom(
             return false
         }
 
+        if (tournament != null) return dealTournament(tournament, gone)
+
         val stacks = LinkedHashMap<Int, Long>()
         for (member in members.values) {
             // Someone who cannot post a blind is staked by the house first, if the house will.
@@ -434,6 +463,22 @@ class PokerRoom(
             }
         }
         if (withBanca && stacks.isNotEmpty()) stacks[BANCA_SEAT] = BUY_IN
+        return dealFrom(stacks, SMALL_BLIND, BIG_BLIND, gone)
+    }
+
+    /** Deals the next hand of a tournament: to those still in it, each with what they have left, at the blinds of the level. */
+    private suspend fun dealTournament(tournament: Tournament, gone: Boolean): Boolean {
+        val stacks = LinkedHashMap<Int, Long>()
+        if (tournament.running) {
+            for (member in members.values) if (tournament.isIn(member.id)) stacks[member.seat] = tournament.chipsOf(member.id)
+            if (withBanca && tournament.isIn(Tournament.BANCA)) stacks[BANCA_SEAT] = tournament.chipsOf(Tournament.BANCA)
+        }
+        val level = tournament.level
+        return dealFrom(stacks, level.small, level.big, gone)
+    }
+
+    /** Deals a hand to the seats in [stacks], or says there is no hand to deal. */
+    private suspend fun dealFrom(stacks: Map<Int, Long>, smallBlind: Long, bigBlind: Long, gone: Boolean): Boolean {
         // A hand needs two to play it.
         if (stacks.size < 2) {
             if (phase != TablePhase.WAITING || gone) {
@@ -454,8 +499,8 @@ class PokerRoom(
         hand = Hand.start(
             seats = seats.map { Player(it, stacks.getValue(it)) },
             buttonSeat = buttonSeat,
-            smallBlind = SMALL_BLIND,
-            bigBlind = BIG_BLIND,
+            smallBlind = smallBlind,
+            bigBlind = bigBlind,
             deck = Deck.shuffled(random),
         )
         phase = TablePhase.PLAYING
@@ -525,7 +570,13 @@ class PokerRoom(
     private suspend fun finish() {
         val finished = hand ?: return
         val headsUpWithBanca = withBanca && finished.players.size == 2 && finished.players.any { it.seat == BANCA_SEAT }
-        for (member in members.values) {
+        // Tournament chips are the table's own: nobody's bankroll or record is touched, only the score.
+        if (tournament != null && tournament.running) {
+            val bySeat = members.values.associate { it.seat to it.id } + mapOf(BANCA_SEAT to Tournament.BANCA)
+            tournament.handPlayed(finished.players.mapNotNull { player -> bySeat[player.seat]?.let { it to player.stack } }.toMap())
+        }
+        val settling = if (tournament == null) members.values else emptyList()
+        for (member in settling) {
             val summary = runCatching { handSummaryOf(finished, member.seat) }.getOrNull() ?: continue
             try {
                 member.session.settle(
@@ -617,7 +668,8 @@ class PokerRoom(
                 host = host?.let { members[it]?.name },
                 youHost = host == member.id,
                 started = started,
-                practice = spec.options.practice != null,
+                practice = spec.options.practice != null || tournament != null,
+                tournament = tournament?.view(member.id),
             )
             member.send(encode(PokerRoomServerMessage.State(view)))
         }
