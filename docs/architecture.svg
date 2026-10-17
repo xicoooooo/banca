@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" role="img" aria-labelledby="title desc" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 860" role="img" aria-labelledby="title desc" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
   <title id="title">Banca architecture</title>
-  <desc id="desc">The player's device runs a React app that talks to one Kotlin backend over a WebSocket per table and over HTTPS. Inside the backend, a gateway keeps the tables, pure game engines hold the rules, agents call tools over MCP, and a players module keeps the chip ledger. The backend talks to a model provider for the agents and to Supabase for Postgres and sign-in.</desc>
+  <desc id="desc">The player's device runs a React app that talks to one Kotlin backend over a WebSocket per table and over HTTPS, and makes hand pictures and the room's sound itself. Inside the backend, a gateway keeps the live tables, private tables, tournaments and challenges; pure game engines hold the rules; agents call tools over MCP; and a players module keeps the chip ledger, from which statistics, leagues, titles, moments and the weekly report are worked out. The backend talks to a model provider for the agents and to Supabase for Postgres and sign-in.</desc>
 
   <defs>
     <linearGradient id="felt" x1="0" y1="0" x2="0" y2="1">
@@ -25,134 +25,143 @@
     </style>
   </defs>
 
-  <rect width="1280" height="800" rx="22" fill="url(#felt)" />
+  <rect width="1280" height="860" rx="22" fill="url(#felt)" />
 
   <text x="40" y="50" class="eyebrow">BANCA · ARCHITECTURE</text>
   <text x="40" y="76" class="text">One process, live tables in memory, and Postgres for what must last.</text>
 
   <!-- The player's device -->
-  <rect x="40" y="104" width="260" height="536" rx="18" class="zone" />
+  <rect x="40" y="104" width="260" height="596" rx="18" class="zone" />
   <text x="60" y="134" class="eyebrow">THE PLAYER'S DEVICE</text>
   <text x="60" y="160" class="name">React + TypeScript</text>
   <text x="60" y="180" class="text">Installable as a PWA</text>
 
-  <rect x="58" y="200" width="224" height="74" rx="12" class="part" />
+  <rect x="58" y="200" width="224" height="92" rx="12" class="part" />
   <text x="72" y="224" class="head">Tables</text>
-  <text x="72" y="244" class="text">Poker, blackjack, roulette,</text>
-  <text x="72" y="261" class="text">alone or shared, with chat</text>
+  <text x="72" y="244" class="text">Poker, blackjack, roulette:</text>
+  <text x="72" y="261" class="text">alone, shared or private, with</text>
+  <text x="72" y="278" class="text">chat and reactions</text>
 
-  <rect x="58" y="286" width="224" height="74" rx="12" class="part" />
-  <text x="72" y="310" class="head">Reasoning panel</text>
-  <text x="72" y="330" class="text">The agent's tool calls and</text>
-  <text x="72" y="347" class="text">decision, as they happen</text>
+  <rect x="58" y="304" width="224" height="92" rx="12" class="part" />
+  <text x="72" y="328" class="head">Banca, shown working</text>
+  <text x="72" y="348" class="text">Its tool calls as they happen,</text>
+  <text x="72" y="365" class="text">its reasoning after, and each</text>
+  <text x="72" y="382" class="text">hand played back step by step</text>
 
-  <rect x="58" y="372" width="224" height="74" rx="12" class="part" />
-  <text x="72" y="396" class="head">Lobby and profile</text>
-  <text x="72" y="416" class="text">Rewards, statistics, leagues,</text>
-  <text x="72" y="433" class="text">trophies, the guide</text>
+  <rect x="58" y="408" width="224" height="92" rx="12" class="part" />
+  <text x="72" y="432" class="head">Lobby and profile</text>
+  <text x="72" y="452" class="text">Rewards, missions, leagues,</text>
+  <text x="72" y="469" class="text">titles, moments, challenges,</text>
+  <text x="72" y="486" class="text">the weekly report, drills</text>
 
-  <rect x="58" y="458" width="224" height="74" rx="12" class="part" />
-  <text x="72" y="482" class="head">Service worker</text>
-  <text x="72" y="502" class="text">Keeps the app's own files.</text>
-  <text x="72" y="519" class="text">Never any game data</text>
+  <rect x="58" y="512" width="224" height="92" rx="12" class="part" />
+  <text x="72" y="536" class="head">Made on the device</text>
+  <text x="72" y="556" class="text">Hand pictures, the room's sound,</text>
+  <text x="72" y="573" class="text">and the app's own files, kept</text>
+  <text x="72" y="590" class="text">offline. Never any game data</text>
 
-  <text x="60" y="574" class="rule">Draws what it is sent.</text>
-  <text x="60" y="594" class="rule">Decides nothing.</text>
-  <text x="60" y="620" class="text">Hosted on Vercel</text>
+  <text x="60" y="636" class="rule">Draws what it is sent.</text>
+  <text x="60" y="656" class="rule">Decides nothing.</text>
+  <text x="60" y="682" class="text">Hosted on Vercel</text>
 
   <!-- The backend -->
-  <rect x="420" y="104" width="500" height="536" rx="18" class="zone" />
+  <rect x="420" y="104" width="500" height="596" rx="18" class="zone" />
   <text x="440" y="134" class="eyebrow">THE BACKEND · ONE PROCESS</text>
   <text x="440" y="160" class="name">Kotlin + Ktor</text>
   <text x="760" y="160" class="text">Hosted on Render</text>
 
-  <rect x="438" y="180" width="464" height="92" rx="12" class="part" />
+  <rect x="438" y="180" width="464" height="110" rx="12" class="part" />
   <text x="452" y="204" class="mono">ws/</text>
   <text x="486" y="204" class="head">Gateway and live tables</text>
   <text x="452" y="226" class="text">One socket per table. After every change each seat is sent its</text>
   <text x="452" y="243" class="text">whole view, and nothing it may not see. Tables outlive connections.</text>
-  <text x="452" y="260" class="text">Shared rooms run on their own clocks.</text>
+  <text x="452" y="260" class="text">Open tables run on their own clocks, private ones at their host's</text>
+  <text x="452" y="277" class="text">pace: tournaments too, and challenges dealt from one shoe.</text>
 
-  <rect x="438" y="298" width="222" height="130" rx="12" class="part" />
-  <text x="452" y="322" class="mono">games/</text>
-  <text x="508" y="322" class="head">The rules</text>
-  <text x="452" y="344" class="text">Poker, blackjack and</text>
-  <text x="452" y="361" class="text">roulette engines.</text>
-  <text x="452" y="383" class="text">Pure Kotlin, immutable</text>
-  <text x="452" y="400" class="text">state, no I/O, tested</text>
-  <text x="452" y="417" class="text">on their own</text>
+  <rect x="438" y="316" width="222" height="144" rx="12" class="part" />
+  <text x="452" y="340" class="mono">games/</text>
+  <text x="508" y="340" class="head">The rules</text>
+  <text x="452" y="362" class="text">Poker, blackjack and</text>
+  <text x="452" y="379" class="text">roulette engines.</text>
+  <text x="452" y="401" class="text">Pure Kotlin, immutable</text>
+  <text x="452" y="418" class="text">state, no I/O, tested</text>
+  <text x="452" y="435" class="text">on their own</text>
 
-  <rect x="680" y="298" width="222" height="130" rx="12" class="part" />
-  <text x="694" y="322" class="mono">agents/</text>
-  <text x="757" y="322" class="head">Banca</text>
-  <text x="694" y="344" class="text">A tool-calling loop over</text>
-  <text x="694" y="361" class="text">MCP, in process.</text>
-  <text x="694" y="383" class="text">Opponent at poker, coach</text>
-  <text x="694" y="400" class="text">at poker and blackjack,</text>
-  <text x="694" y="417" class="text">analyst at roulette</text>
+  <rect x="680" y="316" width="222" height="144" rx="12" class="part" />
+  <text x="694" y="340" class="mono">agents/</text>
+  <text x="757" y="340" class="head">Banca</text>
+  <text x="694" y="362" class="text">A tool-calling loop over</text>
+  <text x="694" y="379" class="text">MCP, in process. Opponent</text>
+  <text x="694" y="396" class="text">at poker, with moods and a</text>
+  <text x="694" y="413" class="text">word after the hand; coach,</text>
+  <text x="694" y="430" class="text">analyst, and the drills'</text>
+  <text x="694" y="447" class="text">grader</text>
 
-  <rect x="438" y="454" width="464" height="76" rx="12" class="part" />
-  <text x="452" y="478" class="mono">players/</text>
-  <text x="522" y="478" class="head">Identity and the chip ledger</text>
-  <text x="452" y="500" class="text">Every chip that moves is a line in an append-only ledger. Rewards,</text>
-  <text x="452" y="517" class="text">statistics, levels and leagues are all worked out from it.</text>
+  <rect x="438" y="486" width="464" height="94" rx="12" class="part" />
+  <text x="452" y="510" class="mono">players/</text>
+  <text x="522" y="510" class="head">Identity and the chip ledger</text>
+  <text x="452" y="532" class="text">Every chip that moves is a line in an append-only ledger. Statistics,</text>
+  <text x="452" y="549" class="text">levels, leagues, titles, moments, the record against Banca and the</text>
+  <text x="452" y="566" class="text">weekly report are all worked out from it and the rounds played.</text>
 
-  <rect x="438" y="548" width="464" height="72" rx="12" class="part" />
-  <text x="452" y="572" class="head">HTTP</text>
-  <text x="452" y="594" class="text">Players, sign-in, the dashboard, daily rewards, leagues,</text>
-  <text x="452" y="611" class="text">leaderboards, public profiles, the lists of shared tables</text>
+  <rect x="438" y="600" width="464" height="82" rx="12" class="part" />
+  <text x="452" y="624" class="head">HTTP</text>
+  <text x="452" y="646" class="text">Players, sign-in, the dashboard, rewards and missions, leagues,</text>
+  <text x="452" y="663" class="text">friends, public pages, table codes, challenges, drills</text>
 
   <!-- Outside services -->
-  <rect x="1020" y="298" width="220" height="130" rx="18" class="zone" />
-  <text x="1038" y="326" class="eyebrow">A LANGUAGE MODEL</text>
-  <text x="1038" y="352" class="name">Groq · Ollama</text>
-  <text x="1038" y="374" class="text">Any model that can call</text>
-  <text x="1038" y="391" class="text">tools. Never trusted: what</text>
-  <text x="1038" y="408" class="text">it submits is validated</text>
+  <rect x="1020" y="316" width="220" height="144" rx="18" class="zone" />
+  <text x="1038" y="344" class="eyebrow">A LANGUAGE MODEL</text>
+  <text x="1038" y="370" class="name">Groq · Ollama</text>
+  <text x="1038" y="392" class="text">Any model that can call</text>
+  <text x="1038" y="409" class="text">tools. Never trusted, and</text>
+  <text x="1038" y="426" class="text">when it runs out, Banca</text>
+  <text x="1038" y="443" class="text">plays by its own figures</text>
 
-  <rect x="1020" y="454" width="220" height="166" rx="18" class="zone" />
-  <text x="1038" y="482" class="eyebrow">SUPABASE</text>
-  <text x="1038" y="508" class="name">Postgres</text>
-  <text x="1038" y="528" class="text">Players, the ledger, finished</text>
-  <text x="1038" y="545" class="text">rounds, league results</text>
-  <text x="1038" y="576" class="name">Auth</text>
-  <text x="1038" y="596" class="text">Google sign-in, optional</text>
+  <rect x="1020" y="486" width="220" height="196" rx="18" class="zone" />
+  <text x="1038" y="514" class="eyebrow">SUPABASE</text>
+  <text x="1038" y="540" class="name">Postgres</text>
+  <text x="1038" y="560" class="text">Players, the ledger, finished</text>
+  <text x="1038" y="577" class="text">rounds, league results,</text>
+  <text x="1038" y="594" class="text">friends, challenges</text>
+  <text x="1038" y="630" class="name">Auth</text>
+  <text x="1038" y="650" class="text">Google sign-in, optional</text>
 
   <!-- Wires between the zones -->
-  <path d="M300 226 H436" class="wire" marker-start="url(#head)" marker-end="url(#head)" />
-  <text x="368" y="208" class="label" text-anchor="middle">WebSocket</text>
-  <text x="368" y="246" class="text" text-anchor="middle" font-size="11">actions up,</text>
-  <text x="368" y="261" class="text" text-anchor="middle" font-size="11">state down</text>
+  <path d="M300 232 H436" class="wire" marker-start="url(#head)" marker-end="url(#head)" />
+  <text x="368" y="214" class="label" text-anchor="middle">WebSocket</text>
+  <text x="368" y="252" class="text" text-anchor="middle" font-size="11">actions up,</text>
+  <text x="368" y="267" class="text" text-anchor="middle" font-size="11">state down</text>
 
-  <path d="M300 584 H436" class="wire" marker-start="url(#head)" marker-end="url(#head)" />
-  <text x="368" y="574" class="label" text-anchor="middle">HTTPS</text>
+  <path d="M300 641 H436" class="wire" marker-start="url(#head)" marker-end="url(#head)" />
+  <text x="368" y="631" class="label" text-anchor="middle">HTTPS</text>
 
-  <path d="M902 363 H1018" class="wire" marker-start="url(#head)" marker-end="url(#head)" />
-  <text x="961" y="345" class="label" text-anchor="middle">messages,</text>
-  <text x="961" y="383" class="label" text-anchor="middle">tool calls</text>
+  <path d="M902 388 H1018" class="wire" marker-start="url(#head)" marker-end="url(#head)" />
+  <text x="961" y="370" class="label" text-anchor="middle">messages,</text>
+  <text x="961" y="408" class="label" text-anchor="middle">tool calls</text>
 
-  <path d="M902 492 H1018" class="wire" marker-start="url(#head)" marker-end="url(#head)" />
-  <text x="961" y="482" class="label" text-anchor="middle">SQL</text>
+  <path d="M902 533 H1018" class="wire" marker-start="url(#head)" marker-end="url(#head)" />
+  <text x="961" y="523" class="label" text-anchor="middle">SQL</text>
 
   <!-- Inside the backend -->
-  <path d="M549 272 V296" class="inner" marker-end="url(#head)" />
-  <path d="M791 272 V296" class="inner" marker-end="url(#head)" />
-  <path d="M660 363 H678" class="inner" marker-start="url(#head)" marker-end="url(#head)" />
-  <path d="M549 428 V452" class="inner" marker-end="url(#head)" />
+  <path d="M549 290 V314" class="inner" marker-end="url(#head)" />
+  <path d="M791 290 V314" class="inner" marker-end="url(#head)" />
+  <path d="M660 388 H678" class="inner" marker-start="url(#head)" marker-end="url(#head)" />
+  <path d="M549 460 V484" class="inner" marker-end="url(#head)" />
 
   <!-- What holds it together -->
-  <line x1="40" y1="668" x2="1240" y2="668" stroke="rgb(241 199 91 / 0.3)" />
-  <text x="40" y="702" class="eyebrow">THE RULES IT KEEPS</text>
+  <line x1="40" y1="728" x2="1240" y2="728" stroke="rgb(241 199 91 / 0.3)" />
+  <text x="40" y="762" class="eyebrow">THE RULES IT KEEPS</text>
 
-  <text x="40" y="732" class="rule">The server owns the rules</text>
-  <text x="40" y="752" class="text">Every action, a player's or the agent's,</text>
-  <text x="40" y="769" class="text">goes through the same engine.</text>
+  <text x="40" y="792" class="rule">The server owns the rules</text>
+  <text x="40" y="812" class="text">Every action, a player's or the agent's,</text>
+  <text x="40" y="829" class="text">goes through the same engine.</text>
 
-  <text x="450" y="732" class="rule">An agent sees only its own seat</text>
-  <text x="450" y="752" class="text">Its tools are built from that seat's view</text>
-  <text x="450" y="769" class="text">of the table, so it cannot peek.</text>
+  <text x="450" y="792" class="rule">An agent sees only its own seat</text>
+  <text x="450" y="812" class="text">Its tools are built from that seat's view</text>
+  <text x="450" y="829" class="text">of the table, so it cannot peek.</text>
 
-  <text x="860" y="732" class="rule">Nothing costs money</text>
-  <text x="860" y="752" class="text">Vercel, Render, Supabase, Groq and</text>
-  <text x="860" y="769" class="text">GitHub Actions, all on free tiers.</text>
+  <text x="860" y="792" class="rule">Nothing costs money</text>
+  <text x="860" y="812" class="text">Vercel, Render, Supabase, Groq and</text>
+  <text x="860" y="829" class="text">GitHub Actions, all on free tiers.</text>
 </svg>

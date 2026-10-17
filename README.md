@@ -58,7 +58,7 @@ The agent is not a chatbot bolted to a game. It receives only what a player in i
 ## Architecture
 
 <p align="center">
-  <img src="docs/architecture.svg" alt="Banca's architecture: a React app on the player's device talks to one Kotlin backend over a WebSocket per table and over HTTPS. Inside the backend a gateway keeps the live tables, pure game engines hold the rules, agents call tools over MCP, and a players module keeps the chip ledger. The backend talks to a language model for the agents and to Supabase for Postgres and sign-in." width="100%" />
+  <img src="docs/architecture.svg" alt="Banca's architecture: a React app on the player's device talks to one Kotlin backend over a WebSocket per table and over HTTPS, and makes hand pictures and the room's sound itself. Inside the backend a gateway keeps the live tables, private tables, tournaments and challenges; pure game engines hold the rules; agents call tools over MCP; and a players module keeps the chip ledger, from which statistics, leagues, titles, moments and the weekly report are worked out. The backend talks to a language model for the agents and to Supabase for Postgres and sign-in." width="100%" />
 </p>
 
 In the repository:
