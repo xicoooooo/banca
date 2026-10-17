@@ -16,7 +16,8 @@ class ChallengesTest {
     private val store = InMemoryPlayerStore(clock)
     private val challenges = Challenges(store, clock)
 
-    private fun player(name: String) = runBlocking { store.create(name, name, 2_000) }
+    /** A player who has signed in, as only they may take challenges. */
+    private fun player(name: String) = runBlocking { store.linkAccount(store.create(name, name, 2_000).id, "account-$name") }
 
     @Test
     fun `a go cut short is placed below every whole one, however many chips it kept`() = runBlocking {
@@ -79,5 +80,15 @@ class ChallengesTest {
         val standing = challenges.view(run.code, ana)!!.standings.single()
         assertEquals(980L, standing.chips)
         assertFalse(standing.complete)
+    }
+
+    @Test
+    fun `a guest can neither set a challenge nor take one`() = runBlocking {
+        val ana = player("Ana")
+        val guest = store.create("Guest 1", "guest", 2_000)
+        val run = store.challengeByCode(challenges.set(ana))!!
+
+        kotlin.test.assertFailsWith<IllegalArgumentException> { challenges.set(guest) }
+        kotlin.test.assertFailsWith<IllegalArgumentException> { challenges.enter(run, guest) }
     }
 }

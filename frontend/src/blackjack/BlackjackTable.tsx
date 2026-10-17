@@ -70,7 +70,14 @@ export function BlackjackTable({ onLeave, challenge: code }: { onLeave?: () => v
   const myGo = challenge?.standings.find((standing) => standing.you)
   const goOver = code !== undefined && (turnedAway !== null || (myGo?.chips !== null && myGo?.chips !== undefined))
   if (goOver && (!view || view.legal.bet || turnedAway !== null) && resultShownOrNone(view, resultShown)) {
-    return <ChallengeResults challenge={challenge} missing={turnedAway === 'no_challenge'} onLeave={onLeave ?? (() => history.back())} />
+    return (
+      <ChallengeResults
+        challenge={challenge}
+        missing={turnedAway === 'no_challenge'}
+        signInNeeded={turnedAway === 'sign_in_needed'}
+        onLeave={onLeave ?? (() => history.back())}
+      />
+    )
   }
 
   if (!view) {

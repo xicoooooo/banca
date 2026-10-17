@@ -575,16 +575,18 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
         }
     }
 
-    override suspend fun challengeEntries(challengeId: UUID): List<ChallengeEntry> = query { connection ->
-        connection.prepareStatement(
-            "select e.profile_id, p.display_name, e.rounds_played, e.chips, e.started_at, e.finished_at is not null as finished " +
-                "from challenge_entries e join profiles p on p.id = e.profile_id where e.challenge_id = ? order by e.started_at",
-        ).use { statement ->
-            statement.setObject(1, challengeId)
-            statement.executeQuery().use { rows ->
-                buildList {
+    override suspend fun challengeEntries(challengeIds: Collection<UUID>): Map<UUID, List<ChallengeEntry>> {
+        if (challengeIds.isEmpty()) return emptyMap()
+        return query { connection ->
+            connection.prepareStatement(
+                "select e.challenge_id, e.profile_id, p.display_name, e.rounds_played, e.chips, e.started_at, e.finished_at is not null as finished " +
+                    "from challenge_entries e join profiles p on p.id = e.profile_id where e.challenge_id = any (?) order by e.started_at",
+            ).use { statement ->
+                statement.setArray(1, connection.createArrayOf("uuid", challengeIds.toTypedArray()))
+                statement.executeQuery().use { rows ->
+                    val found = challengeIds.associateWith { mutableListOf<ChallengeEntry>() }
                     while (rows.next()) {
-                        add(
+                        found[rows.getObject("challenge_id", UUID::class.java)]?.add(
                             ChallengeEntry(
                                 playerId = rows.getObject("profile_id", UUID::class.java),
                                 name = rows.getString("display_name"),
@@ -595,6 +597,7 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
                             ),
                         )
                     }
+                    found
                 }
             }
         }

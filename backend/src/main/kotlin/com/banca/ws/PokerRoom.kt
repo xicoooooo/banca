@@ -435,8 +435,9 @@ class PokerRoom(
             running = false
             hand = null
             phase = TablePhase.WAITING
-            // An empty private table is a new game for whoever comes back to it.
-            started = !spec.byInvite
+            // An empty private table is a new game for whoever comes back to it, unless a tournament
+            // was under way: that carries on where it was as soon as someone is back.
+            started = !spec.byInvite || tournament?.running == true
             return null
         }
         // Not begun, or nobody to play against: there is no hand, and no need to ask after anyone's chips.

@@ -669,7 +669,7 @@ Its table's `state` carries `tournament`:
 }
 ```
 
-`standings` lists those still playing by their chips, then those out by where they finished; `place` is null for anyone still playing. It is empty before the first tournament. Once one is over, the hand that settled it is shown as usual, then `running` is false, `started` returns to false, and the table waits with every `place` filled until its host starts another.
+`standings` lists those still playing by their chips, then those out by where they finished; `place` is null for anyone still playing. It is empty before the first tournament. Once one is over, the hand that settled it is shown as usual, then `running` is false, `started` returns to false, and the table waits with every `place` filled until its host starts another. A tournament whose players all step away at once is kept, and carries on as soon as one of them is back.
 
 The answer is `401` without a player the server knows, `400` for a table the game does not allow, `429` to a player who has opened more than five in ten minutes or thirty in a day, and `503` when the server is keeping as many as it will.
 
@@ -823,12 +823,12 @@ ws://<host>/ws/blackjack/tables/<table>
 
 ### Challenges
 
-A challenge is a run of blackjack one player sets for others to try to beat: 10 rounds, 1,000 chips that are the challenge's own, and bets of 10 to 100. Its shoe is shuffled from a seed it keeps, so everyone who takes it is dealt the same cards for as long as they play the same way. Each player may take a challenge once, and they are compared by what they end on. Nobody's bankroll or record is touched.
+A challenge is a run of blackjack one player sets for others to try to beat: 10 rounds, 1,000 chips that are the challenge's own, and bets of 10 to 100. Its shoe is shuffled from a seed it keeps, so everyone who takes it is dealt the same cards for as long as they play the same way. Each player may take a challenge once, and they are compared by what they end on. Nobody's bankroll or record is touched. Challenges are for players who have signed in: a guest may look at one but not set or take it, since a guest costs nothing to make and one made to play a challenge would learn its shoe first.
 
 | Request | Answer |
 |---|---|
-| `POST /blackjack/challenges` | Sets a challenge in the caller's name: `201` `{ "code": "k7x2qm" }`. `429` to a player who has set too many lately |
-| `GET /blackjack/challenges/{code}` | The challenge as the caller sees it, or `404` |
+| `POST /blackjack/challenges` | Sets a challenge in the caller's name: `201` `{ "code": "k7x2qm" }`. `400` for a guest, `429` to a player who has set too many lately |
+| `GET /blackjack/challenges/{code}` | The challenge as the caller sees it, or `404`. Held to the same limit on codes tried as `/tables/{code}` |
 | `GET /players/me/challenges` | The challenges the caller has set or taken, newest first |
 | `GET /tables/{code}` | Finds a challenge too, as `{ "game": "challenge", "id": "k7x2qm", "name": "Ana's challenge" }` |
 
@@ -844,7 +844,7 @@ A challenge is a run of blackjack one player sets for others to try to beat: 10 
 
 `standings` puts whole goes first, best first; then goes left early, best first, whose `complete` is false; then anyone still playing, whose `chips` and `place` are null. A whole go is one played to the last round or until there were not the chips for another bet. Players on the same chips share a place. A go nobody has touched for two hours, as one cut off by a restart, is closed where it stood after its last round.
 
-A challenge is played at `ws://<host>/ws/blackjack/challenges/{code}`, which speaks as the table for one at `/ws/blackjack` does, with these differences: it sends `{ "type": "challenge", "view": … }` as the player sits down and again when their go is over; there is no coach, so `advise` is refused; a bet over 100 is refused, as is any bet after the last round. Opening a challenge takes nothing: a player's go begins with their first bet, so someone who only looks can come back and play it. A go is over after the last round, when the player has fewer chips than the smallest bet, or when they leave and do not come back, in which case it ends where it stood. A code that is no challenge is answered with an `error` whose `code` is `no_challenge`, and a challenge already taken with `challenge_taken`.
+A challenge is played at `ws://<host>/ws/blackjack/challenges/{code}`, which speaks as the table for one at `/ws/blackjack` does, with these differences: it sends `{ "type": "challenge", "view": … }` as the player sits down and again when their go is over; there is no coach, so `advise` is refused; a bet over 100 is refused, as is any bet after the last round. Opening a challenge takes nothing: a player's go begins with their first bet, so someone who only looks can come back and play it. A go is over after the last round, when the player has fewer chips than the smallest bet, or when they leave and do not come back, in which case it ends where it stood. A code that is no challenge, or one code too many tried in a short while, is answered with an `error` whose `code` is `no_challenge`; a challenge already taken with `challenge_taken`; and a guest with `sign_in_needed`, after the challenge itself.
 
 ### A practice drill
 

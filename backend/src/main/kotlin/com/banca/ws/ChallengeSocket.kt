@@ -34,6 +34,8 @@ class ChallengeConnection(
     private val rules: Rules,
     private val send: Send,
     private val session: PlayerSession,
+    /** Says whether this player may look up another code, so that codes cannot be tried one after another. */
+    private val mayLook: (String) -> Boolean = { true },
 ) : GameConnection {
 
     private var game: BlackjackConnection? = null
@@ -69,8 +71,15 @@ class ChallengeConnection(
             return
         }
 
+        if (!mayLook(session.player.id.toString())) {
+            return send(refusal("Too many codes tried. Wait a little and try again.", code = "no_challenge"))
+        }
         val run = challenges.find(code)
             ?: return send(refusal("There is no challenge with that code. Check it, or ask for it again.", code = "no_challenge"))
+        if (session.player.accountId == null) {
+            tell()
+            return send(refusal("Challenges are for players who have signed in. Sign in on your profile, and come back to it.", code = "sign_in_needed"))
+        }
         if (challenges.hasTaken(run, session.player)) {
             tell()
             return send(refusal("You have taken this challenge already. Each player has one go.", code = "challenge_taken"))

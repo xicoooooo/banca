@@ -201,7 +201,7 @@ export function useBlackjack(path = '/ws/blackjack') {
       setView(message.view)
       setError(null)
     } else {
-      if (message.code === 'no_challenge' || message.code === 'challenge_taken') setTurnedAway(message.code)
+      if (message.code === 'no_challenge' || message.code === 'challenge_taken' || message.code === 'sign_in_needed') setTurnedAway(message.code)
       setError(message.message)
       setRefusals((count) => count + 1)
       coaching.gaveUp()

@@ -46,8 +46,13 @@ class Challenges(private val store: PlayerStore, private val clock: java.time.Cl
 
     private val random = SecureRandom()
 
-    /** Sets a challenge in [player]'s name and returns its code. */
+    /**
+     * Sets a challenge in [player]'s name and returns its code. Challenges are
+     * for players who have signed in: a guest costs nothing to make, and one
+     * made to play a challenge would learn its shoe before the real go.
+     */
     suspend fun set(player: Player): String {
+        require(player.accountId != null) { "Sign in to set a challenge" }
         repeat(ATTEMPTS) {
             val code = buildString { repeat(CODE_LENGTH) { append(ALPHABET[random.nextInt(ALPHABET.length)]) } }
             if (store.challengeByCode(code) == null) {
@@ -72,7 +77,10 @@ class Challenges(private val store: PlayerStore, private val clock: java.time.Cl
     }
 
     /** Begins [player]'s go at [challenge], which is when they put their first chips down. False if they have had one. */
-    suspend fun enter(challenge: ChallengeRecord, player: Player): Boolean = store.enterChallenge(challenge.id, player.id)
+    suspend fun enter(challenge: ChallengeRecord, player: Player): Boolean {
+        require(player.accountId != null) { "Sign in to take a challenge" }
+        return store.enterChallenge(challenge.id, player.id)
+    }
 
     /** Writes down where [player]'s go stands after a round. */
     suspend fun played(challenge: ChallengeRecord, player: Player, roundsPlayed: Int, chips: Long) =
@@ -88,7 +96,12 @@ class Challenges(private val store: PlayerStore, private val clock: java.time.Cl
     }
 
     /** The challenges [player] has set or taken, newest first. */
-    suspend fun of(player: Player): List<ChallengeView> = store.challengesOf(player.id, LISTED).map { viewOf(it, player) }
+    suspend fun of(player: Player): List<ChallengeView> {
+        val challenges = store.challengesOf(player.id, LISTED)
+        // Everyone's goes at all of them, read at once rather than a challenge at a time.
+        val entries = store.challengeEntries(challenges.map { it.id })
+        return challenges.map { viewOf(it, player, entries[it.id].orEmpty()) }
+    }
 
     /** Ends a go nobody is playing any more, on what it last stood at. */
     private suspend fun close(challenge: ChallengeRecord, entry: ChallengeEntry) =
@@ -97,9 +110,13 @@ class Challenges(private val store: PlayerStore, private val clock: java.time.Cl
     /** A go that was played to its end: every round, or until there were not the chips for another. */
     private fun ChallengeEntry.isWhole(challenge: ChallengeRecord): Boolean = roundsPlayed >= challenge.rounds || (chips ?: 0) < MIN_BET
 
-    private suspend fun viewOf(challenge: ChallengeRecord, viewer: Player?): ChallengeView {
+    private suspend fun viewOf(
+        challenge: ChallengeRecord,
+        viewer: Player?,
+        known: List<ChallengeEntry>? = null,
+    ): ChallengeView {
         // A go nobody has touched in a long while was cut off, and is closed where it stands.
-        var entries = store.challengeEntries(challenge.id)
+        var entries = known ?: store.challengeEntries(challenge.id)
         val stale = entries.filter { !it.finished && it.startedAt.isBefore(clock.instant().minus(STALE_AFTER)) }
         if (stale.isNotEmpty()) {
             stale.forEach { close(challenge, it) }

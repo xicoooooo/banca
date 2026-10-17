@@ -39,7 +39,18 @@ export function StartChallenge({ onLeave }: { onLeave: () => void }) {
  * taken it finished, best first. It is where a player lands once their own
  * go is over, and where the code and the link are to pass it on.
  */
-export function ChallengeResults({ challenge, missing, onLeave }: { challenge: ChallengeView | null; missing: boolean; onLeave: () => void }) {
+export function ChallengeResults({
+  challenge,
+  missing,
+  signInNeeded = false,
+  onLeave,
+}: {
+  challenge: ChallengeView | null
+  missing: boolean
+  /** Set for a guest, who may look at a challenge but must sign in to take it. */
+  signInNeeded?: boolean
+  onLeave: () => void
+}) {
   if (missing || !challenge) {
     return (
       <CasinoShell>
@@ -74,6 +85,15 @@ export function ChallengeResults({ challenge, missing, onLeave }: { challenge: C
             </p>
           ) : (
             <p className="pt-2 text-2xl font-semibold tracking-tight text-ivory">How it stands</p>
+          )}
+          {signInNeeded && (
+            <p className="pt-3 text-sm leading-relaxed text-gold-bright">
+              Challenges are for players who have signed in.{' '}
+              <a href="#/profile" className="underline">
+                Sign in on your profile
+              </a>
+              , then open the link again to take it.
+            </p>
           )}
           <p className="pt-2 text-sm leading-relaxed text-ivory/80">
             {challenge.rounds} rounds from the same shoe, {chips(challenge.stack)} chips each and bets up to {challenge.maxBet}. Played the same way, everyone

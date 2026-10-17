@@ -49,6 +49,7 @@ object DashboardBuilder {
     ): Dashboard {
         val xp = rounds.sumOf(::experienceFor)
         val level = Levels.levelAt(xp)
+        val against = rivalry(rounds)
 
         return Dashboard(
             player = PlayerCard(
@@ -81,8 +82,8 @@ object DashboardBuilder {
             missions = missions ?: Missions.status(player.id, now, rounds.filter { !it.endedAt.isBefore(Rewards.startOfDay(Rewards.dayOf(now))) }, emptySet()),
             league = if (player.accountId != null) Leagues.TIERS[player.leagueTier.coerceIn(0, Leagues.TIERS.lastIndex)] else null,
             trophies = trophies.map(::trophyView),
-            rivalry = rivalry(rounds),
-            titles = Titles.all(level, rounds, trophies.map(::trophyView)),
+            rivalry = against,
+            titles = Titles.all(level, rounds, trophies.map(::trophyView), against),
             moments = Moments.of(rounds),
             report = CoachReport.of(rounds, now),
         )

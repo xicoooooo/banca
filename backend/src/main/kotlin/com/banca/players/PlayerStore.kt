@@ -126,7 +126,10 @@ interface PlayerStore {
     suspend fun finishChallenge(challengeId: UUID, playerId: UUID, roundsPlayed: Int, chips: Long)
 
     /** Everyone who has taken [challengeId], finished or not, in the order they sat down. */
-    suspend fun challengeEntries(challengeId: UUID): List<ChallengeEntry>
+    suspend fun challengeEntries(challengeId: UUID): List<ChallengeEntry> = challengeEntries(listOf(challengeId))[challengeId].orEmpty()
+
+    /** The same for several challenges at once, by challenge. */
+    suspend fun challengeEntries(challengeIds: Collection<UUID>): Map<UUID, List<ChallengeEntry>>
 
     /** The challenges [playerId] has set or taken, newest first. */
     suspend fun challengesOf(playerId: UUID, limit: Int): List<ChallengeRecord>

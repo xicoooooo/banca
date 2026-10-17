@@ -78,16 +78,23 @@ fun Application.configureGameSockets(
         }
         // Challenges: a run of blackjack from a shoe one player set, for others to try to beat.
         sharedSocket("/ws/blackjack/challenges/{table}", players, tables, find = { code -> code.lowercase().takeIf { it.length == 6 && it.all(Char::isLetterOrDigit) } }) { code, send, session ->
-            ChallengeConnection(code, players.challenges, blackjack.rules, send, session)
+            ChallengeConnection(code, players.challenges, blackjack.rules, send, session, mayLook = { player -> lookups.take("player:$player") })
         }
         post("/blackjack/challenges") {
             val player = players.authenticate(call.bearer()) ?: return@post call.respond(HttpStatusCode.Unauthorized, NotOpened("This player is not known here"))
             if (!invites.take(player.id.toString())) {
                 return@post call.respond(HttpStatusCode.TooManyRequests, NotOpened("You have set a lot of challenges. Try again in a while."))
             }
-            call.respond(HttpStatusCode.Created, SetChallenge(players.challenges.set(player)))
+            try {
+                call.respond(HttpStatusCode.Created, SetChallenge(players.challenges.set(player)))
+            } catch (refused: IllegalArgumentException) {
+                call.respond(HttpStatusCode.BadRequest, NotOpened(refused.message ?: "That challenge could not be set"))
+            }
         }
         get("/blackjack/challenges/{code}") {
+            if (!lookups.take(call.callerAddress())) {
+                return@get call.respond(HttpStatusCode.TooManyRequests, NotOpened("Too many codes tried from here. Wait a little and try again."))
+            }
             val viewer = players.authenticate(call.bearer())
             val view = players.challenges.view(call.parameters["code"].orEmpty().lowercase(), viewer)
                 ?: return@get call.respond(HttpStatusCode.NotFound, NotOpened("There is no challenge with that code."))

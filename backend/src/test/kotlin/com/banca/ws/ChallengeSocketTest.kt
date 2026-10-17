@@ -40,6 +40,9 @@ class ChallengeSocketTest {
 
     private fun ApplicationTestBuilder.sockets() = createClient { install(WebSockets) }
 
+    /** Challenges are for players who have signed in. */
+    private fun TestPlayers.signIn(id: java.util.UUID = player.id) = runBlocking { store.linkAccount(id, "account-$id") }
+
     private val JsonObject.type: String get() = getValue("type").jsonPrimitive.content
 
     private suspend fun ApplicationTestBuilder.set(token: String): String =
@@ -93,6 +96,8 @@ class ChallengeSocketTest {
         val host = TestPlayers()
         serve(host)
         val (friend, friendToken) = runBlocking { host.players.createGuest() }
+        host.signIn()
+        host.signIn(friend.id)
         val before = runBlocking { host.players.balance(host.player) to host.players.balance(friend) }
         val code = set(host.token)
 
@@ -136,7 +141,7 @@ class ChallengeSocketTest {
 
     @Test
     fun `a challenge is played within its bets and with no coach`() = testApplication {
-        val host = TestPlayers()
+        val host = TestPlayers().apply { signIn() }
         serve(host)
         val code = set(host.token)
 
@@ -154,7 +159,7 @@ class ChallengeSocketTest {
 
     @Test
     fun `opening a challenge takes nothing, and the go begins with the first chips down`() = testApplication {
-        val host = TestPlayers()
+        val host = TestPlayers().apply { signIn() }
         serve(host)
         val code = set(host.token)
 
@@ -188,7 +193,7 @@ class ChallengeSocketTest {
 
     @Test
     fun `a code that is no challenge says so, and the list of a player's challenges has the ones they set`() = testApplication {
-        val host = TestPlayers()
+        val host = TestPlayers().apply { signIn() }
         serve(host)
 
         sockets().webSocket("/ws/blackjack/challenges/zzzzzz") {
@@ -204,5 +209,19 @@ class ChallengeSocketTest {
         val found = Json.parseToJsonElement(client.get("/tables/$code").bodyAsText()).jsonObject
         assertEquals("challenge", found.getValue("game").jsonPrimitive.content, "and its code is found where table codes are")
         assertEquals(HttpStatusCode.Unauthorized, client.post("/blackjack/challenges").status)
+    }
+
+    @Test
+    fun `a guest is shown a challenge but asked to sign in to take it`() = testApplication {
+        val host = TestPlayers().apply { signIn() }
+        serve(host)
+        val code = set(host.token)
+        val (_, guestToken) = runBlocking { host.players.createGuest() }
+
+        sockets().webSocket("/ws/blackjack/challenges/$code") {
+            sayHello(guestToken)
+            assertEquals("sign_in_needed", next("error").getValue("code").jsonPrimitive.content)
+        }
+        assertEquals(HttpStatusCode.BadRequest, client.post("/blackjack/challenges") { header(HttpHeaders.Authorization, "Bearer $guestToken") }.status)
     }
 }

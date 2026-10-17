@@ -26,7 +26,7 @@ export function BlackjackPicker({ onLeave, onChoose }: { onLeave: () => void; on
         {
           kicker: 'With friends',
           name: 'Set a challenge',
-          detail: 'Ten rounds from a shoe of your own. Send the code, and friends play the same cards to try to beat you.',
+          detail: 'Ten rounds from a shoe of your own. Send the code, and friends play the same cards to try to beat you. For players who have signed in.',
           choose: 'challenge',
         },
         {

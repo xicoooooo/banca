@@ -235,8 +235,8 @@ class InMemoryPlayerStore(private val clock: Clock = Clock.systemUTC()) : Player
         if (at >= 0) taken[at] = taken[at].copy(roundsPlayed = roundsPlayed, chips = chips, finished = true)
     }
 
-    override suspend fun challengeEntries(challengeId: UUID): List<ChallengeEntry> = lock.withLock {
-        entries[challengeId].orEmpty().map { it.copy(name = accounts[it.playerId]?.player?.name ?: it.name) }
+    override suspend fun challengeEntries(challengeIds: Collection<UUID>): Map<UUID, List<ChallengeEntry>> = lock.withLock {
+        challengeIds.associateWith { id -> entries[id].orEmpty().map { it.copy(name = accounts[it.playerId]?.player?.name ?: it.name) } }
     }
 
     override suspend fun challengesOf(playerId: UUID, limit: Int): List<ChallengeRecord> = lock.withLock {

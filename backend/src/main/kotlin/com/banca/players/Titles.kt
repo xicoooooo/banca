@@ -26,9 +26,9 @@ object Titles {
     /**
      * @param rounds newest first
      * @param trophies as they are shown, each with its own title
+     * @param rivalry the record against Banca from the same rounds, when it has already been worked out
      */
-    fun all(level: Int, rounds: List<RoundRecord>, trophies: List<TrophyView>): List<TitleView> {
-        val rivalry = DashboardBuilder.rivalry(rounds)
+    fun all(level: Int, rounds: List<RoundRecord>, trophies: List<TrophyView>, rivalry: Rivalry? = DashboardBuilder.rivalry(rounds)): List<TitleView> {
         fun count(test: (RoundRecord) -> Boolean) = rounds.count(test)
 
         val byLevel = Levels.TITLES.map { (from, name) ->
