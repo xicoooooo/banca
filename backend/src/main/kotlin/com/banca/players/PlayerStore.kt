@@ -119,6 +119,9 @@ interface PlayerStore {
     /** Notes that [playerId] has sat down to [challengeId]. False if they had already, which is once too many. */
     suspend fun enterChallenge(challengeId: UUID, playerId: UUID): Boolean
 
+    /** Writes down where [playerId]'s go at [challengeId] stands after a round, while it is still going. */
+    suspend fun recordChallengeRound(challengeId: UUID, playerId: UUID, roundsPlayed: Int, chips: Long)
+
     /** Writes down how [playerId]'s go at [challengeId] ended, unless it already has been. */
     suspend fun finishChallenge(challengeId: UUID, playerId: UUID, roundsPlayed: Int, chips: Long)
 

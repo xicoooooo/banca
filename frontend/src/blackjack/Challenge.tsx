@@ -77,7 +77,8 @@ export function ChallengeResults({ challenge, missing, onLeave }: { challenge: C
           )}
           <p className="pt-2 text-sm leading-relaxed text-ivory/80">
             {challenge.rounds} rounds from the same shoe, {chips(challenge.stack)} chips each and bets up to {challenge.maxBet}. Played the same way, everyone
-            is dealt the same cards. Each player has one go, and nobody&rsquo;s own chips are touched.
+            is dealt the same cards. Each player has one go, which begins with their first bet, and a go left early is placed below every one played
+            through. Nobody&rsquo;s own chips are touched.
           </p>
         </section>
 
@@ -87,7 +88,14 @@ export function ChallengeResults({ challenge, missing, onLeave }: { challenge: C
             {challenge.standings.map((standing, index) => (
               <li key={`${standing.name}-${index}`} data-you={standing.you}>
                 <span className="challenge-standings__place figure">{standing.place ? ordinal(standing.place) : '·'}</span>
-                <span className="min-w-0 flex-1 truncate font-semibold">{standing.you ? 'You' : standing.name}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">{standing.you ? 'You' : standing.name}</span>
+                  {!standing.complete && (
+                    <span className="block text-xs text-muted">
+                      Left after {standing.roundsPlayed} {standing.roundsPlayed === 1 ? 'round' : 'rounds'}
+                    </span>
+                  )}
+                </span>
                 {standing.chips === null ? (
                   <span className="label">Playing</span>
                 ) : (

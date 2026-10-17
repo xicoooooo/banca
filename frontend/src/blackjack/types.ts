@@ -132,7 +132,15 @@ export type BlackjackTableClientMessage =
 export type BlackjackClientMessage = { type: 'bet'; amount: number } | { type: 'act'; action: BlackjackAction } | { type: 'advise' }
 
 /** One player's go at a challenge. `chips` is what they ended on, and null while they are still playing. */
-export type ChallengeStanding = { name: string; chips: number | null; roundsPlayed: number; place: number | null; you: boolean }
+export type ChallengeStanding = {
+  name: string
+  chips: number | null
+  roundsPlayed: number
+  place: number | null
+  you: boolean
+  /** False for a go that ended early, with rounds left unplayed. It is placed below every whole one. */
+  complete: boolean
+}
 
 /** A challenge: its rules, who set it, and how everyone who took it did. */
 export type ChallengeView = {

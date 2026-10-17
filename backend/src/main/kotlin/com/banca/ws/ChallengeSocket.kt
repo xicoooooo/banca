@@ -4,7 +4,6 @@ import com.banca.agents.BookAdvisor
 import com.banca.games.blackjack.Rules
 import com.banca.players.ChallengeRecord
 import com.banca.players.Challenges
-import com.banca.players.Entry
 import com.banca.players.FinishedRound
 import com.banca.players.Funding
 import com.banca.players.PlayerSession
@@ -25,6 +24,9 @@ data class ChallengeMessage(val view: com.banca.players.ChallengeView, val type:
  * number of rounds. It speaks to the browser as the table for one does, and
  * says besides how the challenge stands, at the start and once their go is
  * over. There is no coach: what is being compared is the player's own play.
+ *
+ * Opening a challenge takes nothing. The go begins when the player puts their
+ * first chips down, so someone who only looks can come back and play it.
  */
 class ChallengeConnection(
     private val code: String,
@@ -38,6 +40,8 @@ class ChallengeConnection(
     private var challenge: ChallengeRecord? = null
     private var chips = 0L
     private var settled = 0
+    /** Set once the player has put their first chips down, which is when their go begins. */
+    private var entered = false
     private var over = false
 
     /** The challenge's chips, which stand in for the player's own at the table. */
@@ -48,6 +52,8 @@ class ChallengeConnection(
             chips += round.net
             settled++
             val run = challenge ?: return chips
+            // Written down round by round, so a go cut off part way stands where it was.
+            challenges.played(run, session.player, settled, chips)
             if (settled >= run.rounds || chips < Challenges.MIN_BET) finish(run)
             return chips
         }
@@ -63,36 +69,42 @@ class ChallengeConnection(
             return
         }
 
-        when (val entry = challenges.enter(code, session.player)) {
-            Entry.NoSuchChallenge -> send(refusal("There is no challenge with that code. Check it, or ask for it again.", code = "no_challenge"))
-            Entry.AlreadyTaken -> {
-                tell()
-                send(refusal("You have taken this challenge already. Each player has one go.", code = "challenge_taken"))
-            }
-            is Entry.Ready -> {
-                val run = entry.challenge
-                challenge = run
-                chips = run.stack
-                game = BlackjackConnection(
-                    config = BlackjackSocketConfig(rules = rules, random = { Random(run.seed) }, advisor = BookAdvisor(rules)),
-                    send = send,
-                    session = purse,
-                    minBet = Challenges.MIN_BET,
-                    maxBet = Challenges.MAX_BET,
-                    lastRound = run.rounds,
-                ).also {
-                    tell()
-                    it.attached()
-                }
-            }
+        val run = challenges.find(code)
+            ?: return send(refusal("There is no challenge with that code. Check it, or ask for it again.", code = "no_challenge"))
+        if (challenges.hasTaken(run, session.player)) {
+            tell()
+            return send(refusal("You have taken this challenge already. Each player has one go.", code = "challenge_taken"))
+        }
+
+        challenge = run
+        chips = run.stack
+        game = BlackjackConnection(
+            config = BlackjackSocketConfig(rules = rules, random = { Random(run.seed) }, advisor = BookAdvisor(rules)),
+            send = send,
+            session = purse,
+            minBet = Challenges.MIN_BET,
+            maxBet = Challenges.MAX_BET,
+            lastRound = run.rounds,
+        ).also {
+            tell()
+            it.attached()
         }
     }
 
     override suspend fun received(text: String) {
         val table = game ?: error("This challenge is not being played here")
+        val run = challenge ?: error("This challenge is not being played here")
         check(!over) { "Your go at this challenge is over" }
         val type = runCatching { wireJson.parseToJsonElement(text).jsonObject["type"]?.jsonPrimitive?.content }.getOrNull()
         check(type != "advise") { "There is no coach in a challenge. It is your play that is being compared." }
+        if (type == "bet" && !entered) {
+            // A bet the table would refuse begins nothing.
+            val amount = runCatching { wireJson.parseToJsonElement(text).jsonObject["amount"]?.jsonPrimitive?.content?.toLong() }.getOrNull()
+            check(amount != null && amount in Challenges.MIN_BET..Challenges.MAX_BET) { "A bet here is between ${Challenges.MIN_BET} and ${Challenges.MAX_BET}" }
+            // The first chips down are the start of the go, and there is only one.
+            check(challenges.enter(run, session.player)) { "You have taken this challenge already. Each player has one go." }
+            entered = true
+        }
         table.received(text)
     }
 
@@ -100,9 +112,10 @@ class ChallengeConnection(
         game?.detached()
     }
 
-    /** The player left and did not come back. A round being played is finished as the table would, and what they have is their score. */
+    /** The player left and did not come back. A go they began ends where it stands; one they never began takes nothing. */
     override suspend fun abandoned() {
         val table = game ?: return
+        if (!entered) return
         table.abandoned()
         challenge?.let { if (!over) finish(it) }
     }

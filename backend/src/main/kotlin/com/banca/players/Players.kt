@@ -31,7 +31,7 @@ class Players(private val store: PlayerStore, private val clock: Clock = Clock.s
     val friends = Friends(store, presence)
 
     /** Runs of blackjack set by one player for others to try to beat. */
-    val challenges = Challenges(store)
+    val challenges = Challenges(store, clock)
 
     private fun newToken(): String =
         ByteArray(32).also(random::nextBytes).let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }

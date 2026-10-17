@@ -28,12 +28,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Challenges: one player sets a run of blackjack, others play the same shoe, and they are compared. */
 class ChallengeSocketTest {
 
     private fun ApplicationTestBuilder.serve(host: TestPlayers) {
-        application { module(players = host.players) }
+        // A connection that drops is let go quickly, so leaving can be tested.
+        application { module(players = host.players, keepTablesFor = 150.milliseconds) }
     }
 
     private fun ApplicationTestBuilder.sockets() = createClient { install(WebSockets) }
@@ -133,7 +135,7 @@ class ChallengeSocketTest {
     }
 
     @Test
-    fun `a challenge is taken once, with no coach, and within its bets`() = testApplication {
+    fun `a challenge is played within its bets and with no coach`() = testApplication {
         val host = TestPlayers()
         serve(host)
         val code = set(host.token)
@@ -148,18 +150,40 @@ class ChallengeSocketTest {
             send(Frame.Text("""{"type":"advise"}"""))
             assertTrue(next("error").getValue("message").jsonPrimitive.content.contains("no coach"))
         }
+    }
 
-        // Leaving part way through finishes the go; there is no second one.
+    @Test
+    fun `opening a challenge takes nothing, and the go begins with the first chips down`() = testApplication {
+        val host = TestPlayers()
+        serve(host)
+        val code = set(host.token)
+
+        // A look, and away again.
         sockets().webSocket("/ws/blackjack/challenges/$code") {
             sayHello(host.token)
-            val refused = withTimeout(8_000) {
-                var message = receiveJson()
-                while (message.type != "error" && message.type != "state") message = receiveJson()
-                message
-            }
-            // Within the time a dropped connection is kept, the same go carries on rather than starting again.
-            assertTrue(refused.type == "state" || refused.getValue("code").jsonPrimitive.content == "challenge_taken")
+            next("state")
         }
+        kotlinx.coroutines.delay(600)
+
+        sockets().webSocket("/ws/blackjack/challenges/$code") {
+            sayHello(host.token)
+            val view = next("challenge").getValue("view").jsonObject
+            assertFalse(view.getValue("taken").jsonPrimitive.boolean, "looking was not taking it")
+            next("state")
+            send(Frame.Text("""{"type":"bet","amount":10}"""))
+            next("state")
+        }
+        kotlinx.coroutines.delay(600)
+
+        // Leaving once a go has begun ends it there.
+        sockets().webSocket("/ws/blackjack/challenges/$code") {
+            sayHello(host.token)
+            assertEquals("challenge_taken", next("error").getValue("code").jsonPrimitive.content)
+        }
+        val standing = Json.parseToJsonElement(client.get("/blackjack/challenges/$code").bodyAsText()).jsonObject
+            .getValue("standings").jsonArray.single().jsonObject
+        assertFalse(standing.getValue("complete").jsonPrimitive.boolean, "a go left part way is marked as cut short")
+        assertTrue(standing.getValue("roundsPlayed").jsonPrimitive.int <= 1)
     }
 
     @Test

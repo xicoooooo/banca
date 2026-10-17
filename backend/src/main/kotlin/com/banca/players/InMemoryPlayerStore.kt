@@ -219,14 +219,20 @@ class InMemoryPlayerStore(private val clock: Clock = Clock.systemUTC()) : Player
     override suspend fun enterChallenge(challengeId: UUID, playerId: UUID): Boolean = lock.withLock {
         val taken = entries.getOrPut(challengeId) { mutableListOf() }
         if (taken.any { it.playerId == playerId }) return@withLock false
-        taken += ChallengeEntry(playerId, account(playerId).player.name, roundsPlayed = 0, chips = null, startedAt = Instant.now(clock))
+        taken += ChallengeEntry(playerId, account(playerId).player.name, roundsPlayed = 0, chips = null, startedAt = Instant.now(clock), finished = false)
         true
+    }
+
+    override suspend fun recordChallengeRound(challengeId: UUID, playerId: UUID, roundsPlayed: Int, chips: Long): Unit = lock.withLock {
+        val taken = entries[challengeId] ?: return@withLock
+        val at = taken.indexOfFirst { it.playerId == playerId && !it.finished }
+        if (at >= 0) taken[at] = taken[at].copy(roundsPlayed = roundsPlayed, chips = chips)
     }
 
     override suspend fun finishChallenge(challengeId: UUID, playerId: UUID, roundsPlayed: Int, chips: Long): Unit = lock.withLock {
         val taken = entries[challengeId] ?: return@withLock
-        val at = taken.indexOfFirst { it.playerId == playerId && it.chips == null }
-        if (at >= 0) taken[at] = taken[at].copy(roundsPlayed = roundsPlayed, chips = chips)
+        val at = taken.indexOfFirst { it.playerId == playerId && !it.finished }
+        if (at >= 0) taken[at] = taken[at].copy(roundsPlayed = roundsPlayed, chips = chips, finished = true)
     }
 
     override suspend fun challengeEntries(challengeId: UUID): List<ChallengeEntry> = lock.withLock {

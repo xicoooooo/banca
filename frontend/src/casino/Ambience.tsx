@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { playAmbience, stopAmbience } from './roomSound'
 import { useAtmosphere } from './atmosphere'
-import { SOUND_CHANGED } from './sound'
+import { SOUND_CHANGED, isMuted } from './sound'
 
 /**
  * Keeps the room's sound playing as the player has asked: started once they
@@ -14,7 +14,8 @@ export function Ambience() {
 
   useEffect(() => {
     const follow = () => {
-      if (document.hidden) stopAmbience()
+      // Turning sound off silences the room too, and so does Banca going out of sight.
+      if (document.hidden || isMuted()) stopAmbience()
       else playAmbience(ambience)
     }
     follow()

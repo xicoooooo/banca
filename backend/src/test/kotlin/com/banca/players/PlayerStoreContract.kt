@@ -141,12 +141,19 @@ abstract class PlayerStoreContract {
         assertFalse(store.enterChallenge(challenge.id, setter.id), "a challenge is taken once")
         assertTrue(store.enterChallenge(challenge.id, taker.id))
 
+        store.recordChallengeRound(challenge.id, setter.id, roundsPlayed = 4, chips = 1_100)
+        assertEquals(4, store.challengeEntries(challenge.id).first().roundsPlayed, "a go is written down round by round")
+        assertFalse(store.challengeEntries(challenge.id).first().finished)
+
         store.finishChallenge(challenge.id, setter.id, roundsPlayed = 10, chips = 1_350)
         store.finishChallenge(challenge.id, setter.id, roundsPlayed = 10, chips = 9_999)
+        store.recordChallengeRound(challenge.id, setter.id, roundsPlayed = 11, chips = 9_999)
         val entries = store.challengeEntries(challenge.id)
         assertEquals(listOf("Ana", "Rui"), entries.map { it.name })
-        assertEquals(1_350L, entries.first().chips, "and finished once")
-        assertNull(entries.last().chips, "Rui is still playing")
+        assertEquals(1_350L, entries.first().chips, "and finished once, with nothing written after")
+        assertTrue(entries.first().finished)
+        assertNull(entries.last().chips, "Rui has not played a round")
+        assertFalse(entries.last().finished)
 
         assertEquals(listOf(code), store.challengesOf(taker.id, 10).map { it.code }, "a challenge taken is one of the taker's")
         assertEquals(listOf(code), store.challengesOf(setter.id, 10).map { it.code })

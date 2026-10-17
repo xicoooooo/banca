@@ -550,6 +550,18 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
         }
     }
 
+    override suspend fun recordChallengeRound(challengeId: UUID, playerId: UUID, roundsPlayed: Int, chips: Long): Unit = query { connection ->
+        connection.prepareStatement(
+            "update challenge_entries set rounds_played = ?, chips = ? where challenge_id = ? and profile_id = ? and finished_at is null",
+        ).use { statement ->
+            statement.setInt(1, roundsPlayed)
+            statement.setLong(2, chips)
+            statement.setObject(3, challengeId)
+            statement.setObject(4, playerId)
+            statement.executeUpdate()
+        }
+    }
+
     override suspend fun finishChallenge(challengeId: UUID, playerId: UUID, roundsPlayed: Int, chips: Long): Unit = query { connection ->
         connection.prepareStatement(
             "update challenge_entries set finished_at = now(), rounds_played = ?, chips = ? " +
@@ -565,7 +577,7 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
 
     override suspend fun challengeEntries(challengeId: UUID): List<ChallengeEntry> = query { connection ->
         connection.prepareStatement(
-            "select e.profile_id, p.display_name, e.rounds_played, e.chips, e.started_at " +
+            "select e.profile_id, p.display_name, e.rounds_played, e.chips, e.started_at, e.finished_at is not null as finished " +
                 "from challenge_entries e join profiles p on p.id = e.profile_id where e.challenge_id = ? order by e.started_at",
         ).use { statement ->
             statement.setObject(1, challengeId)
@@ -579,6 +591,7 @@ class PostgresPlayerStore(private val source: DataSource) : PlayerStore {
                                 roundsPlayed = rows.getInt("rounds_played"),
                                 chips = rows.getLong("chips").takeUnless { rows.wasNull() },
                                 startedAt = rows.getTimestamp("started_at").toInstant(),
+                                finished = rows.getBoolean("finished"),
                             ),
                         )
                     }

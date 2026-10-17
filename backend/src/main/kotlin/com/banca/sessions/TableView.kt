@@ -53,7 +53,10 @@ data class LegalView(
 
 @Serializable
 data class ResultView(
+    /** What each seat won from the pot. A seat that won nothing is left out. */
     val winnings: Map<Int, Long>,
     /** Seat to hand category, empty when the hand ended without a showdown. */
     val showdown: Map<Int, String>,
+    /** A bet nobody could match, handed back to whoever made it. It was never won, so it is not in [winnings]. */
+    val returned: Map<Int, Long> = emptyMap(),
 )

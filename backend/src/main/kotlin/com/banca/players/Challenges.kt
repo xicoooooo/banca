@@ -14,6 +14,8 @@ data class ChallengeStanding(
     /** Where they stand among those who have finished, from 1. Null until they have. */
     val place: Int?,
     val you: Boolean,
+    /** False for a go that ended early, with rounds left unplayed and chips left to play them with. Such a go is placed below every whole one. */
+    val complete: Boolean = true,
 )
 
 /** A challenge as a player sees it: its rules, who set it, and how everyone who took it did. */
@@ -31,13 +33,6 @@ data class ChallengeView(
     val standings: List<ChallengeStanding>,
 )
 
-/** Why a player could not sit down to a challenge. */
-sealed interface Entry {
-    data class Ready(val challenge: ChallengeRecord) : Entry
-    data object NoSuchChallenge : Entry
-    data object AlreadyTaken : Entry
-}
-
 /**
  * Challenges between players: a short run of blackjack dealt from a shoe
  * shuffled from a seed, which everyone who takes it is dealt in the same order
@@ -47,7 +42,7 @@ sealed interface Entry {
  * The chips are the challenge's own. Nothing reaches anyone's bankroll, their
  * record or the leagues: a challenge keeps only how each player finished.
  */
-class Challenges(private val store: PlayerStore) {
+class Challenges(private val store: PlayerStore, private val clock: java.time.Clock = java.time.Clock.systemUTC()) {
 
     private val random = SecureRandom()
 
@@ -63,11 +58,25 @@ class Challenges(private val store: PlayerStore) {
         error("Could not find a free code for a challenge")
     }
 
-    /** Sits [player] down to the challenge with [code], if there is one and they have not taken it. */
-    suspend fun enter(code: String, player: Player): Entry {
-        val challenge = store.challengeByCode(code) ?: return Entry.NoSuchChallenge
-        return if (store.enterChallenge(challenge.id, player.id)) Entry.Ready(challenge) else Entry.AlreadyTaken
+    suspend fun find(code: String): ChallengeRecord? = store.challengeByCode(code)
+
+    /**
+     * Whether [player] has had their go at [challenge]. A go left unfinished
+     * with nobody playing it, as one cut off when the server restarted, is
+     * closed here where it stands, and counts.
+     */
+    suspend fun hasTaken(challenge: ChallengeRecord, player: Player): Boolean {
+        val mine = store.challengeEntries(challenge.id).firstOrNull { it.playerId == player.id } ?: return false
+        if (!mine.finished) close(challenge, mine)
+        return true
     }
+
+    /** Begins [player]'s go at [challenge], which is when they put their first chips down. False if they have had one. */
+    suspend fun enter(challenge: ChallengeRecord, player: Player): Boolean = store.enterChallenge(challenge.id, player.id)
+
+    /** Writes down where [player]'s go stands after a round. */
+    suspend fun played(challenge: ChallengeRecord, player: Player, roundsPlayed: Int, chips: Long) =
+        store.recordChallengeRound(challenge.id, player.id, roundsPlayed, chips)
 
     suspend fun finish(challenge: ChallengeRecord, player: Player, roundsPlayed: Int, chips: Long) =
         store.finishChallenge(challenge.id, player.id, roundsPlayed, chips)
@@ -81,9 +90,33 @@ class Challenges(private val store: PlayerStore) {
     /** The challenges [player] has set or taken, newest first. */
     suspend fun of(player: Player): List<ChallengeView> = store.challengesOf(player.id, LISTED).map { viewOf(it, player) }
 
+    /** Ends a go nobody is playing any more, on what it last stood at. */
+    private suspend fun close(challenge: ChallengeRecord, entry: ChallengeEntry) =
+        store.finishChallenge(challenge.id, entry.playerId, entry.roundsPlayed, entry.chips ?: challenge.stack)
+
+    /** A go that was played to its end: every round, or until there were not the chips for another. */
+    private fun ChallengeEntry.isWhole(challenge: ChallengeRecord): Boolean = roundsPlayed >= challenge.rounds || (chips ?: 0) < MIN_BET
+
     private suspend fun viewOf(challenge: ChallengeRecord, viewer: Player?): ChallengeView {
-        val entries = store.challengeEntries(challenge.id)
-        val finished = entries.filter { it.chips != null }.sortedByDescending { it.chips }
+        // A go nobody has touched in a long while was cut off, and is closed where it stands.
+        var entries = store.challengeEntries(challenge.id)
+        val stale = entries.filter { !it.finished && it.startedAt.isBefore(clock.instant().minus(STALE_AFTER)) }
+        if (stale.isNotEmpty()) {
+            stale.forEach { close(challenge, it) }
+            entries = store.challengeEntries(challenge.id)
+        }
+
+        // Whole goes first, best first; then goes cut short, which a player could otherwise end early to
+        // keep a lead they had not played out; then whoever is still playing.
+        val (whole, short) = entries.filter { it.finished }.partition { it.isWhole(challenge) }
+        val ranked = whole.sortedByDescending { it.chips } + short.sortedByDescending { it.chips }
+        fun placeOf(entry: ChallengeEntry): Int {
+            val group = if (entry in whole) whole else short
+            val above = group.count { (it.chips ?: 0) > (entry.chips ?: 0) }
+            // Players on the same chips share a place.
+            return above + 1 + if (entry in whole) 0 else whole.size
+        }
+
         return ChallengeView(
             code = challenge.code,
             by = challenge.creatorName,
@@ -93,14 +126,14 @@ class Challenges(private val store: PlayerStore) {
             maxBet = MAX_BET,
             createdAt = challenge.createdAt.toString(),
             taken = entries.any { it.playerId == viewer?.id },
-            standings = (finished + entries.filter { it.chips == null }).map { entry ->
+            standings = (ranked + entries.filter { !it.finished }).map { entry ->
                 ChallengeStanding(
                     name = entry.name,
-                    chips = entry.chips,
+                    chips = entry.chips.takeIf { entry.finished },
                     roundsPlayed = entry.roundsPlayed,
-                    // Players on the same chips share a place.
-                    place = entry.chips?.let { chips -> finished.count { (it.chips ?: 0) > chips } + 1 },
+                    place = if (entry.finished) placeOf(entry) else null,
                     you = entry.playerId == viewer?.id,
+                    complete = !entry.finished || entry.isWhole(challenge),
                 )
             },
         )
@@ -114,6 +147,9 @@ class Challenges(private val store: PlayerStore) {
         const val MAX_BET = 100L
 
         private const val LISTED = 20
+
+        /** How long a go may sit untouched before it is taken to have been cut off. */
+        private val STALE_AFTER = java.time.Duration.ofHours(2)
         private const val ATTEMPTS = 20
         private const val CODE_LENGTH = 6
 

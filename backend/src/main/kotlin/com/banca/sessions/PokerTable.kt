@@ -118,12 +118,27 @@ fun tableViewOf(hand: Hand, handNumber: Int, names: Map<Int, String>, seat: Int?
         },
         legal = if (seat != null && hand.actorSeat == seat) hand.legalActions().toView() else null,
         result = result?.let {
+            val returned = uncalledOf(hand)
             ResultView(
-                winnings = it.winnings,
+                // What each seat won, not counting a bet handed back because nobody could match it.
+                winnings = it.winnings.mapValues { (seat, chips) -> chips - (returned[seat] ?: 0) }.filterValues { chips -> chips > 0 },
                 showdown = it.showdown.mapValues { (_, rank) -> rank.named() },
+                returned = returned,
             )
         },
     )
+}
+
+/**
+ * The part of a bet nobody could match, which goes back to whoever made it
+ * rather than being won: what the biggest contributor put in beyond the next
+ * biggest. Empty when the two biggest put in the same.
+ */
+fun uncalledOf(hand: Hand): Map<Int, Long> {
+    val paid = hand.players.sortedByDescending { it.contributed }
+    val top = paid.getOrNull(0) ?: return emptyMap()
+    val next = paid.getOrNull(1)?.contributed ?: return emptyMap()
+    return if (top.contributed > next) mapOf(top.seat to top.contributed - next) else emptyMap()
 }
 
 /**

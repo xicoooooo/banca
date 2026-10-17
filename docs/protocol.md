@@ -283,7 +283,7 @@ When the hand ends:
 }
 ```
 
-`winnings` maps seat to chips collected from the pot. `showdown` maps seat to hand category and is empty when the hand ended by everyone else folding. The categories run from `high_card` to `straight_flush`, and a straight flush to the ace is named `royal_flush`.
+`winnings` maps seat to chips won from the pot; a seat that won nothing is left out. A bet nobody could match, the part of the biggest bet beyond what anyone else put in, goes back to whoever made it and is not counted as won: it is in `returned` instead, by seat. `showdown` maps seat to hand category and is empty when the hand ended by everyone else folding. The categories run from `high_card` to `straight_flush`, and a straight flush to the ace is named `royal_flush`.
 
 ### `trace`
 
@@ -842,9 +842,9 @@ A challenge is a run of blackjack one player sets for others to try to beat: 10 
 }
 ```
 
-`standings` puts those who have finished first, best first, then anyone still playing, whose `chips` and `place` are null. Players on the same chips share a place.
+`standings` puts whole goes first, best first; then goes left early, best first, whose `complete` is false; then anyone still playing, whose `chips` and `place` are null. A whole go is one played to the last round or until there were not the chips for another bet. Players on the same chips share a place. A go nobody has touched for two hours, as one cut off by a restart, is closed where it stood after its last round.
 
-A challenge is played at `ws://<host>/ws/blackjack/challenges/{code}`, which speaks as the table for one at `/ws/blackjack` does, with these differences: it sends `{ "type": "challenge", "view": … }` as the player sits down and again when their go is over; there is no coach, so `advise` is refused; a bet over 100 is refused, as is any bet after the last round. A go is over after the last round, when the player has fewer chips than the smallest bet, or when they leave and do not come back. A code that is no challenge is answered with an `error` whose `code` is `no_challenge`, and a challenge already taken with `challenge_taken`.
+A challenge is played at `ws://<host>/ws/blackjack/challenges/{code}`, which speaks as the table for one at `/ws/blackjack` does, with these differences: it sends `{ "type": "challenge", "view": … }` as the player sits down and again when their go is over; there is no coach, so `advise` is refused; a bet over 100 is refused, as is any bet after the last round. Opening a challenge takes nothing: a player's go begins with their first bet, so someone who only looks can come back and play it. A go is over after the last round, when the player has fewer chips than the smallest bet, or when they leave and do not come back, in which case it ends where it stood. A code that is no challenge is answered with an `error` whose `code` is `no_challenge`, and a challenge already taken with `challenge_taken`.
 
 ### A practice drill
 

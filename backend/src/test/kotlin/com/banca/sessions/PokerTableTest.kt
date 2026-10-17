@@ -149,4 +149,20 @@ class PokerTableTest {
         assertEquals("straight_flush", named(com.banca.games.poker.HandCategory.STRAIGHT_FLUSH, 13))
         assertEquals("straight", named(com.banca.games.poker.HandCategory.STRAIGHT, 14))
     }
+
+    @Test
+    fun `a bet nobody could match goes back to whoever made it, and is not counted as won`() {
+        val table = PokerTable(names = mapOf(0 to "You", 1 to "Banca"), startingStack = 2_000, smallBlind = 10, bigBlind = 20, random = kotlin.random.Random(9))
+        table.startHand(buyIns = mapOf(0 to 600L, 1 to 2_000L))
+        // Both put in all they can: Banca's 2,000 against a stack of 600.
+        while (!table.isHandComplete) {
+            val seat = table.actorSeat!!
+            val legal = table.view(seat).legal!!
+            table.act(seat, if (legal.canRaise) com.banca.games.poker.Action.Raise(legal.maxTo) else com.banca.games.poker.Action.Call)
+        }
+
+        val result = table.view(0).result!!
+        assertEquals(mapOf(1 to 1_400L), result.returned)
+        assertEquals(1_200L, result.winnings.values.sum(), "only the 1,200 both put in was won")
+    }
 }

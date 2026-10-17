@@ -25,8 +25,11 @@ export type LegalView = {
 }
 
 export type ResultView = {
+  /** What each seat won from the pot. A bet nobody could match is not in it: that is in `returned`. */
   winnings: Record<string, number>
   showdown: Record<string, string>
+  /** A bet nobody could match, handed back to whoever made it. */
+  returned?: Record<string, number>
 }
 
 export type TableView = {

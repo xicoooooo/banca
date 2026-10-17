@@ -66,8 +66,12 @@ data class ChallengeRecord(
     val createdAt: Instant,
 )
 
-/** One player's go at a challenge. [chips] is what they ended on, and null until they have finished. */
-data class ChallengeEntry(val playerId: UUID, val name: String, val roundsPlayed: Int, val chips: Long?, val startedAt: Instant)
+/**
+ * One player's go at a challenge: the rounds played so far and the chips they
+ * stood on after the last, written down round by round, and whether the go is
+ * over. [chips] is null until the first round has been played.
+ */
+data class ChallengeEntry(val playerId: UUID, val name: String, val roundsPlayed: Int, val chips: Long?, val startedAt: Instant, val finished: Boolean)
 
 /** Someone the sign-in provider vouches for. */
 data class Account(val id: String, val name: String?)
